@@ -1,6 +1,6 @@
 import json
 
-from app import app, load_config
+from app import app, load_config, load_trip_data
 
 
 def test_login_page_exists():
@@ -39,7 +39,7 @@ def test_user_can_mark_location_as_visited():
     client = app.test_client()
     client.post('/login', data={'password': cfg['user_password']}, follow_redirects=False)
 
-    trip = json.loads(open('trip_data.json', 'r', encoding='utf-8').read())
+    trip = client.get('/api/trip').get_json()
     loc_id = trip['locations'][0]['id']
 
     response = client.post('/api/visited', json={'id': loc_id, 'visited': True})
@@ -51,6 +51,25 @@ def test_user_can_mark_location_as_visited():
 
     denied = client.post('/api/trip', json={'trip_name': 'X', 'currency': 'EUR', 'locations': [{'name': 'Changed', 'id': 'x'}]})
     assert denied.status_code in (401, 403)
+
+
+def test_user_can_mark_location_as_excluded():
+    cfg = load_config()
+    client = app.test_client()
+    client.post('/login', data={'password': cfg['user_password']}, follow_redirects=False)
+
+    trip = client.get('/api/trip').get_json()
+    loc_id = trip['locations'][0]['id']
+
+    response = client.post('/api/excluded', json={'id': loc_id, 'excluded': True})
+    assert response.status_code == 200, response.get_data(as_text=True)
+
+    body = response.get_json()
+    assert body['status'] == 'ok'
+    assert body['excluded'] is True
+
+    # Revert to false
+    client.post('/api/excluded', json={'id': loc_id, 'excluded': False})
 
 
 def test_user_cannot_write_trip_data():

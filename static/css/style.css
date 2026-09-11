@@ -551,11 +551,16 @@ body::before {
   transform: translateY(-1px);
 }
 
-.map-optimize-btn {
+.map-optimize-btn,
+.map-route-mode-btn,
+.map-fullscreen-btn {
   height: 36px;
   padding: 0 12px;
   font-size: 0.8rem;
   border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .map-switch-route-btn {
@@ -817,6 +822,137 @@ body::before {
   overflow: hidden;
   background: #dbe4e8;
   z-index: 1;
+}
+
+.map-container-relative {
+  position: relative;
+  width: 100%;
+}
+
+.map-float-fullscreen-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 500;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid var(--border-hover, rgba(255, 255, 255, 0.18));
+  color: var(--text, #f1f5f9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.38);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.18s cubic-bezier(0.4, 0, 0.2, 1), background 0.18s, border-color 0.18s, color 0.18s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.map-float-fullscreen-btn:hover {
+  background: rgba(30, 41, 59, 0.96);
+  border-color: var(--primary, #5c73f2);
+  color: #fff;
+  transform: scale(1.06);
+}
+
+.map-float-fullscreen-btn:active {
+  transform: scale(0.92);
+}
+
+.map-float-fullscreen-btn .fs-exit-icon {
+  display: none;
+}
+.map-float-fullscreen-btn .fs-enter-icon {
+  display: block;
+}
+
+.map-float-fullscreen-btn.is-active {
+  background: rgba(92, 115, 242, 0.92);
+  color: #ffffff;
+  border-color: #818cf8;
+}
+
+.map-float-fullscreen-btn.is-active .fs-enter-icon {
+  display: none;
+}
+.map-float-fullscreen-btn.is-active .fs-exit-icon {
+  display: block;
+}
+
+.map-fullscreen-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.map-fullscreen-btn.active {
+  background: rgba(92, 115, 242, 0.18);
+  color: #a5b4fc;
+  border-color: rgba(92, 115, 242, 0.5);
+}
+
+/* Fullscreen Map Mode — Perfect for Galaxy Z Fold 6 & Mobile */
+.map-view-wrap.is-fullscreen {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  z-index: 150 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  background: var(--bg-body, #0b0f19) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+.map-view-wrap.is-fullscreen .map-toolbar {
+  flex-shrink: 0;
+  border-radius: 0;
+  margin: 0;
+  padding: 8px 14px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  z-index: 20;
+}
+
+.map-view-wrap.is-fullscreen .map-container-relative {
+  flex: 1 1 auto;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+.map-view-wrap.is-fullscreen .trip-map {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+body.map-is-fullscreen {
+  overflow: hidden !important;
+}
+body.map-is-fullscreen .modal-overlay {
+  z-index: 100000 !important;
+}
+body.map-is-fullscreen .toast-container {
+  z-index: 100001 !important;
+}
+body.map-is-fullscreen .mobile-nav {
+  display: none !important;
 }
 
 .leaflet-container {
@@ -2875,6 +3011,35 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
   background: rgba(16, 185, 129, 0.16);
   border-color: rgba(16, 185, 129, 0.45);
   color: #6ee7b7;
+}
+
+.location-card.card-excluded {
+  opacity: 0.72;
+  border-style: dashed;
+}
+.location-card.card-excluded:hover {
+  opacity: 0.95;
+}
+
+.loc-row.row-excluded {
+  opacity: 0.72;
+}
+
+.timeline-item.is-excluded {
+  opacity: 0.72;
+}
+
+.map-all-done-note {
+  font-size: 0.78rem;
+  color: #10b981;
+  font-weight: 500;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .card-address {
@@ -6164,4 +6329,23 @@ input[type="time"].field-input {
   width: 100% !important;
   height: 100% !important;
   object-fit: contain !important;
+}
+
+/* Route leg segment tooltip on map */
+.leaflet-tooltip.route-leg-tooltip {
+  background: rgba(15, 23, 42, 0.94) !important;
+  color: #f1f5f9 !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  border-radius: 8px !important;
+  padding: 5px 10px !important;
+  font-size: 0.8rem !important;
+  font-weight: 500 !important;
+  line-height: 1.35 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+.leaflet-tooltip.route-leg-tooltip::before {
+  border-top-color: rgba(15, 23, 42, 0.94) !important;
 }

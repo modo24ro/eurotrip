@@ -546,7 +546,113 @@ def route_times():
             'source': source,
             'transit_url': transit_url,
         })
-    return jsonify({'mode': mode, 'legs': legs})
+
+    coordinates = []
+    if mode in ('driving', 'walking'):
+        geom_result = get_osrm_route_geometry(points, mode=mode)
+        coordinates = geom_result.get('coordinates') or []
+    if not coordinates:
+        coordinates = [[p[1], p[0]] for p in points]
+
+    return jsonify({'mode': mode, 'legs': legs, 'coordinates': coordinates})
+
+
+_route_geometry_cache = {}
+
+def get_osrm_route_geometry(points, mode='driving'):
+    """Fetch real street route geometry between waypoints via OSRM with caching and fallback."""
+    if not points or len(points) < 2:
+        return {'coordinates': [], 'distance_km': 0, 'duration_min': 0, 'source': 'none'}
+
+    profile = 'foot' if mode == 'walking' else 'driving'
+    # Deduplicate consecutive identical coordinates
+    deduped = [points[0]]
+    for p in points[1:]:
+        if abs(p[0] - deduped[-1][0]) > 0.00001 or abs(p[1] - deduped[-1][1]) > 0.00001:
+            deduped.append(p)
+
+    if len(deduped) < 2:
+        straight = [[p[1], p[0]] for p in points]
+        return {'coordinates': straight, 'distance_km': 0, 'duration_min': 0, 'source': 'straight'}
+
+    cache_key = f"{profile}:{';'.join(f'{p[0]:.5f},{p[1]:.5f}' for p in deduped)}"
+    if cache_key in _route_geometry_cache:
+        return _route_geometry_cache[cache_key]
+
+    coords_str = ';'.join(f"{p[0]},{p[1]}" for p in deduped)
+    url = f"https://router.project-osrm.org/route/v1/{profile}/{coords_str}?overview=full&geometries=geojson&steps=true"
+
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'EuroTripPlanner/1.0'})
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+        routes = data.get('routes') or []
+        if routes and 'geometry' in routes[0]:
+            geojson_coords = routes[0]['geometry'].get('coordinates') or []
+            latlngs = [[c[1], c[0]] for c in geojson_coords]
+            distance_km = round(routes[0].get('distance', 0) / 1000, 2)
+            duration_min = round(routes[0].get('duration', 0) / 60)
+
+            legs_data = []
+            for leg in routes[0].get('legs', []):
+                leg_pts = []
+                for step in leg.get('steps', []):
+                    for c in step.get('geometry', {}).get('coordinates', []):
+                        pt = [c[1], c[0]]
+                        if not leg_pts or leg_pts[-1] != pt:
+                            leg_pts.append(pt)
+                legs_data.append({
+                    'coordinates': leg_pts,
+                    'distance_km': round(leg.get('distance', 0) / 1000, 2),
+                    'duration_min': round(leg.get('duration', 0) / 60)
+                })
+
+            res = {
+                'coordinates': latlngs,
+                'legs': legs_data,
+                'distance_km': distance_km,
+                'duration_min': duration_min,
+                'source': 'OSRM'
+            }
+            if len(_route_geometry_cache) > 400:
+                _route_geometry_cache.clear()
+            _route_geometry_cache[cache_key] = res
+            return res
+    except Exception as e:
+        logger.warning("OSRM route geometry fetch failed: %s", e)
+
+    straight = [[p[1], p[0]] for p in deduped]
+    fallback_legs = []
+    for i in range(len(deduped) - 1):
+        fallback_legs.append({
+            'coordinates': [[deduped[i][1], deduped[i][0]], [deduped[i+1][1], deduped[i+1][0]]],
+            'distance_km': 0,
+            'duration_min': 0
+        })
+    return {
+        'coordinates': straight,
+        'legs': fallback_legs,
+        'distance_km': 0,
+        'duration_min': 0,
+        'source': 'straight'
+    }
+
+
+@app.route('/api/route-geometry', methods=['POST'])
+@require_auth
+def route_geometry():
+    payload = request.get_json(silent=True) or {}
+    points = payload.get('points')
+    mode = payload.get('mode', 'driving')
+    if mode not in {'driving', 'walking', 'transit'}:
+        mode = 'driving'
+    if not isinstance(points, list) or len(points) < 2 or len(points) > 60:
+        return jsonify({'error': 'Between 2 and 60 points required'}), 400
+    if any(not isinstance(p, list) or len(p) < 2 or not has_valid_location_coordinates(p) for p in points):
+        return jsonify({'error': 'Invalid coordinates'}), 400
+
+    result = get_osrm_route_geometry(points, mode=mode)
+    return jsonify(result)
 
 
 @app.after_request
@@ -895,6 +1001,31 @@ def save_visited_state():
     with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
         json.dump(trip, f, ensure_ascii=False, indent=2)
     return jsonify({'status': 'ok', 'visited': visited})
+
+
+@app.route('/api/excluded', methods=['POST'])
+@require_auth
+def save_excluded_state():
+    payload = request.get_json(silent=True) or {}
+    loc_id = payload.get('id')
+    excluded = payload.get('excluded')
+    if not loc_id or not isinstance(excluded, bool):
+        return jsonify({'error': 'Invalid excluded payload'}), 400
+
+    trip = load_trip_data()
+    updated = False
+    for loc in trip.get('locations', []):
+        if loc.get('id') == loc_id:
+            loc['excluded'] = excluded
+            updated = True
+            break
+    if not updated:
+        return jsonify({'error': 'Location not found'}), 404
+
+    create_trip_version('excluded', trip)
+    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
+        json.dump(trip, f, ensure_ascii=False, indent=2)
+    return jsonify({'status': 'ok', 'excluded': excluded})
 
 
 def find_active_location(location_id):
@@ -1507,4 +1638,4 @@ def sw():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5009)
+    app.run(debug=True, host='0.0.0.0', port=5000)

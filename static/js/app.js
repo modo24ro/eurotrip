@@ -13,12 +13,72 @@ function savePrefs(patch) {
 }
 
 const _prefs = loadPrefs();
+
+function getInitialView() {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('view');
+    if (fromUrl) return fromUrl;
+  }
+  return _prefs.view || 'list';
+}
+
+function getInitialMapDay() {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const fromUrl = params.get('day') || params.get('mapDay');
+    if (fromUrl) return fromUrl;
+  }
+  return _prefs.mapDay || null;
+}
+
+function updateMapDayUrl(day) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    if (day && day !== 'all') {
+      url.searchParams.set('day', day);
+    } else {
+      url.searchParams.delete('day');
+      url.searchParams.delete('mapDay');
+    }
+    window.history.replaceState({}, '', url.toString());
+  } catch (e) {
+    console.warn('Could not update map day in URL:', e);
+  }
+}
+
+function getInitialMapFullscreen() {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('fullscreen') === '1' || params.get('fs') === '1') return true;
+    if (params.get('fullscreen') === '0' || params.get('fs') === '0') return false;
+  }
+  return !!_prefs.isMapFullscreen;
+}
+
+function updateMapFullscreenUrl(isFs) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    if (isFs && state.view === 'map') {
+      url.searchParams.set('fullscreen', '1');
+    } else {
+      url.searchParams.delete('fullscreen');
+      url.searchParams.delete('fs');
+    }
+    window.history.replaceState({}, '', url.toString());
+  } catch (e) {
+    console.warn('Could not update map fullscreen in URL:', e);
+  }
+}
+
 const appRoot = document.getElementById('app');
 document.body.dataset.role = (appRoot && appRoot.dataset.role) || document.body.dataset.role || 'admin';
 const state = {
   trip: null,
   role: (appRoot && appRoot.dataset.role) || document.body.dataset.role || 'admin',
-  view: _prefs.view || 'list',
+  view: getInitialView(),
   filter: { search: '', category: 'all', country: 'all', showDisabled: true },
   sortBy: _prefs.sortBy || 'added',
   hideVisited: !!_prefs.hideVisited,
@@ -27,10 +87,13 @@ const state = {
   uploadPreviewData: null,
   installPrompt: null,
   map: null,
-  mapDay: null,
+  mapRouteLayers: [],
+  isMapFullscreen: getInitialView() === 'map' && getInitialMapFullscreen(),
+  mapDay: getInitialMapDay(),
   routeDay: null,
   timelineDay: _prefs.timelineDay || 'all',
-  mapExcluded: new Set(),
+  mapExcluded: new Set(_prefs.mapExcluded || []),
+  mapRouteType: _prefs.mapRouteType || 'streets',
   mapOptimized: false,
   routeOptimized: false,
   routeMode: _prefs.routeMode || 'transit',
@@ -398,6 +461,9 @@ function renderCountryFilter() {
 function renderMain() {
   const el = document.getElementById('mainContent');
   if (!el) return;
+  if (state.view !== 'map') {
+    exitMapFullscreen();
+  }
   switch (state.view) {
     case 'list': el.innerHTML = renderListView(); break;
     case 'day': el.innerHTML = renderDayView(); break;
@@ -417,19 +483,31 @@ function renderMapView() {
   const today = getTodayDateString();
 
   if (state.mapDay === null || state.mapDay === undefined || (state.mapDay !== 'all' && !days.includes(state.mapDay))) {
-    state.mapDay = days.includes(today) ? today : 'all';
+    const preferred = getInitialMapDay();
+    if (preferred && (preferred === 'all' || days.includes(preferred))) {
+      state.mapDay = preferred;
+    } else {
+      state.mapDay = days.includes(today) ? today : 'all';
+    }
+    savePrefs({ mapDay: state.mapDay });
   }
 
+  updateMapDayUrl(state.mapDay);
+
   // Pe hartă afișăm doar locațiile rămase active (fără cele marcate Done/visited, excluse din traseu sau inactive)
-  const activeMapLocations = allLocations.filter(loc => !loc.visited && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const activeMapLocations = allLocations.filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
   const locations = state.mapDay === 'all' ? activeMapLocations : activeMapLocations.filter(loc => loc.visit_date === state.mapDay);
   const mapped = locations.filter(loc => hasValidCoordinates(loc.coordinates));
   const fixedCount = locations.filter(loc => loc.visit_time && hasValidCoordinates(loc.coordinates)).length;
   const flexibleCount = mapped.length - fixedCount;
   const missingLocations = locations.filter(loc => !hasValidCoordinates(loc.coordinates));
   const missing = missingLocations.length;
+  const isFs = isMapFullscreenActive();
+  if (isFs) {
+    document.body.classList.add('map-is-fullscreen');
+  }
 
-  return `<div class="map-view-wrap">
+  return `<div class="map-view-wrap${isFs ? ' is-fullscreen' : ''}">
     <div class="map-toolbar">
       <div class="map-toolbar-row map-toolbar-controls">
         <label class="map-day-label" title="Selectează ziua">
@@ -441,31 +519,40 @@ function renderMapView() {
         </label>
         
         <button class="btn-secondary map-optimize-btn" id="optimizeMapBtn" type="button" title="Comută ordinea optimizată a traseului">
-          ${state.mapOptimized ? 'Arată orele' : 'Optimizează ordinea'}
+          ${state.mapOptimized ? 'Arată orele' : 'Arată ordinea'}
         </button>
 
+        <button class="btn-secondary map-route-mode-btn" id="toggleMapRouteModeBtn" type="button" title="${state.mapRouteType === 'direct' ? 'Comută la traseu pe străzi (varianta nouă)' : 'Comută la linii directe clasice'}">
+          ${state.mapRouteType === 'direct' ? '🛣️ Pe străzi' : '📏 Linii directe'}
+        </button>
+        
         <span class="map-locations-chip">📍 ${mapped.length} pe hartă</span>
-        <span class="map-route-legend"><b class="legend-fixed">●</b> ${fixedCount} ore fixe · <b class="legend-flexible">●</b> ${flexibleCount} flexibile</span>
+        ${mapped.length === 0 ? '<span class="map-all-done-note">🎉 Toate locațiile sunt făcute sau excluse!</span>' : ''}
+        
         ${missing ? `<span class="map-missing" title="${missingLocations.map(loc => esc(loc.name)).join(' · ')}">⚠️ ${missing} fără coordonate</span>` : ''}
         ${state.role === 'admin' && missing ? '<button class="btn-secondary geocode-missing-btn" id="geocodeMissingBtn" type="button">Găsește coordonate</button>' : ''}
 
-        <button class="btn-primary map-switch-route-btn" id="switchToRouteBtn" type="button" title="Mergi la tabul Route pentru calculare traseu și timpi">
-          <span class="btn-icon">⚡</span> <span>Calculează traseu →</span>
-        </button>
       </div>
     </div>
-    <div id="tripMap" class="trip-map" aria-label="Trip locations map"></div>
+    <div class="map-container-relative">
+      <button class="map-float-fullscreen-btn" id="mapFloatFullscreenBtn" type="button" title="Comută ecran complet (Full Screen)" aria-label="Comută ecran complet">
+        <svg class="fs-enter-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        <svg class="fs-exit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
+      </button>
+      <div id="tripMap" class="trip-map" aria-label="Trip locations map"></div>
+    </div>
   </div>`;
 }
 
 function getNextByDayLocation(targetDay = state.routeDay || 'all') {
-  // 1. If By Day is currently rendered in the DOM, grab directly from the first visible card
+  // 1. If By Day is currently rendered in the DOM, grab directly from the first visible active card
   const dayCards = document.querySelectorAll('.day-group .location-card');
   for (const card of dayCards) {
-    if (!card.classList.contains('row-visited') && !card.classList.contains('disabled') && card.offsetParent !== null) {
+    if (!card.classList.contains('row-visited') && !card.classList.contains('card-excluded') && !card.classList.contains('disabled') && card.offsetParent !== null) {
       const cardId = card.dataset.id;
+      if (state.mapExcluded.has(cardId)) continue;
       const found = state.trip?.locations.find(l => l.id === cardId);
-      if (found && hasValidCoordinates(found.coordinates)) return found;
+      if (found && !found.visited && !found.excluded && found.enabled !== false && !state.mapExcluded.has(found.id) && hasValidCoordinates(found.coordinates)) return found;
     }
   }
 
@@ -473,7 +560,7 @@ function getNextByDayLocation(targetDay = state.routeDay || 'all') {
   const allLocs = getFilteredLocations();
   const groups = {};
   for (const loc of allLocs) {
-    if (loc.enabled === false) continue;
+    if (loc.enabled === false || loc.visited || loc.excluded || state.mapExcluded.has(loc.id)) continue;
     const key = loc.visit_date || '__none__';
     (groups[key] = groups[key] || []).push(loc);
   }
@@ -483,23 +570,18 @@ function getNextByDayLocation(targetDay = state.routeDay || 'all') {
   // If a specific day is selected in route view:
   if (targetDay !== 'all' && groups[targetDay]) {
     const dayLocs = [...groups[targetDay]].sort((a, b) => (a.visit_time || '99:99').localeCompare(b.visit_time || '99:99'));
-    const nextUnvisited = dayLocs.find(l => !l.visited && !state.mapExcluded.has(l.id) && hasValidCoordinates(l.coordinates));
+    const nextUnvisited = dayLocs.find(l => !l.visited && !l.excluded && !state.mapExcluded.has(l.id) && hasValidCoordinates(l.coordinates));
     if (nextUnvisited) return nextUnvisited;
-    return dayLocs.find(l => hasValidCoordinates(l.coordinates)) || null;
+    return null;
   }
 
   // If all days: iterate through sorted days
   for (const key of keys) {
     const dayLocs = [...groups[key]].sort((a, b) => (a.visit_time || '99:99').localeCompare(b.visit_time || '99:99'));
-    const nextUnvisited = dayLocs.find(l => !l.visited && !state.mapExcluded.has(l.id) && hasValidCoordinates(l.coordinates));
+    const nextUnvisited = dayLocs.find(l => !l.visited && !l.excluded && !state.mapExcluded.has(l.id) && hasValidCoordinates(l.coordinates));
     if (nextUnvisited) return nextUnvisited;
   }
 
-  // Fallback to first available location with coordinates
-  for (const key of keys) {
-    const found = groups[key]?.find(l => hasValidCoordinates(l.coordinates));
-    if (found) return found;
-  }
   return null;
 }
 
@@ -507,7 +589,11 @@ function getNextByDayName(targetDay = state.routeDay || 'all') {
   // 1. If By Day is currently rendered in the DOM, grab directly from the first visible card-name-text
   const dayCards = document.querySelectorAll('.day-group .location-card');
   for (const card of dayCards) {
-    if (!card.classList.contains('row-visited') && !card.classList.contains('disabled') && card.offsetParent !== null) {
+    if (!card.classList.contains('row-visited') && !card.classList.contains('card-excluded') && !card.classList.contains('disabled') && card.offsetParent !== null) {
+      const cardId = card.dataset.id;
+      if (state.mapExcluded.has(cardId)) continue;
+      const found = state.trip?.locations.find(l => l.id === cardId);
+      if (found && (found.visited || found.excluded || found.enabled === false || state.mapExcluded.has(found.id))) continue;
       const nameEl = card.querySelector('.card-name-text') || card.querySelector('.card-name-field');
       const text = (nameEl?.textContent || nameEl?.value || '').trim();
       if (text) return text;
@@ -534,7 +620,8 @@ function renderRouteView() {
     state.routeDay = days.includes(today) ? today : 'all';
   }
   const currentDay = state.routeDay;
-  const locations = currentDay === 'all' ? allLocations : allLocations.filter(loc => loc.visit_date === currentDay);
+  const activeLocations = allLocations.filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const locations = currentDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === currentDay);
   const mapped = locations.filter(loc => hasValidCoordinates(loc.coordinates));
   const currentOrigin = state.routeOrigin || 'itinerary';
   const currentMode = state.routeMode || 'transit';
@@ -646,7 +733,7 @@ function updateMapUserGpsMarker(coords) {
   if (!state.map || !coords || !window.L) return;
   const [lon, lat] = coords;
   if (state.userGpsMarker) {
-    try { state.userGpsMarker.remove(); } catch(e) {}
+    try { state.userGpsMarker.remove(); } catch (e) { }
     state.userGpsMarker = null;
   }
   const userIcon = L.divIcon({
@@ -662,10 +749,11 @@ function updateMapUserGpsMarker(coords) {
 function getRouteLocations() {
   const allLocations = getFilteredLocations();
   const currentDay = state.routeDay || 'all';
-  const locations = currentDay === 'all' ? allLocations : allLocations.filter(loc => loc.visit_date === currentDay);
+  const activeLocations = allLocations.filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const locations = currentDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === currentDay);
   const groups = {};
   locations.forEach(loc => {
-    if (hasValidCoordinates(loc.coordinates) && !state.mapExcluded.has(loc.id)) {
+    if (hasValidCoordinates(loc.coordinates)) {
       (groups[loc.visit_date || '__none__'] ||= []).push(loc);
     }
   });
@@ -754,14 +842,16 @@ async function executeRouteCalculation({ origin = state.routeOrigin || 'itinerar
         state.map.removeLayer(state.mapRouteLine);
         state.mapRouteLine = null;
       }
-      const latlngs = points.map(p => [Number(p.coordinates[1]), Number(p.coordinates[0])]);
-      state.mapRouteLine = L.polyline(latlngs, {
+      const streetCoords = (data.coordinates && data.coordinates.length > 0)
+        ? data.coordinates
+        : points.map(p => [Number(p.coordinates[1]), Number(p.coordinates[0])]);
+      state.mapRouteLine = L.polyline(streetCoords, {
         color: origin === 'current' ? '#0ea5e9' : '#5c73f2',
         weight: 5,
-        opacity: 0.85,
+        opacity: 0.88,
         dashArray: origin === 'current' ? '6 6' : null
       }).addTo(state.map);
-      state.map.fitBounds(L.latLngBounds(latlngs), { padding: [35, 35] });
+      state.map.fitBounds(L.latLngBounds(streetCoords), { padding: [35, 35] });
     }
     toast(`Traseu calculat (${mode === 'transit' ? 'Transport public' : mode === 'walking' ? 'Pe jos' : 'Mașină'}).`, 'success');
   } catch (error) {
@@ -814,17 +904,327 @@ function closeRouteOptionsModal() {
   document.getElementById('routeOptionsModal')?.classList.remove('open');
 }
 
+function isMapFullscreenActive() {
+  const wrap = document.querySelector('.map-view-wrap');
+  return !!(state.isMapFullscreen || document.fullscreenElement || document.webkitFullscreenElement || wrap?.classList.contains('is-fullscreen') || document.body.classList.contains('map-is-fullscreen'));
+}
+
+function updateMapFullscreenButtons(isFullscreen) {
+  const floatBtn = document.getElementById('mapFloatFullscreenBtn');
+  const toolbarBtn = document.getElementById('toggleMapFullscreenBtn');
+
+  if (floatBtn) {
+    floatBtn.classList.toggle('is-active', isFullscreen);
+    floatBtn.setAttribute('title', isFullscreen ? 'Ieși din ecran complet' : 'Ecran complet (Full Screen)');
+  }
+  if (toolbarBtn) {
+    toolbarBtn.classList.toggle('active', isFullscreen);
+    const enterIcon = toolbarBtn.querySelector('.fs-enter-icon');
+    const exitIcon = toolbarBtn.querySelector('.fs-exit-icon');
+    const label = toolbarBtn.querySelector('.fs-label');
+    if (enterIcon) enterIcon.style.display = isFullscreen ? 'none' : 'inline-block';
+    if (exitIcon) exitIcon.style.display = isFullscreen ? 'inline-block' : 'none';
+    if (label) label.textContent = isFullscreen ? 'Ieșire ecran complet' : 'Ecran complet';
+    toolbarBtn.setAttribute('title', isFullscreen ? 'Ieși din ecran complet' : 'Comută modul ecran complet');
+  }
+}
+
+async function toggleMapFullscreen() {
+  const wrap = document.querySelector('.map-view-wrap');
+  if (!wrap) return;
+  const currentlyFs = isMapFullscreenActive();
+
+  if (currentlyFs) {
+    await exitMapFullscreen();
+  } else {
+    state.isMapFullscreen = true;
+    savePrefs({ isMapFullscreen: true });
+    updateMapFullscreenUrl(true);
+    wrap.classList.add('is-fullscreen');
+    document.body.classList.add('map-is-fullscreen');
+    updateMapFullscreenButtons(true);
+
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      try {
+        await document.documentElement.requestFullscreen();
+      } catch (err) {
+        console.warn('requestFullscreen fallback to CSS overlay:', err);
+      }
+    } else if (document.documentElement.webkitRequestFullscreen && !document.webkitFullscreenElement) {
+      try {
+        await document.documentElement.webkitRequestFullscreen();
+      } catch (err) {
+        console.warn('webkitRequestFullscreen fallback:', err);
+      }
+    }
+  }
+
+  setTimeout(() => {
+    if (state.map) state.map.invalidateSize({ pan: false });
+  }, 100);
+  setTimeout(() => {
+    if (state.map) state.map.invalidateSize({ pan: false });
+  }, 350);
+}
+
+async function exitMapFullscreen() {
+  state.isMapFullscreen = false;
+  savePrefs({ isMapFullscreen: false });
+  updateMapFullscreenUrl(false);
+  const wrap = document.querySelector('.map-view-wrap');
+  if (wrap) wrap.classList.remove('is-fullscreen');
+  document.body.classList.remove('map-is-fullscreen');
+  updateMapFullscreenButtons(false);
+
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    try {
+      if (document.exitFullscreen) {
+        await document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) {
+        await document.webkitExitFullscreen();
+      }
+    } catch (err) {
+      console.warn('exitFullscreen fallback:', err);
+    }
+  }
+
+  setTimeout(() => {
+    if (state.map) state.map.invalidateSize({ pan: false });
+  }, 100);
+  setTimeout(() => {
+    if (state.map) state.map.invalidateSize({ pan: false });
+  }, 350);
+}
+
+function setupMapFullscreenElevation() {
+  if (!state.isMapFullscreen || state.view !== 'map') return;
+  if (document.fullscreenElement || document.webkitFullscreenElement) return;
+
+  const elevate = async (e) => {
+    if (e && e.target && (
+      e.target.closest('#mapFloatFullscreenBtn') ||
+      e.target.closest('#toggleMapFullscreenBtn') ||
+      e.target.closest('.map-fullscreen-btn') ||
+      e.target.closest('[data-view]')
+    )) {
+      return;
+    }
+    window.removeEventListener('click', elevate, true);
+    window.removeEventListener('touchstart', elevate, true);
+    if (!state.isMapFullscreen || state.view !== 'map') return;
+    if (document.fullscreenElement || document.webkitFullscreenElement) return;
+
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      } else if (document.documentElement.webkitRequestFullscreen) {
+        await document.documentElement.webkitRequestFullscreen();
+      }
+    } catch (err) {
+      // Handled silently by CSS overlay
+    }
+  };
+
+  window.addEventListener('click', elevate, { capture: true, once: true });
+  window.addEventListener('touchstart', elevate, { capture: true, once: true });
+}
+
+const LEG_COLORS = [
+  '#3b82f6', // 1 -> 2: Vibrant Blue
+  '#10b981', // 2 -> 3: Emerald Green
+  '#f59e0b', // 3 -> 4: Amber / Warm Gold
+  '#8b5cf6', // 4 -> 5: Purple / Violet
+  '#ec4899', // 5 -> 6: Rose Pink
+  '#06b6d4', // 6 -> 7: Cyan
+  '#ef4444', // 7 -> 8: Crimson Red
+  '#14b8a6', // 8 -> 9: Teal
+  '#a855f7', // 9 -> 10: Bright Purple
+  '#f97316', // 10 -> 11: Vibrant Orange
+  '#6366f1', // 11 -> 12: Indigo
+  '#84cc16', // 12 -> 13: Lime Green
+];
+const routeGeometryCache = new Map();
+
+async function renderStreetRouteForDay(orderedLocations, groupIndex, mapInstance) {
+  if (!orderedLocations || orderedLocations.length < 2 || !mapInstance) return;
+
+  if (state.mapRouteType === 'direct') {
+    // Varianta clasică: linii directe întrerupte între puncte
+    const straightLatLngs = orderedLocations.map(loc => [Number(loc.coordinates[1]), Number(loc.coordinates[0])]);
+    const casing = L.polyline(straightLatLngs, {
+      color: '#0f172a',
+      weight: 6,
+      opacity: 0.35,
+      lineCap: 'round',
+      lineJoin: 'round',
+      interactive: false,
+    }).addTo(mapInstance);
+
+    const mainLine = L.polyline(straightLatLngs, {
+      color: '#5c73f2',
+      weight: 4,
+      opacity: 0.85,
+      dashArray: '8 7',
+      lineCap: 'round',
+      lineJoin: 'round',
+      interactive: false,
+    }).addTo(mapInstance);
+
+    state.mapRouteLayers.push(casing, mainLine);
+    return;
+  }
+
+  const points = orderedLocations.map(loc => loc.coordinates);
+  const cacheKey = points.map(p => `${Number(p[0]).toFixed(5)},${Number(p[1]).toFixed(5)}`).join(';');
+
+  const drawLegPolyline = (coords, color, legIndex, legMeta, isDefinitive) => {
+    if (state.map !== mapInstance || !coords || coords.length < 2) return null;
+
+    // Dark casing outline for contrast over any map tiles
+    const casing = L.polyline(coords, {
+      color: '#0f172a',
+      weight: 6.5,
+      opacity: 0.45,
+      lineCap: 'round',
+      lineJoin: 'round',
+      interactive: false,
+    }).addTo(mapInstance);
+
+    // Main colored route segment
+    const mainLine = L.polyline(coords, {
+      color: color,
+      weight: 4.5,
+      opacity: 0.95,
+      lineCap: 'round',
+      lineJoin: 'round',
+      dashArray: isDefinitive ? null : '6 8',
+      interactive: isDefinitive,
+    }).addTo(mapInstance);
+
+    if (isDefinitive) {
+      const fromName = orderedLocations[legIndex]?.name || `Punctul ${legIndex + 1}`;
+      const toName = orderedLocations[legIndex + 1]?.name || `Punctul ${legIndex + 2}`;
+      const distInfo = legMeta?.distance_km ? `${legMeta.distance_km} km` : '';
+      const timeInfo = legMeta?.duration_min ? ` · ${legMeta.duration_min} min` : '';
+      mainLine.bindTooltip(`<b>${esc(fromName)} → ${esc(toName)}</b>${distInfo || timeInfo ? `<br><span style="color:${color};font-weight:600;">●</span> ${distInfo}${timeInfo}` : ''}`, {
+        sticky: true,
+        direction: 'top',
+        className: 'route-leg-tooltip'
+      });
+    }
+
+    state.mapRouteLayers.push(casing, mainLine);
+    return [casing, mainLine];
+  };
+
+  const drawAllLegs = (legsData, isDefinitive) => {
+    const createdLayers = [];
+    legsData.forEach((leg, legIndex) => {
+      const color = LEG_COLORS[legIndex % LEG_COLORS.length];
+      const layers = drawLegPolyline(leg.coordinates, color, legIndex, leg, isDefinitive);
+      if (layers) createdLayers.push(...layers);
+    });
+    return createdLayers;
+  };
+
+  // 1. If in cache, draw immediate street polylines with distinct leg colors
+  if (routeGeometryCache.has(cacheKey)) {
+    const cachedData = routeGeometryCache.get(cacheKey);
+    if (cachedData.legs && cachedData.legs.length > 0) {
+      drawAllLegs(cachedData.legs, true);
+      return;
+    }
+  }
+
+  // 2. Build straight placeholder legs while fetching street geometry
+  const straightLegs = [];
+  for (let i = 0; i < orderedLocations.length - 1; i++) {
+    straightLegs.push({
+      coordinates: [
+        [Number(orderedLocations[i].coordinates[1]), Number(orderedLocations[i].coordinates[0])],
+        [Number(orderedLocations[i + 1].coordinates[1]), Number(orderedLocations[i + 1].coordinates[0])]
+      ]
+    });
+  }
+  const placeholderLayers = drawAllLegs(straightLegs, false);
+
+  try {
+    const response = await fetch('/api/route-geometry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ points, mode: 'driving' })
+    });
+    if (!response.ok) throw new Error('Route geometry error');
+    const data = await response.json();
+
+    const legs = (data.legs && data.legs.length > 0) ? data.legs : straightLegs;
+    routeGeometryCache.set(cacheKey, { ...data, legs });
+
+    if (state.map === mapInstance) {
+      if (placeholderLayers && placeholderLayers.length) {
+        placeholderLayers.forEach(l => {
+          try { mapInstance.removeLayer(l); } catch (e) { }
+          const idx = state.mapRouteLayers.indexOf(l);
+          if (idx > -1) state.mapRouteLayers.splice(idx, 1);
+        });
+      }
+      drawAllLegs(legs, true);
+    }
+  } catch (err) {
+    console.warn('Street route fallback used:', err);
+  }
+}
+
 function renderMap() {
   const mapElement = document.getElementById('tripMap');
   if (!mapElement || !window.L) return;
 
+  if (state.mapRouteLayers && state.mapRouteLayers.length) {
+    state.mapRouteLayers.forEach(l => {
+      try { state.map?.removeLayer(l); } catch (e) { }
+    });
+  }
+  state.mapRouteLayers = [];
+
   if (state.map) {
-    try { state.map.remove(); } catch(e) {}
+    try { state.map.remove(); } catch (e) { }
     state.map = null;
   }
 
+  document.getElementById('toggleMapFullscreenBtn')?.addEventListener('click', event => {
+    event.preventDefault();
+    toggleMapFullscreen();
+  });
+
+  document.getElementById('mapFloatFullscreenBtn')?.addEventListener('click', event => {
+    event.preventDefault();
+    toggleMapFullscreen();
+  });
+
+  document.getElementById('toggleMapRouteModeBtn')?.addEventListener('click', event => {
+    event.preventDefault();
+    state.mapRouteType = state.mapRouteType === 'direct' ? 'streets' : 'direct';
+    savePrefs({ mapRouteType: state.mapRouteType });
+    renderMain();
+    toast(state.mapRouteType === 'direct' ? 'Linii directe clasice activate.' : 'Traseu pe străzi activat (varianta nouă).', 'info');
+  }, { once: true });
+
+  const isFs = isMapFullscreenActive();
+  if (isFs) {
+    state.isMapFullscreen = true;
+    savePrefs({ isMapFullscreen: true });
+    updateMapFullscreenUrl(true);
+    const wrap = document.querySelector('.map-view-wrap');
+    if (wrap) wrap.classList.add('is-fullscreen');
+    document.body.classList.add('map-is-fullscreen');
+    setupMapFullscreenElevation();
+  }
+  updateMapFullscreenButtons(isFs);
+
   document.getElementById('mapDaySelect')?.addEventListener('change', event => {
     state.mapDay = event.target.value;
+    savePrefs({ mapDay: state.mapDay });
+    updateMapDayUrl(state.mapDay);
     state.mapOptimized = false;
     renderMain();
   }, { once: true });
@@ -834,11 +1234,14 @@ function renderMap() {
     event.stopPropagation();
     state.mapOptimized = !state.mapOptimized;
     renderMain();
-    const mappedCount = getFilteredLocations().filter(loc => hasValidCoordinates(loc.coordinates)).length;
+    const activeLocations = getFilteredLocations().filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+    const dayLocations = state.mapDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === state.mapDay);
+    const mappedCount = dayLocations.filter(loc => hasValidCoordinates(loc.coordinates)).length;
     toast(state.mapOptimized ? `Traseu optimizat pentru ${mappedCount} locații.` : 'Ordine ore restabilită.', 'success');
   }, { once: true });
 
   document.getElementById('switchToRouteBtn')?.addEventListener('click', () => {
+    exitMapFullscreen();
     state.view = 'route';
     savePrefs({ view: 'route' });
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'route'));
@@ -882,7 +1285,7 @@ function renderMap() {
   const bounds = [];
   const allLocations = getFilteredLocations();
   // Nu luăm în calcul locațiile marcate Done (visited), excluse din traseu sau inactive
-  const activeLocations = allLocations.filter(loc => !loc.visited && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const activeLocations = allLocations.filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
   const locations = state.mapDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === state.mapDay);
   const routeGroups = {};
   locations.forEach(loc => {
@@ -892,13 +1295,11 @@ function renderMap() {
     }
   });
   const routeOrder = new Map();
-  Object.values(routeGroups).forEach(dayLocations => {
-    dayLocations = state.mapOptimized ? optimizeDayRoute(dayLocations) : dayLocations.sort((a, b) => (a.visit_time || '99:99').localeCompare(b.visit_time || '99:99'));
-    dayLocations.forEach((location, index) => routeOrder.set(location.id, index + 1));
-    if (dayLocations.length > 1) {
-      L.polyline(dayLocations.map(loc => [Number(loc.coordinates[1]), Number(loc.coordinates[0])]), {
-        color: '#5c73f2', weight: 4, opacity: 0.78, dashArray: '8 7',
-      }).addTo(state.map);
+  Object.values(routeGroups).forEach((dayLocations, groupIndex) => {
+    const orderedLocations = optimizeDayRoute(dayLocations);
+    orderedLocations.forEach((location, index) => routeOrder.set(location.id, index + 1));
+    if (orderedLocations.length > 1) {
+      renderStreetRouteForDay(orderedLocations, groupIndex, state.map);
     }
   });
   locations.forEach(loc => {
@@ -926,7 +1327,7 @@ function renderMap() {
 
 function initRouteView() {
   if (state.map) {
-    try { state.map.remove(); } catch(e) {}
+    try { state.map.remove(); } catch (e) { }
     state.map = null;
   }
 
@@ -997,10 +1398,11 @@ function initRouteView() {
 
 function getMapRouteLocations() {
   const allLocations = getFilteredLocations();
-  const locations = state.mapDay === 'all' ? allLocations : allLocations.filter(loc => loc.visit_date === state.mapDay);
+  const activeLocations = allLocations.filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const locations = state.mapDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === state.mapDay);
   const groups = {};
   locations.forEach(loc => {
-    if (hasValidCoordinates(loc.coordinates) && !state.mapExcluded.has(loc.id)) {
+    if (hasValidCoordinates(loc.coordinates)) {
       (groups[loc.visit_date || '__none__'] ||= []).push(loc);
     }
   });
@@ -1024,7 +1426,7 @@ function renderRouteTimes() {
   const totalDurationMin = data.legs.reduce((sum, leg) => sum + leg.duration_min, 0);
   const modeLabel = data.mode === 'driving' ? '🚗 Traseu mașină (OSRM)'
     : data.mode === 'walking' ? '🚶 Traseu pe jos (OSRM)'
-    : '🚌 Transport public (Google Maps & estimare)';
+      : '🚌 Transport public (Google Maps & estimare)';
   const hasEstimate = data.legs.some(leg => leg.source === 'estimated');
   const isFromGps = points[0] && (points[0].isCurrentLocation || points[0].id === '__user_current__');
 
@@ -1040,15 +1442,15 @@ function renderRouteTimes() {
     </div>
     <div class="route-legs-list">
       ${data.legs.map((leg, idx) => {
-        const fromPoint = points[leg.from];
-        const toPoint = points[leg.to];
-        const destCoords = toPoint.coordinates;
-        const fromCoords = fromPoint.coordinates;
-        const gmapsMode = (data.mode === 'transit' || data.mode === 'walking' || data.mode === 'driving') ? data.mode : 'transit';
-        const legGmapsUrl = leg.transit_url || `https://www.google.com/maps/dir/?api=1&origin=${fromCoords[1]},${fromCoords[0]}&destination=${destCoords[1]},${destCoords[0]}&travelmode=${gmapsMode}`;
-        const gpsGmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destCoords[1]},${destCoords[0]}&travelmode=${gmapsMode}`;
+    const fromPoint = points[leg.from];
+    const toPoint = points[leg.to];
+    const destCoords = toPoint.coordinates;
+    const fromCoords = fromPoint.coordinates;
+    const gmapsMode = (data.mode === 'transit' || data.mode === 'walking' || data.mode === 'driving') ? data.mode : 'transit';
+    const legGmapsUrl = leg.transit_url || `https://www.google.com/maps/dir/?api=1&origin=${fromCoords[1]},${fromCoords[0]}&destination=${destCoords[1]},${destCoords[0]}&travelmode=${gmapsMode}`;
+    const gpsGmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destCoords[1]},${destCoords[0]}&travelmode=${gmapsMode}`;
 
-        return `
+    return `
           <div class="route-leg">
             <div class="route-leg-header">
               <span class="route-leg-number">${idx + 1}</span>
@@ -1073,7 +1475,7 @@ function renderRouteTimes() {
               ` : ''}
             </div>
           </div>`;
-      }).join('')}
+  }).join('')}
     </div>
   `;
 }
@@ -1234,6 +1636,10 @@ function renderListView() {
   return `<div class="locations-grid">${locs.map(cardHTML).join('')}</div>`;
 }
 
+function getAllTripDays() {
+  return [...new Set((state.trip?.locations || []).map(l => l.visit_date).filter(Boolean))].sort();
+}
+
 function renderDayView() {
   const locs = getFilteredLocations();
   const groups = {};
@@ -1245,13 +1651,16 @@ function renderDayView() {
   if (groups['__none__']) keys.unshift('__none__');
   if (!keys.length) return emptyStateHTML('No locations found', 'Try adjusting your filters.');
 
-  let dayNum = 0;
+  const allTripDays = getAllTripDays();
+
   return keys.map(key => {
     const dayLocs = [...groups[key]].sort((a, b) => (a.visit_time || '').localeCompare(b.visit_time || ''));
     const unscheduled = key === '__none__';
-    if (!unscheduled) dayNum++;
+    const dayIdx = unscheduled ? -1 : allTripDays.indexOf(key);
+    const dayNum = dayIdx >= 0 ? (dayIdx + 1) : 1;
     const label = unscheduled ? 'Unscheduled' : fmtDate(key, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    const dayCost = dayLocs.filter(l => l.enabled).reduce((s, l) => s + (l.cost || 0), 0);
+    const allDayLocs = (state.trip?.locations || []).filter(l => (l.visit_date || '__none__') === key);
+    const dayCost = allDayLocs.filter(l => l.enabled !== false).reduce((s, l) => s + (l.cost || 0), 0);
     return `
       <div class="day-group">
         <div class="day-header">
@@ -1300,6 +1709,7 @@ function renderCountryView() {
 
 function renderTimelineView() {
   const locs = getFilteredLocations();
+  const allTripDays = getAllTripDays();
   const days = [...new Set(locs.map(loc => loc.visit_date).filter(Boolean))].sort();
   const unscheduledLocs = locs.filter(loc => !loc.visit_date);
   if (!days.length && !unscheduledLocs.length) {
@@ -1316,12 +1726,14 @@ function renderTimelineView() {
           <span class="tnav-title">All Days</span>
           <span class="tnav-count">${locs.filter(l => l.visit_date).length} places</span>
         </button>
-        ${days.map((day, idx) => {
+        ${days.map(day => {
+    const dayIdx = allTripDays.indexOf(day);
+    const dayNum = dayIdx >= 0 ? (dayIdx + 1) : 1;
     const count = locs.filter(l => l.visit_date === day).length;
     const dayConflicts = detectScheduleConflicts(locs.filter(l => l.visit_date === day));
     const hasConflict = dayConflicts.size > 0;
     return `<button class="timeline-nav-tab${activeDay === day ? ' active' : ''}" data-timeline-day="${esc(day)}" type="button">
-            <span class="tnav-badge">Day ${idx + 1}</span>
+            <span class="tnav-badge">Day ${dayNum}</span>
             <span class="tnav-title">${esc(fmtDate(day, { day: 'numeric', month: 'short' }))}</span>
             <span class="tnav-count">${count} stop${count !== 1 ? 's' : ''}${hasConflict ? ' · <span class="tnav-warn">⚠️</span>' : ''}</span>
           </button>`;
@@ -1343,7 +1755,8 @@ function renderTimelineView() {
 
   const daysContent = daysToRender.map(day => {
     const dayLocs = locs.filter(l => l.visit_date === day);
-    const dayNum = days.indexOf(day) + 1;
+    const dayIdx = allTripDays.indexOf(day);
+    const dayNum = dayIdx >= 0 ? (dayIdx + 1) : 1;
     const conflicts = detectScheduleConflicts(dayLocs);
 
     const scheduled = dayLocs
@@ -1358,7 +1771,8 @@ function renderTimelineView() {
     const totalDurationMins = scheduled.reduce((sum, item) => sum + item.times.duration, 0);
     const earliestStart = scheduled[0] ? scheduled[0].times.start : null;
     const latestEnd = scheduled[scheduled.length - 1] ? scheduled[scheduled.length - 1].times.end : null;
-    const dayCost = dayLocs.filter(l => l.enabled !== false).reduce((sum, l) => sum + (l.cost || 0), 0);
+    const allDayLocs = (state.trip?.locations || []).filter(l => l.visit_date === day);
+    const dayCost = allDayLocs.filter(l => l.enabled !== false).reduce((sum, l) => sum + (l.cost || 0), 0);
 
     const itemsHTML = scheduled.map((item, idx) => {
       const loc = item.loc;
@@ -1367,6 +1781,8 @@ function renderTimelineView() {
       const color = getCategoryColor(safecat);
       const conflict = conflicts.get(loc.id);
       const isVisited = !!loc.visited;
+      const isExcluded = state.mapExcluded.has(loc.id);
+      const excludeBtn = hasValidCoordinates(loc.coordinates) ? `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg></button>` : '';
       const sym = getCurrencySymbol(state.trip?.currency);
 
       // Gap to next item
@@ -1395,7 +1811,7 @@ function renderTimelineView() {
       }
 
       return `
-        <div class="timeline-item${isVisited ? ' is-visited' : ''}${conflict ? ' has-conflict' : ''}" data-id="${esc(loc.id)}">
+        <div class="timeline-item${isVisited ? ' is-visited' : ''}${conflict ? ' has-conflict' : ''}${isExcluded ? ' is-excluded' : ''}" data-id="${esc(loc.id)}">
           <div class="timeline-time-col">
             <div class="timeline-start-time">${esc(times.start)}</div>
             <div class="timeline-end-time">${esc(times.end)}</div>
@@ -1431,6 +1847,7 @@ function renderTimelineView() {
                 <button type="button" class="card-icon-btn${isVisited ? ' done-active' : ''}" data-action="markVisited" title="${isVisited ? 'Marchează ca nefăcut' : 'Marchează ca făcut'}">
                   <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                 </button>
+                ${excludeBtn}
                 <button type="button" class="loc-nav-btn timeline-open-btn" data-open-card-modal="${esc(loc.id)}">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                   <span>Details</span>
@@ -1561,7 +1978,7 @@ function cardHTML(loc) {
   const mapsBtn = mapsHref ? `<a href="${mapsHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn" title="Open in Maps"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg> Maps</a>` : '';
   const wazeBtn = wazeHref ? `<a href="${wazeHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn waze" title="Waze"><svg viewBox="0 0 24 24"><path d="M12 2a9 9 0 0 1 9 9c0 3.5-2 6.6-4.9 8.2L15 21l-3 1-3-1-.1-1.8C6 18.6 4 15.5 4 12a9 9 0 0 1 8-8.94V2zm0 2a7 7 0 1 0 0 14A7 7 0 0 0 12 4zm-1 3h2v5.5l3.2 1.9-1 1.7L11 14V7z"/></svg> Waze</a>` : '';
   const navGpsBtn = hasValidCoordinates(loc.coordinates) ? `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg> Go To</button>` : '';
-  const isExcluded = state.mapExcluded.has(loc.id);
+  const isExcluded = !!(loc.excluded || state.mapExcluded.has(loc.id));
   const excludeBtn = hasValidCoordinates(loc.coordinates) ? `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg></button>` : '';
   const topButtons = isAdmin ? `
     <div class="card-btns-top">
@@ -1673,7 +2090,7 @@ function cardHTML(loc) {
     </div>` : '';
 
   return `
-    <div class="location-card${enabled ? '' : ' disabled'}${loc.visited ? ' row-visited' : ''}" data-id="${esc(loc.id)}">
+    <div class="location-card${enabled ? '' : ' disabled'}${loc.visited ? ' row-visited' : ''}${isExcluded ? ' card-excluded' : ''}" data-id="${esc(loc.id)}">
       <div class="card-accent-bar ${safecat}"></div>
       <div class="card-body">
         <div class="card-header-row">
@@ -1727,7 +2144,7 @@ function renderTableView() {
     const en = loc.enabled !== false;
     const mapLink = safeMapsUrl(loc.google_maps_url);
     return `
-      <tr class="loc-row${en ? '' : ' row-disabled'}${loc.visited ? ' row-visited' : ''}" data-id="${esc(loc.id)}">
+      <tr class="loc-row${en ? '' : ' row-disabled'}${loc.visited ? ' row-visited' : ''}${(loc.excluded || state.mapExcluded.has(loc.id)) ? ' row-excluded' : ''}" data-id="${esc(loc.id)}">
         <td class="td-done td-ctrl">
           <button class="card-icon-btn${loc.visited ? ' done-active' : ''}" data-action="markVisited" title="${loc.visited ? 'Marchează ca nefăcut' : 'Marchează ca făcut'}">
             <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
@@ -1775,6 +2192,9 @@ function renderTableView() {
           <input type="url" class="tbl-input" data-field="google_maps_url" value="${esc(loc.google_maps_url || '')}" placeholder="https://…">
         </td>
         <td class="td-actions td-ctrl">
+          ${hasValidCoordinates(loc.coordinates) ? `<button type="button" class="card-icon-btn exclude-route-btn${(loc.excluded || state.mapExcluded.has(loc.id)) ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${(loc.excluded || state.mapExcluded.has(loc.id)) ? 'Include în traseu' : 'Exclude din traseu'}">
+            <svg viewBox="0 0 24 24">${(loc.excluded || state.mapExcluded.has(loc.id)) ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg>
+          </button>` : ''}
           <button class="card-icon-btn delete" data-action="delete" title="Remove">
             <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
           </button>
@@ -2048,6 +2468,9 @@ function bindEvents() {
     btn.addEventListener('click', () => {
       const v = btn.dataset.view;
       if (!v) return;
+      if (v !== 'map') {
+        exitMapFullscreen();
+      }
       state.view = v;
       savePrefs({ view: v });
       document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
@@ -2566,6 +2989,65 @@ function bindEvents() {
     }
   });
 
+  // Galaxy Z Fold 6 fold/unfold screen transition & fullscreen map sync
+  window.addEventListener('resize', () => {
+    if (state.map) {
+      state.map.invalidateSize({ pan: false });
+    }
+  });
+
+  const onFullscreenChange = () => {
+    const wrap = document.querySelector('.map-view-wrap');
+    const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    if (!isFs) {
+      if (state.view === 'map' && state.isMapFullscreen) {
+        state.isMapFullscreen = false;
+        savePrefs({ isMapFullscreen: false });
+        updateMapFullscreenUrl(false);
+        if (wrap) wrap.classList.remove('is-fullscreen');
+        document.body.classList.remove('map-is-fullscreen');
+        updateMapFullscreenButtons(false);
+        if (state.map) setTimeout(() => state.map?.invalidateSize({ pan: false }), 100);
+      }
+    } else {
+      state.isMapFullscreen = true;
+      savePrefs({ isMapFullscreen: true });
+      updateMapFullscreenUrl(true);
+      if (wrap) wrap.classList.add('is-fullscreen');
+      document.body.classList.add('map-is-fullscreen');
+      updateMapFullscreenButtons(true);
+      if (state.map) setTimeout(() => state.map?.invalidateSize({ pan: false }), 100);
+    }
+  };
+  document.addEventListener('fullscreenchange', onFullscreenChange);
+  document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && isMapFullscreenActive()) {
+      exitMapFullscreen();
+    }
+  });
+
+  // Browser Back/Forward navigation sync for map day & fullscreen in URL
+  window.addEventListener('popstate', () => {
+    const urlDay = getInitialMapDay();
+    if (urlDay && urlDay !== state.mapDay) {
+      state.mapDay = urlDay;
+      savePrefs({ mapDay: urlDay });
+      if (state.view === 'map') {
+        renderMain();
+      }
+    }
+    const urlFs = getInitialMapFullscreen();
+    if (state.view === 'map' && urlFs !== state.isMapFullscreen) {
+      if (urlFs) {
+        toggleMapFullscreen();
+      } else {
+        exitMapFullscreen();
+      }
+    }
+  });
+
   // Warn before unload with unsaved changes
   window.addEventListener('beforeunload', e => {
     if (state.unsaved) { e.preventDefault(); e.returnValue = ''; }
@@ -2599,7 +3081,7 @@ function handleCardClick(e) {
     return;
   }
   if (actionEl.dataset.action === 'markVisited') {
-    const loc = state.trip.locations.find(l => l.id === id);
+    const loc = state.trip?.locations.find(l => l.id === id);
     if (loc) {
       const newVisited = !loc.visited;
       updateLocation(id, { visited: newVisited });
@@ -2618,16 +3100,22 @@ function handleCardClick(e) {
           toast('Could not save visited state.', 'error');
         });
 
-      if (state.hideVisited && newVisited) {
-        renderMain();
-      } else {
-        const btn = actionEl;
+      // Synchronize all cards, rows, and timeline items for this ID in the DOM
+      document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(el => {
+        el.classList.toggle('row-visited', newVisited);
+        el.classList.toggle('is-visited', newVisited);
+      });
+      document.querySelectorAll(`[data-id="${CSS.escape(id)}"] [data-action="markVisited"]`).forEach(btn => {
         btn.classList.toggle('done-active', newVisited);
         btn.title = newVisited ? 'Marchează ca nefăcut' : 'Marchează ca făcut';
-        const row = btn.closest('[data-id]');
-        if (row) row.classList.toggle('row-visited', newVisited);
+      });
+
+      if (state.hideVisited || state.view === 'map' || state.view === 'route') {
+        renderMain();
       }
+      toast(newVisited ? 'Locație marcată ca făcută (Done).' : 'Locație reactivată.', 'info');
     }
+    return;
   }
   if (actionEl.dataset.action === 'duplicate') duplicateLocation(id);
   if (actionEl.dataset.action === 'setDuration') {
@@ -2645,23 +3133,46 @@ function handleCardClick(e) {
   if (actionEl.dataset.action === 'toggleRouteExclude') {
     const loc = state.trip?.locations.find(l => l.id === id);
     if (!loc) return;
-    if (state.mapExcluded.has(id)) {
-      state.mapExcluded.delete(id);
-    } else {
+    const isCurrentlyExcluded = !!(loc.excluded || state.mapExcluded.has(id));
+    const isExcluded = !isCurrentlyExcluded;
+    loc.excluded = isExcluded;
+
+    if (isExcluded) {
       state.mapExcluded.add(id);
+    } else {
+      state.mapExcluded.delete(id);
     }
-    const isExcluded = state.mapExcluded.has(id);
-    document.querySelectorAll(`.location-card[data-id="${CSS.escape(id)}"] [data-action="toggleRouteExclude"]`).forEach(btn => {
+    savePrefs({ mapExcluded: [...state.mapExcluded] });
+
+    fetch('/api/excluded', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, excluded: isExcluded }),
+    })
+      .then(res => res.ok ? res.json() : Promise.reject(new Error('Exclude update failed')))
+      .then(() => {
+        state.unsaved = false;
+        document.getElementById('unsavedDot')?.classList.remove('visible');
+      })
+      .catch(() => {
+        // Preference is still saved locally in localStorage
+      });
+
+    document.querySelectorAll(`[data-id="${CSS.escape(id)}"] [data-action="toggleRouteExclude"]`).forEach(btn => {
       btn.classList.toggle('is-excluded', isExcluded);
       btn.title = isExcluded ? 'Include în traseu' : 'Exclude din traseu';
       btn.innerHTML = `<svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg>`;
     });
-    if (state.view === 'map') {
-      renderMap();
-    } else if (state.view === 'route') {
-      initRouteView();
+    document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(el => {
+      el.classList.toggle('card-excluded', isExcluded);
+      el.classList.toggle('row-excluded', isExcluded);
+      el.classList.toggle('is-excluded', isExcluded);
+    });
+
+    if (state.view === 'map' || state.view === 'route') {
+      renderMain();
     }
-    toast(isExcluded ? 'Location excluded from route.' : 'Location included in route.', 'info');
+    toast(isExcluded ? 'Locație exclusă din traseu și hartă.' : 'Locație inclusă în traseu și hartă.', 'info');
     return;
   }
   if (actionEl.dataset.action === 'fetchInfo') {
@@ -3321,6 +3832,30 @@ function handleCardChange(e) {
         }
       } else if (costChip) { costChip.remove(); }
     }
+    const dayGroup = card.closest('.day-group');
+    if (dayGroup) {
+      const loc = state.trip?.locations.find(l => l.id === id);
+      const key = loc?.visit_date || '__none__';
+      const allDayLocs = (state.trip?.locations || []).filter(l => (l.visit_date || '__none__') === key);
+      const dayCost = allDayLocs.filter(l => l.enabled !== false).reduce((s, l) => s + (l.cost || 0), 0);
+      let totalCostEl = dayGroup.querySelector('.day-header .day-total-cost');
+      if (dayCost > 0) {
+        const formatted = formatCurrency(dayCost, state.trip?.currency);
+        if (totalCostEl) {
+          totalCostEl.textContent = formatted;
+        } else {
+          const header = dayGroup.querySelector('.day-header');
+          if (header) {
+            totalCostEl = document.createElement('span');
+            totalCostEl.className = 'day-total-cost';
+            totalCostEl.textContent = formatted;
+            header.appendChild(totalCostEl);
+          }
+        }
+      } else if (totalCostEl) {
+        totalCostEl.remove();
+      }
+    }
   }
 
   // Update notes chip live
@@ -3659,10 +4194,18 @@ function renderTripManager() {
 function setActiveTrip(trip) {
   state.trip = trip;
   const days = [...new Set((trip.locations || []).map(loc => loc.visit_date).filter(Boolean))];
-  const today = getTodayDateString();
-  state.mapDay = days.includes(today) ? today : 'all';
+  const preferredDay = getInitialMapDay();
+  if (preferredDay && (preferredDay === 'all' || days.includes(preferredDay))) {
+    state.mapDay = preferredDay;
+  } else {
+    state.mapDay = days.includes(today) ? today : 'all';
+  }
+  savePrefs({ mapDay: state.mapDay });
+  updateMapDayUrl(state.mapDay);
   state.routeDay = days.includes(today) ? today : 'all';
-  state.mapExcluded.clear();
+  const serverExcluded = (trip.locations || []).filter(l => l.excluded).map(l => l.id);
+  state.mapExcluded = new Set(serverExcluded);
+  savePrefs({ mapExcluded: serverExcluded });
   state.mapOptimized = false;
   updateNotifications();
   state.unsaved = false;
@@ -3794,6 +4337,13 @@ async function init() {
   try {
     const trip = await api.getTrip();
     state.trip = trip;
+    const serverExcluded = (trip.locations || []).filter(l => l.excluded).map(l => l.id);
+    const localExcluded = _prefs.mapExcluded || [];
+    state.mapExcluded = new Set([...serverExcluded, ...localExcluded]);
+    (trip.locations || []).forEach(l => {
+      if (state.mapExcluded.has(l.id)) l.excluded = true;
+    });
+    savePrefs({ mapExcluded: [...state.mapExcluded] });
     const nameInput = document.getElementById('tripNameInput');
     if (nameInput) nameInput.value = trip.trip_name || '';
     updateDocumentTitle(trip.trip_name);
@@ -3802,6 +4352,10 @@ async function init() {
     // Restore persisted view tab
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === state.view));
     document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === state.view));
+
+    if (state.view === 'map' && state.isMapFullscreen) {
+      updateMapFullscreenUrl(true);
+    }
 
     // Restore sort select
     const sortSel = document.getElementById('sortSelect');
