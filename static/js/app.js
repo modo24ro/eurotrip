@@ -355,29 +355,7 @@ function render() {
 }
 
 function renderStats() {
-  const locs = state.trip?.locations ?? [];
-  const enabled = locs.filter(l => l.enabled);
-  const totalCost = enabled.reduce((s, l) => s + (l.cost || 0), 0);
-  const countries = [...new Set(enabled.map(l => l.country).filter(Boolean))];
-  const days = [...new Set(enabled.map(l => l.visit_date).filter(Boolean))].length;
-
-  const el = document.getElementById('headerStats');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="stat-chip">
-      <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
-      <span class="stat-value">${enabled.length}</span>/<span>${locs.length}</span> places
-    </div>
-    <div class="stat-chip">
-      <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10z"/></svg>
-      <span class="stat-value">${days}</span> days
-    </div>
-    <div class="stat-chip">
-      <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
-      <span class="stat-value">${formatCurrency(totalCost, state.trip?.currency)}</span>
-    </div>
-    ${countries.length > 0 ? `<div class="stat-chip">🌍 <span class="stat-value">${countries.length}</span> countr${countries.length === 1 ? 'y' : 'ies'}</div>` : ''}
-  `;
+  // Toate statisticile sunt afișate exclusiv în summary-banner
 }
 
 function renderSummary() {
@@ -393,14 +371,18 @@ function renderSummary() {
   const el = document.getElementById('summaryBanner');
   if (!el) return;
   el.innerHTML = `
-    <div class="banner-item"><div class="banner-value">${enabled.length}</div><div class="banner-label">Active</div></div>
-    <div class="banner-item"><div class="banner-value">${days.length}</div><div class="banner-label">Days</div></div>
-    <div class="banner-item"><div class="banner-value">${formatCurrency(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
-    <div class="banner-item"><div class="banner-value">${scheduled}/${enabled.length}</div><div class="banner-label">Scheduled</div></div>
-    ${days.length > 0 ? `<div class="banner-item"><div class="banner-value" style="font-size:0.8rem">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div>` : ''}
-    <div class="banner-countries">
-      ${countries.map(c => `<span class="country-badge">${flagHTML(c)} ${esc(c)}</span>`).join('')}
+    <div class="banner-metrics">
+      <div class="banner-item"><div class="banner-value">${enabled.length}</div><div class="banner-label">Active</div></div>
+      <div class="banner-item"><div class="banner-value">${days.length}</div><div class="banner-label">Days</div></div>
+      <div class="banner-item"><div class="banner-value">${formatCurrency(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
+      <div class="banner-item"><div class="banner-value">${scheduled}/${enabled.length}</div><div class="banner-label">Scheduled</div></div>
     </div>
+    ${(days.length > 0 || countries.length > 0) ? `
+      <div class="banner-secondary">
+        ${days.length > 0 ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
+        ${countries.length > 0 ? `<div class="banner-countries">${countries.map(c => `<span class="country-badge" title="${esc(c)}">${flagHTML(c)}<span class="country-badge-name">${esc(c)}</span></span>`).join('')}</div>` : ''}
+      </div>
+    ` : ''}
   `;
 }
 
@@ -438,7 +420,9 @@ function renderMapView() {
     state.mapDay = days.includes(today) ? today : 'all';
   }
 
-  const locations = state.mapDay === 'all' ? allLocations : allLocations.filter(loc => loc.visit_date === state.mapDay);
+  // Pe hartă afișăm doar locațiile rămase active (fără cele marcate Done/visited, excluse din traseu sau inactive)
+  const activeMapLocations = allLocations.filter(loc => !loc.visited && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const locations = state.mapDay === 'all' ? activeMapLocations : activeMapLocations.filter(loc => loc.visit_date === state.mapDay);
   const mapped = locations.filter(loc => hasValidCoordinates(loc.coordinates));
   const fixedCount = locations.filter(loc => loc.visit_time && hasValidCoordinates(loc.coordinates)).length;
   const flexibleCount = mapped.length - fixedCount;
@@ -897,10 +881,12 @@ function renderMap() {
 
   const bounds = [];
   const allLocations = getFilteredLocations();
-  const locations = state.mapDay === 'all' ? allLocations : allLocations.filter(loc => loc.visit_date === state.mapDay);
+  // Nu luăm în calcul locațiile marcate Done (visited), excluse din traseu sau inactive
+  const activeLocations = allLocations.filter(loc => !loc.visited && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const locations = state.mapDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === state.mapDay);
   const routeGroups = {};
   locations.forEach(loc => {
-    if (hasValidCoordinates(loc.coordinates) && !state.mapExcluded.has(loc.id)) {
+    if (hasValidCoordinates(loc.coordinates)) {
       const dayKey = loc.visit_date || '__none__';
       (routeGroups[dayKey] ||= []).push(loc);
     }
@@ -922,10 +908,9 @@ function renderMap() {
     const latitude = Number(coordinates[1]);
     if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
     const color = getCategoryColor(loc.category);
-    const excluded = state.mapExcluded.has(loc.id);
     const fixedTime = loc.visit_time ? `<b class="map-time-badge">${esc(loc.visit_time)}</b>` : '';
     const routeNumber = state.mapOptimized ? `<b class="map-route-number">${routeOrder.get(loc.id) || ''}</b>` : '';
-    const icon = L.divIcon({ className: `trip-map-marker${loc.visit_time ? ' trip-map-marker-fixed' : ''}`, html: `${fixedTime}${routeNumber}<span style="background:${color};opacity:${excluded ? '0.35' : '1'}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] });
+    const icon = L.divIcon({ className: `trip-map-marker${loc.visit_time ? ' trip-map-marker-fixed' : ''}`, html: `${fixedTime}${routeNumber}<span style="background:${color}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] });
     const marker = L.marker([latitude, longitude], { icon }).addTo(state.map);
     if (loc.name) marker.bindTooltip(loc.name, { direction: 'top', offset: [0, -10] });
     marker.on('click', () => {

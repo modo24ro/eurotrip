@@ -179,45 +179,11 @@ body::before {
   cursor: text;
 }
 
-.header-stats {
-  flex: 1;
+.header-nav-group {
   display: flex;
   align-items: center;
-  gap: 6px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  padding: 2px 0;
-}
-
-.header-stats::-webkit-scrollbar {
-  display: none;
-}
-
-.stat-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 0.73rem;
-  font-weight: 500;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.stat-chip svg {
-  width: 11px;
-  height: 11px;
-  fill: currentColor;
-  flex-shrink: 0;
-}
-
-.stat-chip .stat-value {
-  color: var(--text-primary);
-  font-weight: 700;
+  gap: 8px;
+  margin-left: auto;
 }
 
 .header-actions {
@@ -1832,10 +1798,23 @@ body::before {
   overflow-x: auto;
   scrollbar-width: none;
   min-height: 62px;
+  flex-wrap: wrap;
 }
 
 .summary-banner::-webkit-scrollbar {
   display: none;
+}
+
+.banner-metrics {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.banner-secondary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .banner-item {
@@ -1849,6 +1828,31 @@ body::before {
   border-radius: var(--radius);
   text-align: center;
   flex-shrink: 0;
+}
+
+.banner-item-dates {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: auto;
+  padding: 7px 14px;
+}
+
+.banner-item-dates .banner-dates-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.banner-item-dates .banner-dates-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.banner-item-dates .banner-dates-val {
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .banner-value {
@@ -1870,10 +1874,13 @@ body::before {
   display: flex;
   gap: 6px;
   align-items: center;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 
 .country-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   padding: 4px 10px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
@@ -1881,6 +1888,22 @@ body::before {
   font-size: 0.73rem;
   color: var(--text-secondary);
   white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.country-badge:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.country-badge .flag-img {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+}
+
+.country-badge-name {
+  font-size: 0.73rem;
 }
 
 /* ============================================================
@@ -5277,11 +5300,112 @@ input[type="time"].field-input {
   }
 
   .summary-banner {
-    padding: 8px 13px;
+    padding: 8px 12px;
+  }
+
+  /* Pe mobil și tablete (inclusiv Galaxy Z Fold 6): afișăm doar steagul fără numele țării */
+  .country-badge {
+    padding: 3px 7px;
+    border-radius: 999px;
+  }
+
+  .country-badge .country-badge-name {
+    display: none;
   }
 
   .filter-row {
     gap: 8px;
+  }
+}
+
+@media (max-width: 640px) {
+  .summary-banner {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 6px 10px;
+    min-height: auto;
+    overflow-x: visible;
+  }
+
+  .banner-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 5px;
+    width: 100%;
+  }
+
+  .banner-metrics .banner-item {
+    min-width: 0;
+    padding: 5px 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  .banner-metrics .banner-value {
+    font-size: clamp(0.82rem, 3.2vw, 1rem);
+    font-weight: 800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+    line-height: 1.1;
+  }
+
+  .banner-metrics .banner-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.02em;
+    margin-top: 2px;
+  }
+
+  .banner-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+  }
+
+  .banner-item.banner-item-dates {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    min-width: 0;
+    background: rgba(92, 115, 242, 0.08);
+    border: 1px solid rgba(92, 115, 242, 0.18);
+    border-radius: var(--radius-sm);
+    flex-shrink: 1;
+  }
+
+  .banner-item.banner-item-dates .banner-dates-icon {
+    font-size: 0.76rem;
+    line-height: 1;
+  }
+
+  .banner-item.banner-item-dates .banner-dates-text {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .banner-item.banner-item-dates .banner-dates-val {
+    font-size: 0.74rem !important;
+    font-weight: 600;
+    color: var(--accent-light);
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+
+  .banner-item.banner-item-dates .banner-label {
+    display: none;
+  }
+
+  .banner-countries {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 }
 
