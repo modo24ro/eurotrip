@@ -1,0 +1,842 @@
+{% extends "base.html" %}
+{% block body %}
+<div id="app" data-role="{{ role | default('admin') }}">
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-brand">
+      <img src="/static/icons/icon-192.svg?v=2" alt="EuroTrip" class="brand-logo">
+      <div class="trip-brand-details">
+        <input type="text" id="tripNameInput" class="trip-name-input" placeholder="Trip Name" autocomplete="off"
+          spellcheck="false">
+      </div>
+    </div>
+    <div class="header-stats" id="headerStats"></div>
+    <div class="trip-switcher-row">
+      <div class="trip-selector-wrap">
+        <button id="tripSelector" class="trip-selector" type="button" aria-label="Select trip" title="Select trip">
+          <span class="trip-selector-icon" aria-hidden="true"></span>
+        </button>
+      </div>
+      {% if role == 'admin' %}
+      <button class="trip-new-btn" id="newTripBtn" type="button" title="Create a new trip"
+        aria-label="Create a new trip">+</button>
+      {% endif %}
+    </div>
+    <div class="header-nav-group">
+      <button class="hdr-btn notification-btn header-notification-btn" id="notificationsBtn" title="Notifications"
+        type="button" aria-label="Notifications">
+        <span class="notification-bell-icon">🔔</span> <span id="notificationCount">0</span>
+      </button>
+      <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu"
+        aria-expanded="false">☰</button>
+    </div>
+    <div class="header-actions">
+      {% if role == 'admin' %}
+      <button class="hdr-btn" id="installBtn" title="Install App" style="display:none">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 0 0-1.99 2L3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2zm3 18H5V8h14v11zM7 10h5v5H7v-5z" />
+        </svg>
+        <span>Install</span>
+      </button>
+      <button class="hdr-btn upload-btn" id="uploadBtn" title="Upload JSON">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 9h-4v4h-2v-4H7l4-4 4 4zm-1-5V3.5L18.5 9H14z" />
+        </svg>
+        <span>Upload</span>
+      </button>
+      <button class="hdr-btn add-btn" id="addBtn" title="Add location manually">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+        </svg>
+        <span>Add</span>
+      </button>
+      <button class="hdr-btn save-btn" id="saveBtn" title="Save Trip (Ctrl+S)">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z" />
+        </svg>
+        <span>Save</span>
+        <span class="unsaved-dot" id="unsavedDot"></span>
+      </button>
+      <button class="hdr-btn danger-btn" id="backupBtn" title="Backup trip data to /backup">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z" />
+        </svg>
+        <span>Backup</span>
+      </button>
+      <button class="hdr-btn danger-btn" id="clearAllBtn" title="Delete all records">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M6 7h12l-1.1 12.1A2 2 0 0 1 14.9 21H9.1a2 2 0 0 1-2-1.9L6 7zm3-3h6l1 2h4V7H4V6h4l1-2zm-1 7h2v7H8v-7zm4 0h2v7h-2v-7z" />
+        </svg>
+        <span>Clear All</span>
+      </button>
+      <a class="hdr-btn" href="/admin/security" title="Check API security">Security</a>
+      <a class="hdr-btn" href="/admin/versions" title="View trip history">History</a>
+      {% endif %}
+      <button class="hdr-btn" id="logoutBtn" title="Logout">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+        </svg>
+        <span>Logout</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== SUMMARY BANNER ===== -->
+  <div class="summary-banner" id="summaryBanner"></div>
+
+  <!-- ===== CONTROLS BAR ===== -->
+  <div class="controls-bar">
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="list">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+        </svg>
+        <span>All</span>
+      </button>
+      <button class="view-tab" data-view="day">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zM5 8V6h14v2H5z" />
+        </svg>
+        <span>Day</span>
+      </button>
+      <button class="view-tab" data-view="country">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+        </svg>
+        <span>Country</span>
+      </button>
+      <button class="view-tab" data-view="timeline">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+        </svg>
+        <span>Timeline</span>
+      </button>
+      <button class="view-tab" data-view="table">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4-8h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />
+        </svg>
+        <span>Table</span>
+      </button>
+      <button class="view-tab" data-view="map">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M15 5.5 9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 3v2.5zM9 16.2l-4 1.67V7.3l4-1.67v10.57zm6 2.1-4-1.67V5.8l4 1.67V18.3zm6-1.63-4 1.67V7.3l4-1.67v11.04z" />
+        </svg>
+        <span>Map</span>
+      </button>
+      <button class="view-tab" data-view="route">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M19 15.18V7c0-2.21-1.79-4-4-4s-4 1.79-4 4v10c0 1.1-.9 2-2 2s-2-.9-2-2V8.82C8.16 8.4 9 7.3 9 6c0-1.66-1.34-3-3-3S3 4.34 3 6c0 1.3.84 2.4 2 2.82V17c0 2.21 1.79 4 4 4s4-1.79 4-4V7c0-1.1.9-2 2-2s2 .9 2 2v8.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.31-.84-2.41-2-2.82z" />
+        </svg>
+        <span>Route</span>
+      </button>
+    </div>
+    <div class="filter-row">
+      <div class="search-wrap">
+        <svg class="search-icon" viewBox="0 0 24 24">
+          <path
+            d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search locations…" class="search-input" autocomplete="off">
+      </div>
+      <div class="filter-chips">
+        <select id="categoryFilter" class="filter-select">
+          <option value="all">All Categories</option>
+          <option value="hotel">🏨 Hotel</option>
+          <option value="transport">✈️ Transport</option>
+          <option value="restaurant">🍽️ Restaurant</option>
+          <option value="attraction">🏛️ Attraction</option>
+          <option value="education">📚 Education</option>
+          <option value="shopping">🛍️ Shopping</option>
+          <option value="services">🔧 Services</option>
+          <option value="club">🎵 Club</option>
+          <option value="other">📍 Other</option>
+        </select>
+        <select id="countryFilter" class="filter-select">
+          <option value="all">All Countries</option>
+        </select>
+        <select id="sortSelect" class="filter-select">
+          <option value="added">Added Order</option>
+          <option value="date">By Date</option>
+          <option value="name">By Name</option>
+          <option value="cost">By Cost ↓</option>
+          <option value="country">By Country</option>
+          <option value="city">By City</option>
+        </select>
+
+        <label class="toggle-pill toggle-pill--visited">
+          <input type="checkbox" id="hideVisited">
+          <span>Hide visited</span>
+        </label>
+
+        <label class="toggle-pill toggle-pill--single-col"
+          title="Afișează 1 card pe rând (recomandat pe Z Fold 6 pentru a vedea mai multe date)">
+          <input type="checkbox" id="singleColToggle">
+          <span>1 card</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="main-content" id="mainContent">
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Loading your trip…</p>
+    </div>
+  </main>
+
+  <!-- ===== UPLOAD MODAL ===== -->
+  <div class="modal-overlay" id="backupModal" role="dialog" aria-modal="true" aria-labelledby="backupModalTitle">
+    <div class="modal-box backup-modal-box">
+      <div class="modal-header">
+        <h2 id="backupModalTitle">Trip backups</h2>
+        <div class="backup-modal-header-actions">
+          <button class="btn-primary backup-header-action" id="createBackupBtn" type="button"
+            title="Create a new backup">
+            <svg viewBox="0 0 24 24">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z" />
+            </svg>
+            <span>Create backup</span>
+          </button>
+          <button class="btn-secondary backup-header-action" id="restoreFileBtn" type="button"
+            title="Restore from a JSON file">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z" />
+            </svg>
+            <span>Restore file</span>
+          </button>
+          <button class="modal-close" id="closeBackupModal" aria-label="Close">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="backup-list-toolbar">
+          <label class="backup-select-all"><input type="checkbox" id="selectAllBackups"> <span>Select all</span></label>
+          <button class="btn-danger backup-bulk-delete" id="deleteSelectedBackups" type="button" disabled>Delete
+            selected</button>
+        </div>
+        <div id="backupList" class="backup-list"></div>
+      </div>
+      <input type="file" id="restoreFileInput" accept=".json" style="display:none" aria-hidden="true">
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="deleteBackupModal" role="dialog" aria-modal="true"
+    aria-labelledby="deleteBackupModalTitle">
+    <div class="modal-box backup-delete-modal-box">
+      <div class="modal-header">
+        <h2 id="deleteBackupModalTitle">Delete backup</h2>
+        <button class="modal-close" id="closeDeleteBackupModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body backup-delete-body">
+        <p>This backup will be permanently deleted:</p>
+        <strong id="deleteBackupFilename"></strong>
+        <div class="backup-delete-actions">
+          <button class="btn-secondary" id="cancelDeleteBackup" type="button">Cancel</button>
+          <button class="btn-danger" id="confirmDeleteBackup" type="button">Delete backup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="restoreBackupModal" role="dialog" aria-modal="true"
+    aria-labelledby="restoreBackupModalTitle">
+    <div class="modal-box backup-restore-modal-box">
+      <div class="modal-header">
+        <h2 id="restoreBackupModalTitle">Restore backup</h2>
+        <button class="modal-close" id="closeRestoreBackupModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body backup-restore-body">
+        <p id="restoreBackupDescription">Restoring this backup will replace the current trip data:</p>
+        <strong id="restoreBackupFilename"></strong>
+        <div class="backup-restore-actions">
+          <button class="btn-secondary" id="cancelRestoreBackup" type="button">Cancel</button>
+          <button class="btn-primary" id="confirmRestoreBackup" type="button">Restore backup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="deleteLocationModal" role="dialog" aria-modal="true"
+    aria-labelledby="deleteLocationModalTitle">
+    <div class="modal-box location-delete-modal-box">
+      <div class="modal-header">
+        <h2 id="deleteLocationModalTitle">Remove location</h2>
+        <button class="modal-close" id="closeDeleteLocationModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body backup-delete-body">
+        <p>Remove this location from the trip?</p>
+        <strong id="deleteLocationName"></strong>
+        <div class="backup-delete-actions">
+          <button class="btn-secondary" id="cancelDeleteLocation" type="button">Cancel</button>
+          <button class="btn-danger" id="confirmDeleteLocation" type="button">Remove location</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="deleteAttachmentModal" role="dialog" aria-modal="true"
+    aria-labelledby="deleteAttachmentModalTitle" style="z-index: 250;">
+    <div class="modal-box location-delete-modal-box">
+      <div class="modal-header">
+        <h2 id="deleteAttachmentModalTitle">Delete attachment</h2>
+        <button class="modal-close" id="closeDeleteAttachmentModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body backup-delete-body">
+        <p>Are you sure you want to delete this attachment?</p>
+        <strong id="deleteAttachmentFileName"></strong>
+        <div class="backup-delete-actions">
+          <button class="btn-secondary" id="cancelDeleteAttachment" type="button">Cancel</button>
+          <button class="btn-danger" id="confirmDeleteAttachment" type="button">Delete attachment</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="clearAllModal" role="dialog" aria-modal="true" aria-labelledby="clearAllModalTitle">
+    <div class="modal-box clear-all-modal-box">
+      <div class="modal-header">
+        <h2 id="clearAllModalTitle">Clear all records</h2>
+        <button class="modal-close" id="closeClearAllModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body backup-delete-body">
+        <p>Ștergi toate înregistrările? Această acțiune va goli lista curentă.</p>
+        <strong>A backup will be created automatically before clearing.</strong>
+        <div class="backup-delete-actions">
+          <button class="btn-secondary" id="cancelClearAll" type="button">Cancel</button>
+          <button class="btn-danger" id="confirmClearAll" type="button">Clear all</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="newTripModal" role="dialog" aria-modal="true" aria-labelledby="newTripModalTitle">
+    <div class="modal-box new-trip-modal-box">
+      <div class="modal-header">
+        <h2 id="newTripModalTitle">New trip</h2>
+        <button class="modal-close" id="closeNewTripModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body new-trip-body">
+        <label for="newTripName">Trip name</label>
+        <input id="newTripName" class="url-input" type="text" maxlength="100" placeholder="e.g. Summer road trip"
+          autocomplete="off">
+        <div class="backup-delete-actions">
+          <button class="btn-secondary" id="cancelNewTrip" type="button">Cancel</button>
+          <button class="btn-primary" id="confirmNewTrip" type="button">Create trip</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="tripManagerModal" role="dialog" aria-modal="true"
+    aria-labelledby="tripManagerModalTitle">
+    <div class="modal-box trip-manager-modal-box">
+      <div class="modal-header">
+        <h2 id="tripManagerModalTitle">Select trip</h2>
+        <button class="modal-close" id="closeTripManagerModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="tripManagerList" class="trip-manager-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="deleteTripModal" role="dialog" aria-modal="true"
+    aria-labelledby="deleteTripModalTitle">
+    <div class="modal-box trip-delete-modal-box">
+      <div class="modal-header">
+        <h2 id="deleteTripModalTitle">Delete trip</h2>
+        <button class="modal-close" id="closeDeleteTripModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body backup-delete-body">
+        <p>This will permanently delete the trip, its JSON and all backups:</p>
+        <strong id="deleteTripName"></strong>
+        <div class="backup-delete-actions">
+          <button class="btn-secondary" id="cancelDeleteTrip" type="button">Cancel</button>
+          <button class="btn-danger" id="confirmDeleteTrip" type="button">Delete trip</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="mapsDetailsModal" role="dialog" aria-modal="true"
+    aria-labelledby="mapsDetailsModalTitle">
+    <div class="modal-box maps-details-modal-box">
+      <div class="modal-header">
+        <h2 id="mapsDetailsModalTitle">Google Maps details</h2>
+        <button class="modal-close" id="closeMapsDetailsModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body maps-details-body">
+        <div id="mapsDetailsStatus"></div>
+        <div id="mapsDetailsPreview"></div>
+        <div class="backup-delete-actions">
+          <button class="btn-secondary" id="cancelMapsDetails" type="button">Cancel</button>
+          <button class="btn-primary" id="addMapsDetails" type="button" disabled>Add data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="notificationsModal" role="dialog" aria-modal="true"
+    aria-labelledby="notificationsTitle">
+    <div class="modal-box notifications-modal-box">
+      <div class="modal-header">
+        <h2 id="notificationsTitle">Notifications &amp; reminders</h2><button class="modal-close"
+          id="closeNotifications" aria-label="Close"><svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg></button>
+      </div>
+      <div class="modal-body">
+        <div id="notificationsList" class="notifications-list"></div>
+        <div class="notifications-schedule-hint">⏰ Mementourile active sunt retrimise automat în fiecare zi la ora 08:00.</div>
+        <button class="btn-secondary"
+          id="enableNotifications" type="button">Enable browser notifications</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="routeOptionsModal" role="dialog" aria-modal="true" aria-labelledby="routeOptionsTitle">
+    <div class="modal-box route-modal-box">
+      <div class="modal-header">
+        <h2 id="routeOptionsTitle">Configurare Rută &amp; Navigare</h2>
+        <button class="modal-close" id="closeRouteOptionsModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body route-modal-body">
+        <div class="route-option-group">
+          <span class="route-option-label">De unde pornește traseul?</span>
+          <div class="route-radio-cards">
+            <label class="route-radio-card" id="originCurrentCard">
+              <input type="radio" name="routeOriginChoice" value="current" checked>
+              <div class="route-card-content">
+                <span class="route-card-icon">📍</span>
+                <div class="route-card-texts">
+                  <strong>Locația mea actuală (GPS)</strong>
+                  <span>Calculează de unde te afli acum</span>
+                </div>
+              </div>
+            </label>
+            <label class="route-radio-card" id="originItineraryCard">
+              <input type="radio" name="routeOriginChoice" value="itinerary">
+              <div class="route-card-content">
+                <span class="route-card-icon">📌</span>
+                <div class="route-card-texts">
+                  <strong>Punctul anterior din itinerar</strong>
+                  <span>Secvența conform planificării</span>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="route-option-group">
+          <span class="route-option-label">Ce dorești să calculezi?</span>
+          <div class="route-radio-cards">
+            <label class="route-radio-card">
+              <input type="radio" name="routeScopeChoice" value="next" checked>
+              <div class="route-card-content">
+                <span class="route-card-icon">🎯</span>
+                <div class="route-card-texts">
+                  <strong>Doar următoarea oprire</strong>
+                  <span>Traseu direct până la următoarea locație</span>
+                </div>
+              </div>
+            </label>
+            <label class="route-radio-card">
+              <input type="radio" name="routeScopeChoice" value="all">
+              <div class="route-card-content">
+                <span class="route-card-icon">🗺️</span>
+                <div class="route-card-texts">
+                  <strong>Toate opririle zilei</strong>
+                  <span>Turul complet cu toate obiectivele</span>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="route-option-group">
+          <span class="route-option-label">Mod de transport:</span>
+          <div class="route-mode-pills">
+            <label class="route-mode-pill">
+              <input type="radio" name="routeModeChoice" value="transit" checked>
+              <span>🚌 Transport public</span>
+            </label>
+            <label class="route-mode-pill">
+              <input type="radio" name="routeModeChoice" value="walking">
+              <span>🚶 Pe jos</span>
+            </label>
+            <label class="route-mode-pill">
+              <input type="radio" name="routeModeChoice" value="driving">
+              <span>🚗 Mașină</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="route-modal-actions">
+          <button type="button" class="btn-primary route-calc-confirm-btn" id="confirmRouteCalcBtn">
+            <span>⚡ Calculează pe hartă</span>
+          </button>
+          <button type="button" class="btn-secondary route-direct-nav-btn" id="directNavBtn">
+            <span>🧭 Deschide în Google Maps acum</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="locationModal" role="dialog" aria-modal="true" aria-labelledby="locationModalTitle">
+    <div class="modal-box location-modal-box">
+      <div class="modal-header">
+        <h2 id="locationModalTitle">Location</h2>
+        <button class="modal-close" id="closeLocationModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body location-modal-body" id="locationModalBody"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="pdfViewerModal" role="dialog" aria-modal="true" aria-labelledby="pdfViewerTitle">
+    <div class="modal-box doc-viewer-modal-box pdf-viewer-modal-box">
+      <div class="modal-header doc-viewer-header">
+        <div class="doc-viewer-title-wrap">
+          <h2 id="pdfViewerTitle">Document Viewer</h2>
+          <span id="docViewerSubtitle" class="doc-viewer-subtitle"></span>
+        </div>
+        <div class="pdf-viewer-actions">
+          <div class="doc-viewer-tools" id="docViewerTools">
+            <!-- PDF page controls -->
+            <div class="pdf-page-controls" id="pdfPageControls" style="display:none;">
+              <button type="button" class="btn-icon doc-tool-btn" id="pdfPrevPage" title="Previous page">◀</button>
+              <span class="pdf-page-indicator" id="pdfPageIndicator">1 / 1</span>
+              <button type="button" class="btn-icon doc-tool-btn" id="pdfNextPage" title="Next page">▶</button>
+            </div>
+            <!-- Zoom & View controls -->
+            <div class="doc-zoom-controls" id="docZoomControls">
+              <button type="button" class="btn-icon doc-tool-btn" id="docZoomOut" title="Zoom out">−</button>
+              <span class="doc-zoom-level" id="docZoomLevel">100%</span>
+              <button type="button" class="btn-icon doc-tool-btn" id="docZoomIn" title="Zoom in">+</button>
+              <button type="button" class="btn-icon doc-tool-btn" id="docZoomFit" title="Fit to window">⛶</button>
+              <button type="button" class="btn-icon doc-tool-btn" id="docRotateBtn" title="Rotate image"
+                style="display:none;">↻</button>
+            </div>
+          </div>
+          <input type="file" id="modalAttachmentInput" class="doc-hidden-file-input" multiple
+            accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx" style="display:none;">
+          <button type="button" class="btn-secondary doc-add-file-btn" id="modalAddAttachmentBtn"
+            title="Add JPG, PNG, or PDF attachment">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
+            <span>Add Files</span>
+          </button>
+          <a id="pdfDownloadLink" class="btn-secondary doc-action-btn" href="#" download title="Download file">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+            </svg>
+            <span>Download</span>
+          </a>
+          <a id="docOpenNewTabLink" class="btn-secondary doc-action-btn" href="#" target="_blank"
+            rel="noopener noreferrer" title="Open in new tab">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path
+                d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
+            </svg>
+          </a>
+          <button type="button" class="btn-secondary btn-danger-soft doc-delete-btn" id="modalDeleteAttachmentBtn"
+            title="Delete current attachment" style="display:none;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+            </svg>
+          </button>
+          <button class="modal-close" id="closePdfViewer" aria-label="Close">
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="pdf-viewer-body doc-viewer-body">
+        <div class="doc-viewer-topbar">
+          <div id="pdfAttachmentList" class="pdf-attachment-list"></div>
+        </div>
+        <div class="doc-viewer-stage" id="docViewerStage">
+          <!-- Loading spinner -->
+          <div id="docViewerLoading" class="doc-viewer-loading" style="display:none;">
+            <div class="doc-spinner"></div>
+            <span>Loading document…</span>
+          </div>
+          <!-- PDF Canvas container -->
+          <div id="pdfViewerCanvasContainer" class="pdf-canvas-container" style="display:none;"></div>
+          <!-- Image preview container -->
+          <div id="imageViewerContainer" class="image-viewer-container" style="display:none;">
+            <img id="imageViewerImg" class="image-viewer-img" alt="Attachment preview">
+          </div>
+          <!-- Generic document card container -->
+          <div id="genericDocContainer" class="generic-doc-container" style="display:none;">
+            <div class="generic-doc-card">
+              <div class="generic-doc-icon" id="genericDocIcon">📎</div>
+              <div class="generic-doc-name" id="genericDocName">document.ext</div>
+              <div class="generic-doc-size" id="genericDocSize"></div>
+              <p class="generic-doc-notice">Preview is not supported in browser for this file type.</p>
+              <a id="genericDocDownloadBtn" class="btn-primary" href="#" download>Download File</a>
+            </div>
+          </div>
+          <!-- Fallback iframe -->
+          <iframe id="pdfViewerFrame" class="pdf-viewer-frame" title="Document viewer" style="display:none;"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="uploadModal" role="dialog" aria-modal="true" aria-labelledby="uploadModalTitle">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="uploadModalTitle">Import Locations</h2>
+        <button class="modal-close" id="closeModal" aria-label="Close">
+          <svg viewBox="0 0 24 24">
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+          </svg>
+        </button>
+      </div>
+      <!-- Tabs -->
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-tab="file">📁 Upload File</button>
+        <button class="modal-tab" data-tab="url">🔗 Share Link</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- FILE TAB -->
+        <div class="modal-tab-pane active" id="paneFile">
+          <div class="dropzone" id="dropzone" role="button" tabindex="0"
+            aria-label="Drop JSON file here or click to browse">
+            <div class="dz-icon">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+              </svg>
+            </div>
+            <p class="dz-title">Drag &amp; drop a GeoJSON file</p>
+            <p class="dz-subtitle">Google Maps Takeout format</p>
+            <button class="btn-primary" id="browseBtn" type="button">Choose File</button>
+            <input type="file" id="fileInput" accept=".json" style="display:none" aria-hidden="true">
+          </div>
+        </div>
+
+        <!-- URL TAB -->
+        <div class="modal-tab-pane" id="paneUrl" style="display:none">
+          <div class="url-import-area">
+            <p class="url-hint">Lipește un link de share din Google Drive, Dropbox, OneDrive sau orice URL direct la un
+              fișier GeoJSON.</p>
+            <div class="url-input-row">
+              <input type="url" id="urlInput" class="url-input" placeholder="https://drive.google.com/file/d/…/view"
+                autocomplete="off" spellcheck="false">
+              <button class="btn-primary" id="fetchUrlBtn" type="button">Fetch</button>
+            </div>
+            <div class="url-providers">
+              <span class="provider-chip">🟦 Google Drive</span>
+              <span class="provider-chip">📦 Dropbox</span>
+              <span class="provider-chip">☁️ OneDrive</span>
+              <span class="provider-chip">🐙 GitHub</span>
+              <span class="provider-chip">🔗 URL direct</span>
+            </div>
+          </div>
+          <!-- Google Maps guide (shown when Maps URL detected) -->
+          <div class="gmaps-guide" id="gmapsGuide" style="display:none">
+            <div class="gmaps-guide-header">
+              <svg viewBox="0 0 24 24">
+                <path
+                  d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+              </svg>
+              <strong>Link Google Maps detectat</strong>
+            </div>
+            <p>Listele din Google Maps nu pot fi exportate direct. Urmează pașii de mai jos:</p>
+            <ol class="gmaps-steps">
+              <li>Deschide <a href="https://takeout.google.com" target="_blank" rel="noopener">takeout.google.com</a>
+              </li>
+              <li>Dezelectează tot → selectează doar <strong>Maps (locurile tale)</strong></li>
+              <li>Descarcă arhiva ZIP și extrage</li>
+              <li>Găsește fișierul <code>Saved Places.json</code> sau <code>*.json</code></li>
+              <li>Încarcă-l în tab-ul <strong>📁 Upload File</strong> de mai sus</li>
+            </ol>
+            <a href="https://takeout.google.com" target="_blank" rel="noopener" class="btn-primary"
+              style="display:inline-flex;margin-top:4px">Deschide Google Takeout →</a>
+          </div>
+        </div>
+
+        <!-- SHARED PREVIEW (both tabs) -->
+        <div class="upload-preview" id="uploadPreview" style="display:none">
+          <div class="preview-info" id="previewInfo"></div>
+          <div class="merge-options">
+            <label class="radio-option">
+              <input type="radio" name="mergeMode" value="merge" checked>
+              <span>Add to existing locations</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="mergeMode" value="replace">
+              <span>Replace all locations</span>
+            </label>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button class="btn-primary" id="confirmUploadBtn" type="button">Import Locations</button>
+            <button class="btn-secondary" id="cancelUploadBtn" type="button">Cancel</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST CONTAINER ===== -->
+  <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+  <!-- ===== MOBILE BOTTOM NAV ===== -->
+  <nav class="mobile-nav" id="mobileNav" aria-label="Main navigation">
+    <button class="mnav-btn active" data-view="list">
+      <svg viewBox="0 0 24 24">
+        <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
+      </svg>
+      <span>All</span>
+    </button>
+    <button class="mnav-btn" data-view="day">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zM5 8V6h14v2H5z" />
+      </svg>
+      <span>Days</span>
+    </button>
+    <button class="mnav-btn" data-view="country">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+      </svg>
+      <span>Countries</span>
+    </button>
+    <button class="mnav-btn" data-view="timeline">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+      </svg>
+      <span>Timeline</span>
+    </button>
+    <button class="mnav-btn" data-view="table">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4-8h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />
+      </svg>
+      <span>Table</span>
+    </button>
+    <button class="mnav-btn" data-view="map">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M15 5.5 9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 3v2.5zM9 16.2l-4 1.67V7.3l4-1.67v10.57zm6 2.1-4-1.67V5.8l4 1.67V18.3zm6-1.63-4 1.67V7.3l4-1.67v11.04z" />
+      </svg>
+      <span>Map</span>
+    </button>
+    <button class="mnav-btn" data-view="route">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M19 15.18V7c0-2.21-1.79-4-4-4s-4 1.79-4 4v10c0 1.1-.9 2-2 2s-2-.9-2-2V8.82C8.16 8.4 9 7.3 9 6c0-1.66-1.34-3-3-3S3 4.34 3 6c0 1.3.84 2.4 2 2.82V17c0 2.21 1.79 4 4 4s4-1.79 4-4V7c0-1.1.9-2 2-2s2 .9 2 2v8.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.31-.84-2.41-2-2.82z" />
+      </svg>
+      <span>Route</span>
+    </button>
+    {% if role == 'admin' %}
+    <button class="mnav-btn" id="mobileUpload">
+      <svg viewBox="0 0 24 24">
+        <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" />
+      </svg>
+      <span>Import</span>
+    </button>
+    <button class="mnav-btn" id="mobileSave">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z" />
+      </svg>
+      <span>Save</span>
+    </button>
+    {% else %}
+    <button class="mnav-btn" id="mobileLogout">
+      <svg viewBox="0 0 24 24">
+        <path
+          d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+      </svg>
+      <span>Logout</span>
+    </button>
+    {% endif %}
+  </nav>
+
+</div>
+{% endblock %}

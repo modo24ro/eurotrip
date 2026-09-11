@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#4361ee">
+  <title>Euro Trip Planner - Autentificare</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='icons/icon-192.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.svg') }}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #070a13;
+      --card-bg: rgba(15, 23, 42, 0.78);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --card-border-glow: rgba(99, 102, 241, 0.35);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --primary-start: #4361ee;
+      --primary-end: #7209b7;
+      --primary-glow: rgba(67, 97, 238, 0.4);
+      --focus-ring: rgba(99, 102, 241, 0.45);
+      --error-bg: rgba(239, 68, 68, 0.12);
+      --error-border: rgba(239, 68, 68, 0.35);
+      --error-text: #fca5a5;
+      --radius-box: 24px;
+      --radius-input: 14px;
+      --radius-btn: 14px;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background-color: var(--bg);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: var(--text-main);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Ambient animated lighting */
+    .ambient-glow {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(90px);
+      opacity: 0.38;
+      animation: floatOrb 18s ease-in-out infinite alternate;
+    }
+
+    .orb-1 {
+      width: 480px;
+      height: 480px;
+      top: -120px;
+      left: 10%;
+      background: radial-gradient(circle, #4361ee 0%, rgba(67,97,238,0) 70%);
+    }
+
+    .orb-2 {
+      width: 420px;
+      height: 420px;
+      bottom: -100px;
+      right: 12%;
+      background: radial-gradient(circle, #7209b7 0%, rgba(114,9,183,0) 70%);
+      animation-duration: 22s;
+      animation-direction: alternate-reverse;
+    }
+
+    .orb-3 {
+      width: 320px;
+      height: 320px;
+      top: 55%;
+      left: 20%;
+      background: radial-gradient(circle, #38bdf8 0%, rgba(56,189,248,0) 70%);
+      opacity: 0.18;
+      animation-duration: 26s;
+    }
+
+    /* Subtle grid overlay */
+    .grid-overlay {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    @keyframes floatOrb {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+      50% {
+        transform: translate(40px, 30px) scale(1.08);
+      }
+      100% {
+        transform: translate(-30px, -20px) scale(0.95);
+      }
+    }
+
+    /* Main Container Card */
+    .login-container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 440px;
+      margin: auto;
+      background: var(--card-bg);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius-box);
+      padding: 38px 32px 34px;
+      box-shadow: 
+        0 25px 60px -15px rgba(0, 0, 0, 0.75),
+        0 0 45px -10px var(--primary-glow),
+        inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      animation: cardFadeUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    }
+
+    @keyframes cardFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(24px) scale(0.97);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Brand Header */
+    .brand-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .brand-logo-wrapper {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .brand-logo-glow {
+      position: absolute;
+      inset: -4px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+      filter: blur(14px);
+      opacity: 0.6;
+      animation: pulseGlow 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      from { opacity: 0.45; transform: scale(0.96); }
+      to { opacity: 0.75; transform: scale(1.05); }
+    }
+
+    .brand-logo-img {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      height: 100%;
+      border-radius: 18px;
+      object-fit: cover;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .brand-title {
+      font-size: 1.65rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #ffffff 40%, #c7d2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .badge-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    .badge-admin {
+      background: rgba(245, 158, 11, 0.14);
+      border: 1px solid rgba(245, 158, 11, 0.35);
+      color: #fbbf24;
+    }
+
+    .badge-user {
+      background: rgba(99, 102, 241, 0.14);
+      border: 1px solid rgba(99, 102, 241, 0.32);
+      color: #a5b4fc;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Error Message Alert */
+    .alert-error {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--error-bg);
+      border: 1px solid var(--error-border);
+      color: var(--error-text);
+      padding: 11px 14px;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      margin-bottom: 18px;
+      animation: alertShake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+    }
+
+    @keyframes alertShake {
+      10%, 90% { transform: translateX(-2px); }
+      20%, 80% { transform: translateX(3px); }
+      30%, 50%, 70% { transform: translateX(-4px); }
+      40%, 60% { transform: translateX(4px); }
+    }
+
+    .alert-icon {
+      flex-shrink: 0;
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Form Styles */
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .field-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .field-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--text-muted);
+    }
+
+    .field-label svg {
+      width: 15px;
+      height: 15px;
+      opacity: 0.7;
+    }
+
+    .input-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .input-icon-left {
+      position: absolute;
+      left: 14px;
+      color: var(--text-dim);
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      transition: color 0.2s;
+    }
+
+    .input-control {
+      width: 100%;
+      height: 48px;
+      padding: 0 46px 0 42px;
+      background: rgba(2, 6, 23, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: var(--radius-input);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 0.96rem;
+      transition: all 0.22s ease;
+      outline: none;
+    }
+
+    .input-control::placeholder {
+      color: rgba(148, 163, 184, 0.55);
+    }
+
+    .input-control:hover {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: rgba(2, 6, 23, 0.6);
+    }
+
+    .input-control:focus {
+      border-color: #6366f1;
+      background: rgba(2, 6, 23, 0.75);
+      box-shadow: 0 0 0 3px var(--focus-ring);
+    }
+
+    .input-control:focus + .input-icon-left {
+      color: #818cf8;
+    }
+
+    /* Password Toggle Button */
+    .toggle-visibility-btn {
+      position: absolute;
+      right: 8px;
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      transition: color 0.2s, background-color 0.2s;
+    }
+
+    .toggle-visibility-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .toggle-visibility-btn:focus-visible {
+      outline: 2px solid #818cf8;
+    }
+
+    .toggle-visibility-btn svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    /* Remember Me Checkbox */
+    .remember-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 2px 0;
+      user-select: none;
+    }
+
+    .remember-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 0.88rem;
+      color: #cbd5e1;
+      font-weight: 500;
+    }
+
+    .hidden-checkbox {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .custom-checkbox-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background: rgba(2, 6, 23, 0.55);
+      border: 1.5px solid rgba(255, 255, 255, 0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-shrink: 0;
+    }
+
+    .custom-checkbox-box svg {
+      width: 12px;
+      height: 12px;
+      stroke: #ffffff;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .hidden-checkbox:checked + .custom-checkbox-box {
+      background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+      border-color: transparent;
+      box-shadow: 0 2px 10px rgba(67, 97, 238, 0.4);
+    }
+
+    .hidden-checkbox:checked + .custom-checkbox-box svg {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .hidden-checkbox:focus-visible + .custom-checkbox-box {
+      box-shadow: 0 0 0 3px var(--focus-ring);
+      border-color: #818cf8;
+    }
+
+    .remember-label:hover .custom-checkbox-box {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    .days-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: #818cf8;
+      background: rgba(99, 102, 241, 0.12);
+      border: 1px solid rgba(99, 102, 241, 0.22);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    /* Submit Button */
+    .btn-submit {
+      width: 100%;
+      height: 48px;
+      margin-top: 4px;
+      border: none;
+      border-radius: var(--radius-btn);
+      background: linear-gradient(135deg, #4361ee 0%, #7209b7 100%);
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 0.98rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      box-shadow: 0 8px 24px -4px rgba(67, 97, 238, 0.5);
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-submit::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(rgba(255, 255, 255, 0.18), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px -4px rgba(67, 97, 238, 0.65);
+    }
+
+    .btn-submit:hover::after {
+      opacity: 1;
+    }
+
+    .btn-submit:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 14px -2px rgba(67, 97, 238, 0.4);
+    }
+
+    .btn-submit svg {
+      width: 18px;
+      height: 18px;
+      transition: transform 0.2s;
+    }
+
+    .btn-submit:hover svg {
+      transform: translateX(3px);
+    }
+
+    /* Footer Switcher */
+    .login-footer {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .switch-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: #a5b4fc;
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 500;
+      transition: color 0.2s, transform 0.2s;
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+
+    .switch-link:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.04);
+      transform: translateY(-1px);
+    }
+
+    .switch-link svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .security-note {
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+    }
+
+    .security-note svg {
+      width: 12px;
+      height: 12px;
+      opacity: 0.6;
+    }
+
+    /* Screen reader helper */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 480px) {
+      .login-container {
+        padding: 30px 22px 26px;
+        border-radius: 20px;
+      }
+      .brand-title {
+        font-size: 1.45rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient background lighting -->
+  <div class="ambient-glow" aria-hidden="true">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+  <div class="grid-overlay" aria-hidden="true"></div>
+
+  <main class="login-container">
+    <!-- Brand Header -->
+    <div class="brand-section">
+      <div class="brand-logo-wrapper">
+        <div class="brand-logo-glow"></div>
+        <img src="{{ url_for('static', filename='icons/icon-192.svg') }}?v=2" alt="EuroTrip Logo" class="brand-logo-img">
+      </div>
+      <h1 class="brand-title">Euro Trip Planner</h1>
+      {% if admin_mode %}
+      <div class="badge-capsule badge-admin">
+        <span class="badge-dot"></span>
+        <span>Acces Administrator</span>
+      </div>
+      {% else %}
+      <div class="badge-capsule badge-user">
+        <span class="badge-dot"></span>
+        <span>Autentificare Călător</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Error Alert -->
+    {% if error %}
+    <div class="alert-error" aria-live="assertive">
+      <svg class="alert-icon" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+      </svg>
+      <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <!-- Login Form -->
+    {% if admin_mode %}
+    <form method="post" action="{{ url_for('login_admin_post') }}" id="loginForm" autocomplete="on">
+    {% else %}
+    <form method="post" action="{{ url_for('login_post') }}" id="loginForm" autocomplete="on">
+    {% endif %}
+      <!-- Hidden username input for browser credential managers (Chrome, Edge, Safari, Firefox) -->
+      <input type="text" name="username" id="username" value="{% if admin_mode %}admin{% else %}user{% endif %}" autocomplete="username" tabindex="-1" class="sr-only" aria-hidden="true">
+
+      <div class="field-group">
+        <div class="field-header">
+          <label class="field-label" for="password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span>Parolă / Password</span>
+          </label>
+        </div>
+
+        <div class="input-wrapper">
+          <div class="input-icon-left">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 2l-2 2m-1.5 1.5L14 9a5 5 0 1 0-4 4l-4 4-2 2v3h3l2-2 4-4a5 5 0 0 0 4-4l3.5-3.5"></path>
+            </svg>
+          </div>
+          <input 
+            id="password" 
+            name="password" 
+            type="password" 
+            class="input-control" 
+            placeholder="Introdu parola..." 
+            autocomplete="current-password" 
+            required 
+            autofocus>
+          <button 
+            type="button" 
+            class="toggle-visibility-btn" 
+            id="togglePasswordBtn" 
+            aria-label="Afișează sau ascunde parola" 
+            title="Afișează/Ascunde parola">
+            <!-- Eye icon (shown when hidden) -->
+            <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+            <!-- Eye-off icon (shown when visible) -->
+            <svg id="eyeOffIcon" style="display: none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Remember Me Checkbox -->
+      <div class="remember-container">
+        <label class="remember-label" for="remember" title="Sesiunea va dura 30 de zile pe acest dispozitiv">
+          <input type="checkbox" id="remember" name="remember" value="1" class="hidden-checkbox" checked>
+          <span class="custom-checkbox-box" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline>
+            </svg>
+          </span>
+          <span>Ține-mă minte în browser</span>
+        </label>
+        <span class="days-badge" title="Valabilitate sesiune activă">30 zile</span>
+      </div>
+
+      <!-- Submit Button -->
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span>{% if admin_mode %}Acces Administrator{% else %}Intră în Aplicație{% endif %}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+          <polyline points="12 5 19 12 12 19"></polyline>
+        </svg>
+      </button>
+    </form>
+
+    <!-- Navigation / Mode switch -->
+    <footer class="login-footer">
+      {% if admin_mode %}
+      <a href="{{ url_for('login') }}" class="switch-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Înapoi la acces Călător</span>
+      </a>
+      {% else %}
+      <a href="{{ url_for('login_admin') }}" class="switch-link">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        <span>Acces Administrator</span>
+      </a>
+      {% endif %}
+
+      <div class="security-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+        </svg>
+        <span>Conexiune securizată EuroTrip</span>
+      </div>
+    </footer>
+  </main>
+
+  <script>
+    (function() {
+      // Toggle Password Visibility
+      const passwordInput = document.getElementById('password');
+      const toggleBtn = document.getElementById('togglePasswordBtn');
+      const eyeIcon = document.getElementById('eyeIcon');
+      const eyeOffIcon = document.getElementById('eyeOffIcon');
+
+      if (toggleBtn && passwordInput) {
+        toggleBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const isPassword = passwordInput.type === 'password';
+          passwordInput.type = isPassword ? 'text' : 'password';
+          eyeIcon.style.display = isPassword ? 'none' : 'block';
+          eyeOffIcon.style.display = isPassword ? 'block' : 'none';
+          toggleBtn.setAttribute('aria-label', isPassword ? 'Ascunde parola' : 'Afișează parola');
+          passwordInput.focus();
+        });
+      }
+
+      // Remember checkbox preference in localStorage
+      const rememberCheckbox = document.getElementById('remember');
+      const REMEMBER_KEY = 'eurotrip_remember_pref';
+
+      if (rememberCheckbox) {
+        const savedPref = localStorage.getItem(REMEMBER_KEY);
+        if (savedPref !== null) {
+          rememberCheckbox.checked = (savedPref === 'true');
+        }
+        rememberCheckbox.addEventListener('change', function() {
+          localStorage.setItem(REMEMBER_KEY, rememberCheckbox.checked ? 'true' : 'false');
+        });
+      }
+
+      // Prevent multiple submissions
+      const form = document.getElementById('loginForm');
+      const submitBtn = document.getElementById('submitBtn');
+      if (form && submitBtn) {
+        form.addEventListener('submit', function() {
+          submitBtn.style.opacity = '0.85';
+          submitBtn.style.pointerEvents = 'none';
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

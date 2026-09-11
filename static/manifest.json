@@ -1,0 +1,26 @@
+{
+  "name": "Euro Trip Planner",
+  "short_name": "EuroTrip",
+  "description": "Plan and manage your European trip locations",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080c14",
+  "theme_color": "#5c73f2",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "categories": ["travel", "productivity"],
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

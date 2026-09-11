@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}API Security Audit{% endblock %}
+{% block body %}
+<div class="security-page">
+  <header class="security-header">
+    <div>
+      <a class="security-back" href="/admin">← Back to trip planner</a>
+      <h1>API Security Audit</h1>
+      <p>Authorization metadata for every API route. Destructive routes are inspected, not executed.</p>
+    </div>
+    <button class="btn-primary" id="runSecurityAudit" type="button">Run audit</button>
+  </header>
+  <section class="security-summary" id="securitySummary">Loading audit…</section>
+  <section class="security-table-wrap">
+    <table class="security-table">
+      <thead><tr><th>Route</th><th>Method</th><th>Required access</th><th>Action</th><th>Status</th></tr></thead>
+      <tbody id="securityRoutes"></tbody>
+    </table>
+  </section>
+</div>
+<script>
+  const summary = document.getElementById('securitySummary');
+  const routesBody = document.getElementById('securityRoutes');
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  async function runAudit() {
+    summary.textContent = 'Running audit…';
+    routesBody.innerHTML = '';
+    try {
+      const response = await fetch('/api/admin/security-audit');
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Audit failed');
+      const protectedCount = data.routes.filter(route => route.protected).length;
+      summary.className = `security-summary ${data.all_protected ? 'security-ok' : 'security-warning'}`;
+      summary.textContent = `${protectedCount}/${data.routes.length} API routes protected${data.all_protected ? ' · All checks passed' : ' · Review required'}`;
+      routesBody.innerHTML = data.routes.map(route => `
+        <tr>
+          <td><code>${escapeHtml(route.path)}</code></td>
+          <td>${route.methods.map(method => `<span class="method method-${method.toLowerCase()}">${escapeHtml(method)}</span>`).join(' ')}</td>
+          <td>${escapeHtml(route.required_role)}</td>
+          <td>${route.destructive ? '<span class="action-warning">Write/delete</span>' : 'Read-only'}</td>
+          <td><span class="route-status ${route.protected ? 'status-ok' : 'status-bad'}">${route.protected ? 'PROTECTED' : 'REVIEW'}</span></td>
+        </tr>`).join('');
+    } catch (error) {
+      summary.className = 'security-summary security-warning';
+      summary.textContent = error.message;
+    }
+  }
+  document.getElementById('runSecurityAudit').addEventListener('click', runAudit);
+  runAudit();
+</script>
+{% endblock %}
