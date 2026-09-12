@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="ro">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes">
+  <meta name="theme-color" content="#10121a">
+  <title>{{ filename }} - EuroTrip Document Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="/static/icons/icon-192.svg?v=2">
+  <style>
+    :root {
+      --bg: #0f1118;
+      --bg-card: #181b26;
+      --border: rgba(255, 255, 255, 0.1);
+      --accent: #5c73f2;
+      --accent-hover: #4b62e0;
+      --text: #e2e8f0;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header.viewer-header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-shrink: 0;
+      z-index: 20;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+
+    .back-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+
+    .back-btn svg {
+      display: block;
+      width: 18px;
+      height: 18px;
+      pointer-events: none;
+    }
+
+    .header-info {
+      min-width: 0;
+    }
+
+    .doc-title {
+      font-size: 0.95rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #fff;
+    }
+
+    .doc-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+    }
+
+    .action-btn.btn-primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .action-btn.btn-primary:hover {
+      background: var(--accent-hover);
+    }
+
+    .tools-pill {
+      display: inline-flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2px 4px;
+      gap: 2px;
+    }
+
+    .tool-btn {
+      width: 30px;
+      height: 30px;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 0.95rem;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tool-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .zoom-level {
+      font-size: 0.76rem;
+      font-weight: 600;
+      min-width: 44px;
+      text-align: center;
+      color: var(--text-muted);
+    }
+
+    main.viewer-stage {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #141722;
+      width: 100%;
+    }
+
+    /* PDF Viewer */
+    .pdf-container {
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      touch-action: pan-x pan-y;
+      overflow-anchor: none;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: normal;
+      gap: 16px;
+    }
+
+    .pdf-page-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-left: auto;
+      margin-right: auto;
+      flex-shrink: 0;
+    }
+
+    .pdf-page-canvas {
+      display: block;
+      background: #fff;
+      border-radius: 4px;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .pdf-page-badge {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .standalone-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(15, 23, 42, 0.95);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 9999px;
+      font-size: 0.84rem;
+      font-weight: 500;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      z-index: 100;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      white-space: nowrap;
+    }
+
+    /* Image Viewer */
+    .image-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+      position: relative;
+    }
+
+    .image-container.is-panning {
+      cursor: grabbing;
+    }
+
+    .image-container img {
+      max-width: 95%;
+      max-height: 95%;
+      object-fit: contain;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      user-select: none;
+      -webkit-user-drag: none;
+      transform-origin: center center;
+    }
+
+    /* Generic fallback */
+    .generic-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+      padding: 30px;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .generic-icon {
+      font-size: 3rem;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 17, 24, 0.85);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid rgba(255, 255, 255, 0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    @media (max-width: 640px) {
+      header.viewer-header {
+        padding: 8px 10px;
+      }
+
+      .action-btn span {
+        display: none;
+      }
+
+      .action-btn {
+        padding: 7px 10px;
+      }
+
+      .doc-title {
+        font-size: 0.88rem;
+      }
+    }
+
+    /* Share Sheet Modal */
+    .share-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      animation: shareFadeIn 0.2s ease-out;
+    }
+
+    @keyframes shareFadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .share-modal-backdrop {
+      position: absolute;
+      inset: 0;
+    }
+
+    .share-modal-sheet {
+      position: relative;
+      width: 100%;
+      max-width: 480px;
+      background: #1b1e2c;
+      border-top-left-radius: 20px;
+      border-top-right-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-bottom: none;
+      padding: 16px 20px 28px;
+      box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.6);
+      animation: shareSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      box-sizing: border-box;
+      z-index: 1;
+    }
+
+    @keyframes shareSlideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .share-sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 999px;
+      margin: 0 auto 2px;
+    }
+
+    .share-sheet-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .share-sheet-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.98rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .share-sheet-close {
+      background: rgba(255, 255, 255, 0.08);
+      border: none;
+      color: #cbd5e1;
+      font-size: 1.1rem;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+    }
+    .share-sheet-close:hover {
+      background: rgba(255, 255, 255, 0.18);
+      color: #fff;
+    }
+
+    .share-doc-preview {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .share-doc-icon {
+      font-size: 1.8rem;
+      line-height: 1;
+    }
+
+    .share-doc-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .share-doc-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .share-doc-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted, #94a3b8);
+      margin-top: 2px;
+    }
+
+    .share-options-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      padding: 6px 0;
+    }
+
+    .share-option-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      text-decoration: none;
+      color: #cbd5e1;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 2px;
+      border-radius: 10px;
+      transition: transform 0.15s, color 0.15s;
+      font-family: inherit;
+    }
+    .share-option-btn:active {
+      transform: scale(0.92);
+    }
+
+    .share-icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: transform 0.15s;
+    }
+    .share-option-btn:hover .share-icon-wrap {
+      transform: translateY(-2px);
+    }
+
+    .share-option-btn span {
+      font-size: 0.72rem;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .share-sheet-note {
+      font-size: 0.73rem;
+      color: #94a3b8;
+      line-height: 1.4;
+      background: rgba(92, 115, 242, 0.08);
+      border: 1px solid rgba(92, 115, 242, 0.18);
+      border-radius: 10px;
+      padding: 8px 12px;
+    }
+    .share-sheet-note code {
+      color: #93c5fd;
+      font-size: 0.70rem;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+
+<body>
+  <header class="viewer-header">
+    <div class="header-left">
+      <button type="button" class="back-btn" onclick="handleBack()" title="Înapoi" aria-label="Înapoi">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <div class="header-info">
+        <div class="doc-title" title="{{ filename }}">{{ filename }}</div>
+        <div class="doc-meta">{{ location.name }}{% if file_size %} • {{ (file_size / 1024)|round(1) }} KB{% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="header-actions">
+      {% if is_pdf or is_image %}
+      <div class="tools-pill">
+        <button type="button" class="tool-btn" id="zoomOutBtn" title="Zoom out">−</button>
+        <span class="zoom-level" id="zoomLevel">100%</span>
+        <button type="button" class="tool-btn" id="zoomInBtn" title="Zoom in">+</button>
+        <button type="button" class="tool-btn" id="zoomFitBtn" title="Fit to screen">⛶</button>
+      </div>
+      {% endif %}
+      <button type="button" class="action-btn" id="standaloneShareBtn" title="Trimite / Distribuie documentul">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
+        </svg>
+        <span>Share</span>
+      </button>
+      <a href="{{ download_url }}" class="action-btn btn-primary" id="standaloneDownloadBtn" download="{{ filename }}" title="Descarcă fișierul">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+        </svg>
+        <span>Descarcă</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="viewer-stage" id="viewerStage">
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <div>Se încarcă documentul…</div>
+    </div>
+
+    {% if is_pdf %}
+    <div class="pdf-container" id="pdfContainer"></div>
+    {% elif is_image %}
+    <div class="image-container" id="imageContainer">
+      <img src="{{ raw_url }}" alt="{{ filename }}" id="viewerImage">
+    </div>
+    {% else %}
+    <div class="generic-container">
+      <div class="generic-icon">📄</div>
+      <h2>{{ filename }}</h2>
+      <p style="color:var(--text-muted)">Previzualizarea inline nu este disponibilă pentru acest tip de fișier.</p>
+      <a href="{{ download_url }}" class="action-btn btn-primary" style="margin-top:10px" download>
+        ⬇ Descarcă fișierul
+      </a>
+    </div>
+    {% endif %}
+  </main>
+
+  {% if is_pdf %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  {% endif %}
+
+  <script>
+    function handleBack() {
+      if (window.history.length > 1) {
+        window.history.back();
+      } else {
+        window.location.href = '/';
+      }
+    }
+
+    const isPdf = {{ 'true' if is_pdf else 'false' }};
+    const isImage = {{ 'true' if is_image else 'false' }};
+    const rawUrl = {{ raw_url| tojson }};
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    const zoomLevelEl = document.getElementById('zoomLevel');
+
+    let currentZoom = 1.0;
+    let pdfDoc = null;
+
+    if (isImage) {
+      const img = document.getElementById('viewerImage');
+      const container = document.getElementById('imageContainer');
+      img.onload = () => { if (loadingOverlay) loadingOverlay.style.display = 'none'; };
+      img.onerror = () => { if (loadingOverlay) loadingOverlay.style.display = 'none'; };
+
+      let panX = 0, panY = 0;
+      let isPanning = false, startX = 0, startY = 0, startPanX = 0, startPanY = 0;
+      let isPinching = false, pinchStartDist = 0, pinchStartZoom = 1.0;
+      let pinchStartMidX = 0, pinchStartMidY = 0, pinchStartPanX = 0, pinchStartPanY = 0;
+      let panPointerId = null;
+
+      function updateImgTransform(animate = false) {
+        img.style.transition = animate ? 'transform 0.18s ease-out' : 'none';
+        img.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+        if (zoomLevelEl) zoomLevelEl.textContent = `${Math.round(currentZoom * 100)}%`;
+      }
+
+      document.getElementById('zoomInBtn')?.addEventListener('click', () => {
+        const oldZoom = currentZoom;
+        const newZoom = Math.min(Number((oldZoom + 0.25).toFixed(2)), 5.0);
+        const ratio = newZoom / oldZoom;
+        panX *= ratio;
+        panY *= ratio;
+        currentZoom = newZoom;
+        updateImgTransform(true);
+      });
+      document.getElementById('zoomOutBtn')?.addEventListener('click', () => {
+        const oldZoom = currentZoom;
+        const newZoom = Math.max(Number((oldZoom - 0.25).toFixed(2)), 0.25);
+        const ratio = newZoom / oldZoom;
+        panX *= ratio;
+        panY *= ratio;
+        currentZoom = newZoom;
+        updateImgTransform(true);
+      });
+      document.getElementById('zoomFitBtn')?.addEventListener('click', () => {
+        currentZoom = 1.0;
+        panX = 0;
+        panY = 0;
+        updateImgTransform(true);
+      });
+
+      // Mouse wheel zoom with focal point
+      container?.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.2 : -0.2;
+        const oldZoom = currentZoom;
+        const newZoom = Math.min(Math.max(Number((oldZoom + delta).toFixed(2)), 0.25), 5.0);
+        if (newZoom === oldZoom) return;
+
+        const rect = container.getBoundingClientRect();
+        const fx = e.clientX - rect.left - rect.width / 2;
+        const fy = e.clientY - rect.top - rect.height / 2;
+
+        const zoomRatio = newZoom / oldZoom;
+        panX = fx - (fx - panX) * zoomRatio;
+        panY = fy - (fy - panY) * zoomRatio;
+        currentZoom = newZoom;
+        updateImgTransform(false);
+      }, { passive: false });
+
+      // Pointer drag pan (mouse and single-finger touch)
+      container?.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        if (isPinching) return;
+        isPanning = true;
+        panPointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        startPanX = panX;
+        startPanY = panY;
+        container.classList.add('is-panning');
+        try { container.setPointerCapture(e.pointerId); } catch (_) { }
+      });
+
+      container?.addEventListener('pointermove', (e) => {
+        if (!isPanning || isPinching) return;
+        if (panPointerId !== null && e.pointerId !== panPointerId) return;
+        panX = startPanX + (e.clientX - startX);
+        panY = startPanY + (e.clientY - startY);
+        updateImgTransform(false);
+      });
+
+      const stopPan = () => {
+        if (!isPanning) return;
+        isPanning = false;
+        container.classList.remove('is-panning');
+        try { container.releasePointerCapture(panPointerId); } catch (_) { }
+        panPointerId = null;
+      };
+      container?.addEventListener('pointerup', stopPan);
+      container?.addEventListener('pointercancel', stopPan);
+
+      // 2-finger touch pinch with focal point
+      container?.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          isPinching = true;
+          isPanning = false;
+          container.classList.remove('is-panning');
+          try { container.releasePointerCapture(panPointerId); } catch (_) { }
+          panPointerId = null;
+
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          pinchStartDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+          pinchStartZoom = currentZoom;
+          pinchStartMidX = (t0.clientX + t1.clientX) / 2;
+          pinchStartMidY = (t0.clientY + t1.clientY) / 2;
+          pinchStartPanX = panX;
+          pinchStartPanY = panY;
+        }
+      }, { passive: true });
+
+      container?.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && pinchStartDist > 5) {
+          if (e.cancelable) e.preventDefault();
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          const curDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+          const curMidX = (t0.clientX + t1.clientX) / 2;
+          const curMidY = (t0.clientY + t1.clientY) / 2;
+
+          const factor = curDist / pinchStartDist;
+          const newZoom = Math.min(Math.max(Number((pinchStartZoom * factor).toFixed(3)), 0.25), 5.0);
+
+          const rect = container.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+
+          const f0x = pinchStartMidX - centerX;
+          const f0y = pinchStartMidY - centerY;
+          const f1x = curMidX - centerX;
+          const f1y = curMidY - centerY;
+
+          const zoomRatio = newZoom / pinchStartZoom;
+          panX = f1x - (f0x - pinchStartPanX) * zoomRatio;
+          panY = f1y - (f0y - pinchStartPanY) * zoomRatio;
+          currentZoom = newZoom;
+
+          updateImgTransform(false);
+        }
+      }, { passive: false });
+
+      const endPinch = (e) => {
+        if (!e.touches || e.touches.length < 2) {
+          isPinching = false;
+        }
+      };
+      container?.addEventListener('touchend', endPinch, { passive: true });
+      container?.addEventListener('touchcancel', endPinch, { passive: true });
+    }
+
+    if (isPdf && window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const pdfContainer = document.getElementById('pdfContainer');
+
+      let isPinching = false;
+      let pinchDist = 0, startZoom = 1.0;
+      let pinchStartMidX = 0, pinchStartMidY = 0;
+      let pinchStartContentX = 0, pinchStartContentY = 0;
+      let renderDebounce = null;
+      let ignoreSingleTouchUntil = 0;
+      let currentRenderTasks = [];
+      let renderGeneration = 0;
+
+      function cancelAllRenderTasks() {
+        renderGeneration++;
+        if (currentRenderTasks && currentRenderTasks.length) {
+          currentRenderTasks.forEach(task => {
+            try { task.cancel(); } catch (_) {}
+          });
+          currentRenderTasks = [];
+        }
+      }
+
+      async function renderAllPages(doc) {
+        if (isPinching) return;
+        cancelAllRenderTasks();
+        const myGen = ++renderGeneration;
+        const numPages = doc.numPages;
+        const dpr = window.devicePixelRatio || 1;
+        const availableWidth = Math.max(280, (pdfContainer.clientWidth || window.innerWidth) - 24);
+
+        const existingWrappers = pdfContainer.querySelectorAll('.pdf-page-wrapper');
+        const needsDomCreation = existingWrappers.length !== numPages;
+
+        if (needsDomCreation) {
+          pdfContainer.innerHTML = '';
+        }
+
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          if (isPinching || myGen !== renderGeneration) break;
+          const page = await doc.getPage(pageNum);
+          if (isPinching || myGen !== renderGeneration) break;
+
+          const unscaledViewport = page.getViewport({ scale: 1.0 });
+          const fitScale = availableWidth / unscaledViewport.width;
+          const displayScale = fitScale * currentZoom;
+          const viewport = page.getViewport({ scale: displayScale * dpr });
+          const cssWidth = Math.round(viewport.width / dpr);
+          const cssHeight = Math.round(viewport.height / dpr);
+
+          let wrap = document.getElementById(`page_${pageNum}`);
+          let canvas = null;
+
+          if (!wrap || needsDomCreation) {
+            wrap = document.createElement('div');
+            wrap.className = 'pdf-page-wrapper';
+            wrap.id = `page_${pageNum}`;
+
+            canvas = document.createElement('canvas');
+            canvas.className = 'pdf-page-canvas';
+            wrap.appendChild(canvas);
+
+            if (numPages > 1) {
+              const badge = document.createElement('div');
+              badge.className = 'pdf-page-badge';
+              badge.textContent = `Pagina ${pageNum} din ${numPages}`;
+              wrap.appendChild(badge);
+            }
+            pdfContainer.appendChild(wrap);
+          } else {
+            canvas = wrap.querySelector('canvas');
+          }
+
+          wrap.style.width = `${cssWidth}px`;
+          wrap.style.minHeight = `${cssHeight}px`;
+
+          // Double buffering: render into offscreen canvas first to prevent white flashing/jumping
+          const offscreenCanvas = document.createElement('canvas');
+          offscreenCanvas.width = Math.round(viewport.width);
+          offscreenCanvas.height = Math.round(viewport.height);
+          const ctx = offscreenCanvas.getContext('2d');
+
+          const renderTask = page.render({ canvasContext: ctx, viewport });
+          currentRenderTasks.push(renderTask);
+
+          try {
+            await renderTask.promise;
+          } catch (err) {
+            if (err?.name !== 'RenderingCancelledException') {
+              console.error('Page render error:', err);
+            }
+            continue;
+          }
+
+          if (isPinching || myGen !== renderGeneration) break;
+
+          // Seamless instant swap
+          canvas.width = offscreenCanvas.width;
+          canvas.height = offscreenCanvas.height;
+          canvas.style.width = `${cssWidth}px`;
+          canvas.style.height = `${cssHeight}px`;
+          canvas.dataset.baseWidth = `${Math.round(fitScale * unscaledViewport.width)}`;
+          const destCtx = canvas.getContext('2d');
+          destCtx.drawImage(offscreenCanvas, 0, 0);
+        }
+
+        if (loadingOverlay) loadingOverlay.style.display = 'none';
+      }
+
+      function scaleCanvasesVisually(zoom) {
+        if (zoomLevelEl) zoomLevelEl.textContent = `${Math.round(zoom * 100)}%`;
+        const wrappers = pdfContainer.querySelectorAll('.pdf-page-wrapper');
+        wrappers.forEach(wrap => {
+          const canvas = wrap.querySelector('canvas');
+          if (canvas) {
+            const baseW = parseFloat(canvas.dataset.baseWidth) || (parseFloat(canvas.style.width) / currentZoom);
+            const newW = Math.round(baseW * zoom);
+            const aspect = (canvas.height && canvas.width) ? (canvas.height / canvas.width) : 1.414;
+            const newH = Math.round(newW * aspect);
+            canvas.style.width = `${newW}px`;
+            canvas.style.height = `${newH}px`;
+            wrap.style.width = `${newW}px`;
+            wrap.style.minHeight = `${newH}px`;
+          }
+        });
+      }
+
+      function scheduleReRender() {
+        clearTimeout(renderDebounce);
+        renderDebounce = setTimeout(() => {
+          if (!isPinching && pdfDoc) renderAllPages(pdfDoc);
+        }, 500);
+      }
+
+      function adjustPdfZoom(newZoom) {
+        const oldZoom = currentZoom;
+        if (newZoom === oldZoom) return;
+        const rect = pdfContainer.getBoundingClientRect();
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const s0x = pdfContainer.scrollLeft;
+        const s0y = pdfContainer.scrollTop;
+        const zoomRatio = newZoom / oldZoom;
+        currentZoom = newZoom;
+        scaleCanvasesVisually(newZoom);
+        pdfContainer.scrollLeft = (s0x + centerX) * zoomRatio - centerX;
+        pdfContainer.scrollTop = (s0y + centerY) * zoomRatio - centerY;
+        scheduleReRender();
+      }
+
+      document.getElementById('zoomInBtn')?.addEventListener('click', () => {
+        const nextZoom = Math.min(Number((currentZoom + 0.25).toFixed(2)), 4.0);
+        adjustPdfZoom(nextZoom);
+      });
+      document.getElementById('zoomOutBtn')?.addEventListener('click', () => {
+        const nextZoom = Math.max(Number((currentZoom - 0.25).toFixed(2)), 0.35);
+        adjustPdfZoom(nextZoom);
+      });
+      document.getElementById('zoomFitBtn')?.addEventListener('click', () => {
+        currentZoom = 1.0;
+        scaleCanvasesVisually(1.0);
+        pdfContainer.scrollLeft = 0;
+        pdfContainer.scrollTop = 0;
+        scheduleReRender();
+      });
+
+      // Mouse wheel zoom with focal point on PDF
+      pdfContainer?.addEventListener('wheel', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+          e.preventDefault();
+          const delta = e.deltaY < 0 ? 0.2 : -0.2;
+          const oldZoom = currentZoom;
+          const nextZoom = Math.min(Math.max(Number((oldZoom + delta).toFixed(2)), 0.35), 4.0);
+          if (nextZoom === oldZoom) return;
+
+          const rect = pdfContainer.getBoundingClientRect();
+          const fx = e.clientX - rect.left;
+          const fy = e.clientY - rect.top;
+          const s0x = pdfContainer.scrollLeft;
+          const s0y = pdfContainer.scrollTop;
+          const zoomRatio = nextZoom / oldZoom;
+          currentZoom = nextZoom;
+          scaleCanvasesVisually(nextZoom);
+          pdfContainer.scrollLeft = (s0x + fx) * zoomRatio - fx;
+          pdfContainer.scrollTop = (s0y + fy) * zoomRatio - fy;
+          scheduleReRender();
+        }
+      }, { passive: false });
+
+      // 2-finger touch pinch with locked focal point
+      pdfContainer?.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+          isPinching = true;
+          cancelAllRenderTasks();
+          clearTimeout(renderDebounce);
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          pinchDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+          startZoom = currentZoom;
+          pinchStartMidX = (t0.clientX + t1.clientX) / 2;
+          pinchStartMidY = (t0.clientY + t1.clientY) / 2;
+
+          const rect = pdfContainer.getBoundingClientRect();
+          const pointerX = pinchStartMidX - rect.left;
+          const pointerY = pinchStartMidY - rect.top;
+
+          pinchStartContentX = pdfContainer.scrollLeft + pointerX;
+          pinchStartContentY = pdfContainer.scrollTop + pointerY;
+
+          if (e.cancelable) e.preventDefault();
+        }
+      }, { passive: false });
+
+      pdfContainer?.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && isPinching && pinchDist > 5) {
+          if (e.cancelable) e.preventDefault();
+          const t0 = e.touches[0];
+          const t1 = e.touches[1];
+          const curDist = Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY);
+          const curMidX = (t0.clientX + t1.clientX) / 2;
+          const curMidY = (t0.clientY + t1.clientY) / 2;
+
+          const ratio = curDist / pinchDist;
+          const newZoom = Math.min(Math.max(Number((startZoom * ratio).toFixed(3)), 0.35), 4.0);
+          currentZoom = newZoom;
+          scaleCanvasesVisually(newZoom);
+
+          const rect = pdfContainer.getBoundingClientRect();
+          const newPointerX = curMidX - rect.left;
+          const newPointerY = curMidY - rect.top;
+
+          const zoomFactor = newZoom / startZoom;
+          pdfContainer.scrollLeft = pinchStartContentX * zoomFactor - newPointerX;
+          pdfContainer.scrollTop = pinchStartContentY * zoomFactor - newPointerY;
+        } else if (isPinching || (e.touches.length === 1 && Date.now() < ignoreSingleTouchUntil)) {
+          if (e.cancelable) e.preventDefault();
+        }
+      }, { passive: false });
+
+      const endPdfPinch = (e) => {
+        if (isPinching && (!e.touches || e.touches.length < 2)) {
+          isPinching = false;
+          pinchDist = 0;
+          ignoreSingleTouchUntil = Date.now() + 350;
+          clearTimeout(renderDebounce);
+          renderDebounce = setTimeout(() => {
+            if (pdfDoc && !isPinching) renderAllPages(pdfDoc);
+          }, 500);
+        }
+      };
+      pdfContainer?.addEventListener('touchend', endPdfPinch, { passive: false });
+      pdfContainer?.addEventListener('touchcancel', endPdfPinch, { passive: false });
+
+      // PDF Desktop Mouse Drag Pan
+      let isPdfPanning = false, pdfPanStartX = 0, pdfPanStartY = 0, pdfPanStartScrollLeft = 0, pdfPanStartScrollTop = 0, pdfPanPointerId = null;
+      pdfContainer?.addEventListener('pointerdown', (e) => {
+        if (e.pointerType !== 'mouse' || e.button !== 0) return;
+        if (pdfContainer.scrollWidth > pdfContainer.clientWidth || pdfContainer.scrollHeight > pdfContainer.clientHeight) {
+          isPdfPanning = true;
+          pdfPanPointerId = e.pointerId;
+          pdfPanStartX = e.clientX;
+          pdfPanStartY = e.clientY;
+          pdfPanStartScrollLeft = pdfContainer.scrollLeft;
+          pdfPanStartScrollTop = pdfContainer.scrollTop;
+          pdfContainer.style.cursor = 'grabbing';
+          try { pdfContainer.setPointerCapture(e.pointerId); } catch (_) { }
+        }
+      });
+      pdfContainer?.addEventListener('pointermove', (e) => {
+        if (!isPdfPanning) return;
+        if (pdfPanPointerId !== null && e.pointerId !== pdfPanPointerId) return;
+        pdfContainer.scrollLeft = pdfPanStartScrollLeft - (e.clientX - pdfPanStartX);
+        pdfContainer.scrollTop = pdfPanStartScrollTop - (e.clientY - pdfPanStartY);
+      });
+      const stopPdfPan = () => {
+        if (!isPdfPanning) return;
+        isPdfPanning = false;
+        pdfContainer.style.cursor = '';
+        try { pdfContainer.releasePointerCapture(pdfPanPointerId); } catch (_) { }
+        pdfPanPointerId = null;
+      };
+      pdfContainer?.addEventListener('pointerup', stopPdfPan);
+      pdfContainer?.addEventListener('pointercancel', stopPdfPan);
+
+      window.pdfjsLib.getDocument({ url: rawUrl, withCredentials: true }).promise
+        .then(doc => {
+          pdfDoc = doc;
+          renderAllPages(doc);
+        })
+        .catch(err => {
+          console.error('Error loading PDF:', err);
+          if (loadingOverlay) {
+            loadingOverlay.innerHTML = `<div>Eroare la încărcarea PDF-ului.</div><a href="${rawUrl}" class="action-btn btn-primary" download style="margin-top:10px">Descarcă fișierul direct</a>`;
+          }
+        });
+    } else if (!isImage) {
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+    }
+
+    let toastTimeout = null;
+    function showToast(msg, type = 'info') {
+      const toast = document.getElementById('standaloneToast');
+      if (!toast) return;
+      clearTimeout(toastTimeout);
+      toast.textContent = msg;
+      toast.style.borderColor = type === 'error' ? '#ef4444' : (type === 'success' ? '#10b981' : 'rgba(255, 255, 255, 0.2)');
+      toast.style.display = 'block';
+      toast.style.opacity = '1';
+      toastTimeout = setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => { toast.style.display = 'none'; }, 250);
+      }, 2600);
+    }
+
+    let cachedShareFile = null;
+
+    // Pre-cache share file in background so user gesture is never expired by await fetch
+    async function prefetchShareFile() {
+      try {
+        const url = {{ raw_url|tojson }};
+        const filename = {{ filename|tojson }};
+        const res = await fetch(url);
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const ext = filename.split('.').pop().toLowerCase();
+        let mimeType = blob.type;
+        if (!mimeType || mimeType === 'application/octet-stream') {
+          if (ext === 'pdf') mimeType = 'application/pdf';
+          else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+          else if (ext === 'png') mimeType = 'image/png';
+          else if (ext === 'webp') mimeType = 'image/webp';
+        }
+        cachedShareFile = new File([blob], filename, { type: mimeType });
+      } catch (_) {}
+    }
+    setTimeout(prefetchShareFile, 400);
+
+    function openStandaloneShareModal() {
+      const modal = document.getElementById('standaloneShareModal');
+      if (!modal) return;
+      const filename = {{ filename|tojson }};
+      const shareUrl = window.location.href;
+
+      const waBtn = document.getElementById('standaloneShareWhatsApp');
+      if (waBtn) {
+        waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent('EuroTrip - ' + filename + ':\n' + shareUrl)}`;
+      }
+
+      const tgBtn = document.getElementById('standaloneShareTelegram');
+      if (tgBtn) {
+        tgBtn.href = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(filename)}`;
+      }
+
+      const emBtn = document.getElementById('standaloneShareEmail');
+      if (emBtn) {
+        emBtn.href = `mailto:?subject=${encodeURIComponent('Document: ' + filename)}&body=${encodeURIComponent('Vezi documentul atașat aici:\n' + shareUrl)}`;
+      }
+
+      modal.style.display = 'flex';
+    }
+
+    function closeStandaloneShareModal() {
+      const modal = document.getElementById('standaloneShareModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    async function shareStandaloneFile() {
+      const filename = {{ filename|tojson }};
+      const shareUrl = window.location.href;
+
+      // 1. Try Native Web Share API if supported and in secure context
+      const canNativeShare = typeof navigator.share === 'function';
+      if (canNativeShare) {
+        // Try file sharing first
+        if (cachedShareFile && navigator.canShare && navigator.canShare({ files: [cachedShareFile] })) {
+          try {
+            await navigator.share({ files: [cachedShareFile], title: filename });
+            showToast('Document partajat!', 'success');
+            return;
+          } catch (err) {
+            if (err?.name === 'AbortError') return;
+            console.warn('Native file share failed, trying URL:', err);
+          }
+        }
+
+        // Try URL sharing
+        try {
+          await navigator.share({ title: filename, url: shareUrl });
+          return;
+        } catch (err) {
+          if (err?.name === 'AbortError') return;
+          console.warn('Native URL share failed:', err);
+        }
+      }
+
+      // 2. If navigator.share is unavailable (e.g. non-HTTPS/HTTP on mobile LAN) or fails:
+      // Open the custom Share Sheet with WhatsApp, Telegram, Email, Copy Link, Download!
+      openStandaloneShareModal();
+    }
+
+    async function handleStandaloneDownload(e) {
+      if (e) e.preventDefault();
+      const url = {{ download_url|tojson }};
+      const filename = {{ filename|tojson }};
+      showToast('Se descarcă documentul…', 'info');
+
+      // 1. Try blob download
+      try {
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (res.ok) {
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = blobUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => {
+            try { document.body.removeChild(a); URL.revokeObjectURL(blobUrl); } catch (_) {}
+          }, 3000);
+          showToast('Fișier descărcat cu succes.', 'success');
+          return;
+        }
+      } catch (err) {
+        console.warn('Blob download error:', err);
+      }
+
+      // 2. Direct browser navigation fallback (triggers Content-Disposition: attachment header)
+      window.location.href = url;
+    }
+
+    document.getElementById('standaloneShareBtn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      shareStandaloneFile();
+    });
+
+    document.getElementById('standaloneShareCopy')?.addEventListener('click', async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(window.location.href);
+        } else {
+          const input = document.createElement('input');
+          input.value = window.location.href;
+          document.body.appendChild(input);
+          input.select();
+          document.execCommand('copy');
+          document.body.removeChild(input);
+        }
+        showToast('Link copiat în clipboard!', 'success');
+        closeStandaloneShareModal();
+      } catch (_) {
+        showToast('Nu s-a putut copia linkul.', 'error');
+      }
+    });
+
+    document.getElementById('standaloneShareDownload')?.addEventListener('click', (e) => {
+      closeStandaloneShareModal();
+      handleStandaloneDownload(e);
+    });
+
+    document.querySelectorAll('a[download], #standaloneDownloadBtn').forEach(btn => {
+      btn.addEventListener('click', handleStandaloneDownload);
+    });
+  </script>
+
+  <!-- Share Sheet Modal for non-HTTPS / fallback -->
+  <div class="share-modal-overlay" id="standaloneShareModal" style="display:none;" role="dialog" aria-modal="true">
+    <div class="share-modal-backdrop" onclick="closeStandaloneShareModal()"></div>
+    <div class="share-modal-sheet">
+      <div class="share-sheet-handle"></div>
+      <div class="share-sheet-header">
+        <div class="share-sheet-title">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
+          </svg>
+          <span>Trimite documentul</span>
+        </div>
+        <button type="button" class="share-sheet-close" onclick="closeStandaloneShareModal()" aria-label="Închide">✕</button>
+      </div>
+      <div class="share-doc-preview">
+        <div class="share-doc-icon">{{ '📕' if is_pdf else ('🖼️' if is_image else '📄') }}</div>
+        <div class="share-doc-text">
+          <div class="share-doc-name">{{ filename }}</div>
+          <div class="share-doc-meta">{{ location.name }}</div>
+        </div>
+      </div>
+      <div class="share-options-grid">
+        <a href="#" class="share-option-btn opt-whatsapp" id="standaloneShareWhatsApp" target="_blank" rel="noopener">
+          <div class="share-icon-wrap" style="background:#25D366;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm5.79 14.07c-.24.67-1.38 1.29-1.92 1.33-.5.04-1.12.18-3.48-.79-2.02-.83-3.32-2.88-3.42-3.02-.1-.13-2.02-2.69-2.02-5.13 0-2.44 1.28-3.64 1.73-4.14.39-.43.91-.56 1.27-.56.12 0 .23.01.32.01.36.02.54.04.78.61.29.7.99 2.42 1.08 2.6.09.18.15.39.03.63-.12.24-.18.39-.36.6-.18.21-.38.47-.54.63-.18.18-.37.38-.16.74.21.36.93 1.53 2 2.49 1.38 1.23 2.54 1.61 2.9 1.79.36.18.57.15.78-.09.21-.24.9-1.05 1.14-1.41.24-.36.48-.3.81-.18.33.12 2.1 1 2.46 1.17.36.18.6.27.69.42.09.15.09.87-.15 1.54z"/></svg>
+          </div>
+          <span>WhatsApp</span>
+        </a>
+        <a href="#" class="share-option-btn opt-telegram" id="standaloneShareTelegram" target="_blank" rel="noopener">
+          <div class="share-icon-wrap" style="background:#229ED9;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 0 0-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/></svg>
+          </div>
+          <span>Telegram</span>
+        </a>
+        <a href="#" class="share-option-btn opt-email" id="standaloneShareEmail">
+          <div class="share-icon-wrap" style="background:#EA4335;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          </div>
+          <span>Email</span>
+        </a>
+        <button type="button" class="share-option-btn opt-copy" id="standaloneShareCopy">
+          <div class="share-icon-wrap" style="background:#4F46E5;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          </div>
+          <span>Copiază link</span>
+        </button>
+        <button type="button" class="share-option-btn opt-download" id="standaloneShareDownload">
+          <div class="share-icon-wrap" style="background:#10B981;">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+          </div>
+          <span>Descarcă</span>
+        </button>
+      </div>
+      <div class="share-sheet-footer">
+        <div class="share-sheet-note">
+          💡 Conexiunea curentă este HTTP (rețea locală). Pentru a trimite direct prin meniul nativ Android (QuickShare, Nearby, aplicații instalate), accesați prin HTTPS sau activați adresa în <code>chrome://flags</code>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="standaloneToast" class="standalone-toast" style="display:none;"></div>
+</body>
+
+</html>

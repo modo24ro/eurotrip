@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for
 from werkzeug.utils import secure_filename
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'eurotrip-secret-change-me')
@@ -91,7 +92,45 @@ def normalize_trip_coordinates(data):
         exact = exact_maps_coordinates(location.get('google_maps_url'))
         if exact:
             location['coordinates'] = exact
-        location['attachments'] = location_attachments(location.get('id')) if location.get('id') else []
+        loc_id = location.get('id')
+        if loc_id:
+            directory = active_attachments_dir(loc_id)
+            if os.path.isdir(directory):
+                disk_files = {entry.name: entry.stat().st_size for entry in os.scandir(directory) if entry.is_file()}
+                ordered = []
+                seen = set()
+                raw_atts = [a for a in location.get('attachments', []) if isinstance(a, dict) and a.get('name')]
+                sorted_raw = sorted(raw_atts, key=lambda a: (a.get('order') is None, a.get('order', 0)))
+                for att in sorted_raw:
+                    name = att['name']
+                    if name in disk_files and name not in seen:
+                        ordered.append({
+                            'name': name,
+                            'size': disk_files[name],
+                            'order': len(ordered) + 1
+                        })
+                        seen.add(name)
+                for name in sorted(disk_files.keys()):
+                    if name not in seen:
+                        ordered.append({
+                            'name': name,
+                            'size': disk_files[name],
+                            'order': len(ordered) + 1
+                        })
+                        seen.add(name)
+                location['attachments'] = ordered
+            else:
+                raw_atts = [a for a in location.get('attachments', []) if isinstance(a, dict) and a.get('name')]
+                if raw_atts:
+                    sorted_raw = sorted(raw_atts, key=lambda a: (a.get('order') is None, a.get('order', 0)))
+                    location['attachments'] = [
+                        {'name': a['name'], 'size': a.get('size', 0), 'order': idx}
+                        for idx, a in enumerate(sorted_raw, start=1)
+                    ]
+                else:
+                    location['attachments'] = []
+        else:
+            location['attachments'] = []
     return data
 
 
@@ -457,6 +496,10 @@ def protect_app():
     if request.method == 'OPTIONS' and request.path == '/api/integrations/tampermonkey/location':
         return None
     if request.path.startswith('/static/'):
+        return None
+    if request.path.startswith('/doc-viewer/') and request.args.get('token'):
+        return None
+    if '/attachments/' in request.path and request.args.get('token'):
         return None
     if not session.get('authenticated'):
         if request.path.startswith('/api/'):
@@ -906,6 +949,10 @@ def save_trip():
     for loc in data.get('locations', []):
         if loc.get('category') not in ALLOWED_CATEGORIES:
             loc['category'] = 'other'
+        if isinstance(loc.get('attachments'), list):
+            for idx, att in enumerate(loc['attachments'], start=1):
+                if isinstance(att, dict):
+                    att['order'] = idx
 
     create_trip_version('save', data)
     with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
@@ -1030,14 +1077,19 @@ def save_excluded_state():
 
 def find_active_location(location_id):
     trip = load_trip_data()
-    return trip, next((loc for loc in trip.get('locations', []) if loc.get('id') == location_id), None)
+    return trip, next((loc for loc in trip.get('locations', []) if loc.get('id') == location_id or str(loc.get('id')) == str(location_id)), None)
 
 
-def location_attachments(location_id):
+def location_attachments(location_id, location=None):
+    if location is None:
+        _, location = find_active_location(location_id)
+    if location and isinstance(location.get('attachments'), list) and location['attachments']:
+        return location['attachments']
     directory = active_attachments_dir(location_id)
     if not os.path.isdir(directory):
         return []
-    return [{'name': entry.name, 'size': entry.stat().st_size} for entry in os.scandir(directory) if entry.is_file()]
+    files = sorted([entry for entry in os.scandir(directory) if entry.is_file()], key=lambda e: e.name)
+    return [{'name': entry.name, 'size': entry.stat().st_size, 'order': idx + 1} for idx, entry in enumerate(files)]
 
 
 @app.route('/api/locations/<path:location_id>/attachments', methods=['GET'])
@@ -1046,14 +1098,14 @@ def list_location_attachments(location_id):
     _, location = find_active_location(location_id)
     if not location:
         return jsonify({'error': 'Location not found'}), 404
-    return jsonify({'attachments': location_attachments(location_id)})
+    return jsonify({'attachments': location_attachments(location_id, location)})
 
 
 @app.route('/api/locations/<path:location_id>/attachments', methods=['POST'])
 @require_auth
 @require_role('admin')
 def upload_location_attachment(location_id):
-    _, location = find_active_location(location_id)
+    trip, location = find_active_location(location_id)
     if not location:
         return jsonify({'error': 'Location not found'}), 404
     file = request.files.get('file')
@@ -1067,17 +1119,116 @@ def upload_location_attachment(location_id):
         return jsonify({'error': 'Unsupported attachment type'}), 400
     directory = active_attachments_dir(location_id)
     os.makedirs(directory, exist_ok=True)
-    file.save(os.path.join(directory, filename))
-    return jsonify({'status': 'ok', 'attachments': location_attachments(location_id)})
+    file_path = os.path.join(directory, filename)
+    file.save(file_path)
+    file_size = os.path.getsize(file_path)
+
+    attachments = location.get('attachments', [])
+    existing = next((a for a in attachments if isinstance(a, dict) and a.get('name') == filename), None)
+    if existing:
+        existing['size'] = file_size
+        if 'order' not in existing:
+            existing['order'] = len(attachments)
+    else:
+        max_order = max((a.get('order', 0) for a in attachments if isinstance(a, dict)), default=0)
+        attachments.append({
+            'name': filename,
+            'size': file_size,
+            'order': max_order + 1
+        })
+    attachments.sort(key=lambda a: (a.get('order') is None, a.get('order', 0)))
+    for idx, att in enumerate(attachments, start=1):
+        att['order'] = idx
+    location['attachments'] = attachments
+
+    trip_data_file = active_trip_data_file()
+    if os.path.exists(trip_data_file):
+        with open(trip_data_file, 'w', encoding='utf-8') as f:
+            json.dump(trip, f, ensure_ascii=False, indent=2)
+
+    return jsonify({'status': 'ok', 'attachments': location['attachments']})
+
+
+def get_attachment_serializer():
+    return URLSafeTimedSerializer(app.secret_key, salt='eurotrip-attachment-view')
+
+
+def generate_attachment_token(location_id, filename):
+    s = get_attachment_serializer()
+    return s.dumps({'loc': str(location_id), 'file': str(filename)})
+
+
+def verify_attachment_token(token, location_id, filename, max_age=86400 * 7):
+    if not token:
+        return False
+    s = get_attachment_serializer()
+    try:
+        data = s.loads(token, max_age=max_age)
+        return str(data.get('loc')) == str(location_id) and str(data.get('file')) == str(filename)
+    except (BadSignature, SignatureExpired, Exception):
+        return False
+
+
+@app.route('/api/locations/<path:location_id>/attachments/<path:filename>/view-token', methods=['GET'])
+@require_auth
+def get_attachment_view_token(location_id, filename):
+    safe_name = secure_filename(filename)
+    token = generate_attachment_token(location_id, safe_name)
+    return jsonify({'token': token})
+
+
+@app.route('/doc-viewer/<path:location_id>/<path:filename>', methods=['GET'])
+def standalone_doc_viewer(location_id, filename):
+    safe_name = secure_filename(filename)
+    token = request.args.get('token')
+    authenticated = session.get('authenticated')
+    if not authenticated and token:
+        authenticated = verify_attachment_token(token, location_id, safe_name)
+    if not authenticated:
+        return redirect(f'/login?next={urllib.parse.quote(request.full_path)}')
+
+    _, location = find_active_location(location_id)
+    if not location:
+        return "Location not found", 404
+    file_path = os.path.join(active_attachments_dir(location_id), safe_name)
+    if not os.path.isfile(file_path):
+        return "Attachment file not found", 404
+
+    ext = os.path.splitext(safe_name)[1].lower()
+    is_pdf = ext == '.pdf'
+    is_image = ext in ('.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg')
+    file_size = os.path.getsize(file_path)
+    view_token = token or generate_attachment_token(location_id, safe_name)
+
+    download_url = f'/api/locations/{urllib.parse.quote(location_id)}/attachments/{urllib.parse.quote(safe_name)}?download=1&token={urllib.parse.quote(view_token)}'
+    raw_url = f'/api/locations/{urllib.parse.quote(location_id)}/attachments/{urllib.parse.quote(safe_name)}?token={urllib.parse.quote(view_token)}'
+
+    return render_template(
+        'doc_viewer_standalone.html',
+        location=location,
+        filename=safe_name,
+        file_size=file_size,
+        download_url=download_url,
+        raw_url=raw_url,
+        is_pdf=is_pdf,
+        is_image=is_image,
+        ext=ext,
+    )
 
 
 @app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['GET'])
-@require_auth
 def download_location_attachment(location_id, filename):
+    safe_name = secure_filename(filename)
+    token = request.args.get('token')
+    authenticated = session.get('authenticated')
+    if not authenticated and token:
+        authenticated = verify_attachment_token(token, location_id, safe_name)
+    if not authenticated:
+        return jsonify({'error': 'Authentication required'}), 401
+
     _, location = find_active_location(location_id)
     if not location:
         return jsonify({'error': 'Location not found'}), 404
-    safe_name = secure_filename(filename)
     if safe_name != filename or not os.path.isfile(os.path.join(active_attachments_dir(location_id), safe_name)):
         return jsonify({'error': 'Attachment not found'}), 404
     ext = os.path.splitext(safe_name)[1].lower()
@@ -1103,13 +1254,61 @@ def download_location_attachment(location_id, filename):
 @require_auth
 @require_role('admin')
 def delete_location_attachment(location_id, filename):
-    _, location = find_active_location(location_id)
+    trip, location = find_active_location(location_id)
     safe_name = secure_filename(filename)
     path = os.path.join(active_attachments_dir(location_id), safe_name)
     if not location or safe_name != filename or not os.path.isfile(path):
         return jsonify({'error': 'Attachment not found'}), 404
     os.unlink(path)
-    return jsonify({'status': 'ok', 'attachments': location_attachments(location_id)})
+
+    current_attachments = location.get('attachments', [])
+    location['attachments'] = [a for a in current_attachments if isinstance(a, dict) and a.get('name') != safe_name]
+    for idx, att in enumerate(location['attachments'], start=1):
+        att['order'] = idx
+
+    trip_data_file = active_trip_data_file()
+    if os.path.exists(trip_data_file):
+        with open(trip_data_file, 'w', encoding='utf-8') as f:
+            json.dump(trip, f, ensure_ascii=False, indent=2)
+
+    return jsonify({'status': 'ok', 'attachments': location['attachments']})
+
+
+@app.route('/api/locations/<path:location_id>/attachments/reorder', methods=['POST', 'PUT'])
+@require_auth
+def reorder_location_attachments(location_id):
+    trip, location = find_active_location(location_id)
+    if not location:
+        return jsonify({'error': 'Location not found'}), 404
+    data = request.get_json(silent=True) or {}
+    order = data.get('order') or data.get('filenames')
+    if not isinstance(order, list):
+        return jsonify({'error': 'Order must be a list of filenames'}), 400
+
+    current_attachments = location.get('attachments', [])
+    att_by_name = {a['name']: a for a in current_attachments if isinstance(a, dict) and 'name' in a}
+    reordered = []
+    seen = set()
+    for name in order:
+        if name in att_by_name and name not in seen:
+            reordered.append(att_by_name[name])
+            seen.add(name)
+    # append any remaining
+    for a in current_attachments:
+        if isinstance(a, dict) and a.get('name') not in seen:
+            reordered.append(a)
+            seen.add(a.get('name'))
+
+    for idx, att in enumerate(reordered, start=1):
+        att['order'] = idx
+
+    location['attachments'] = reordered
+
+    trip_data_file = active_trip_data_file()
+    if os.path.exists(trip_data_file):
+        with open(trip_data_file, 'w', encoding='utf-8') as f:
+            json.dump(trip, f, ensure_ascii=False, indent=2)
+    return jsonify({'status': 'ok', 'attachments': location['attachments']})
 
 
 @app.route('/api/admin/backup', methods=['POST'])
@@ -1638,4 +1837,26 @@ def sw():
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    import sys
+    import subprocess
+
+    ssl_ctx = None
+    if '--ssl' in sys.argv or os.environ.get('USE_SSL') == '1':
+        cert_file = os.path.join(BASE_DIR, 'cert.pem')
+        key_file = os.path.join(BASE_DIR, 'key.pem')
+        if not (os.path.isfile(cert_file) and os.path.isfile(key_file)):
+            print("[SSL] Generating self-signed certificate (cert.pem, key.pem)...")
+            try:
+                subprocess.run([
+                    'openssl', 'req', '-x509', '-newkey', 'rsa:2048', '-nodes',
+                    '-keyout', key_file, '-out', cert_file, '-days', '365',
+                    '-subj', '/CN=EuroTrip'
+                ], check=True, capture_output=True)
+                print("[SSL] Certificate generated successfully.")
+            except Exception as e:
+                print(f"[SSL] Could not auto-generate certificate: {e}")
+        if os.path.isfile(cert_file) and os.path.isfile(key_file):
+            ssl_ctx = (cert_file, key_file)
+            print("[SSL] Running with HTTPS (https://0.0.0.0:5000)")
+
+    app.run(debug=True, host='0.0.0.0', port=5000, ssl_context=ssl_ctx)

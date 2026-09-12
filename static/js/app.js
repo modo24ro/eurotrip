@@ -2775,15 +2775,24 @@ function bindEvents() {
   });
   const closePdfViewer = () => {
     cancelPdfRenderTasks();
+    clearTimeout(docViewer.renderDebounceTimer);
     const frame = document.getElementById('pdfViewerFrame');
     if (frame) frame.src = 'about:blank';
     const img = document.getElementById('imageViewerImg');
-    if (img) img.src = '';
+    if (img) {
+      img.src = '';
+      img.style.transform = '';
+    }
     const container = document.getElementById('pdfViewerCanvasContainer');
     if (container) container.innerHTML = '';
     docViewer.pdfDoc = null;
     docViewer.locationId = null;
     docViewer.files = [];
+    docViewer.zoom = 1.0;
+    docViewer.renderedZoom = 1.0;
+    docViewer.rotation = 0;
+    docViewer.imgPanX = 0;
+    docViewer.imgPanY = 0;
     document.getElementById('pdfViewerModal')?.classList.remove('open');
   };
   document.getElementById('closePdfViewer')?.addEventListener('click', closePdfViewer);
@@ -2793,22 +2802,314 @@ function bindEvents() {
 
   // Document & Image Viewer toolbar event listeners
   document.getElementById('docZoomIn')?.addEventListener('click', () => {
-    docViewer.zoom = Math.min(docViewer.zoom + 0.25, 4.0);
+    docViewer.zoom = Math.min(Number((docViewer.zoom + 0.25).toFixed(2)), 4.0);
     updateViewerZoom();
   });
   document.getElementById('docZoomOut')?.addEventListener('click', () => {
-    docViewer.zoom = Math.max(docViewer.zoom - 0.25, 0.25);
+    docViewer.zoom = Math.max(Number((docViewer.zoom - 0.25).toFixed(2)), 0.25);
     updateViewerZoom();
   });
   document.getElementById('docZoomFit')?.addEventListener('click', () => {
     docViewer.zoom = 1.0;
     docViewer.rotation = 0;
+    docViewer.imgPanX = 0;
+    docViewer.imgPanY = 0;
     updateViewerZoom();
   });
   document.getElementById('docRotateBtn')?.addEventListener('click', () => {
     docViewer.rotation = (docViewer.rotation + 90) % 360;
     updateViewerZoom();
   });
+
+  // Stage Mouse Wheel Zoom (Ctrl+Wheel on PDF or wheel on image with focal point)
+  const docStage = document.getElementById('docViewerStage');
+  docStage?.addEventListener('wheel', (e) => {
+    const meta = docViewer.files[docViewer.currentIndex] ? getFileMeta(docViewer.files[docViewer.currentIndex].name) : null;
+    if (!meta || (!meta.isPdf && !meta.isImage)) return;
+    if (e.ctrlKey || e.metaKey || meta.isImage) {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.2 : -0.2;
+      const oldZoom = docViewer.zoom || 1.0;
+      const nextZoom = Math.min(Math.max(Number((oldZoom + delta).toFixed(2)), 0.25), 5.0);
+      if (nextZoom === oldZoom) return;
+
+      if (meta.isImage) {
+        const imgContainer = document.getElementById('imageViewerContainer');
+        if (imgContainer) {
+          const rect = imgContainer.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const fx = e.clientX - centerX;
+          const fy = e.clientY - centerY;
+          const currentPanX = docViewer.imgPanX || 0;
+          const currentPanY = docViewer.imgPanY || 0;
+          const zoomRatio = nextZoom / oldZoom;
+          docViewer.imgPanX = fx - (fx - currentPanX) * zoomRatio;
+          docViewer.imgPanY = fy - (fy - currentPanY) * zoomRatio;
+          docViewer.zoom = nextZoom;
+          updateViewerZoom();
+        }
+      } else if (meta.isPdf && docViewer.pdfDoc) {
+        const pdfContainer = document.getElementById('pdfViewerCanvasContainer');
+        if (pdfContainer && pdfContainer.style.display !== 'none') {
+          const rect = pdfContainer.getBoundingClientRect();
+          const fx = e.clientX - rect.left;
+          const fy = e.clientY - rect.top;
+          const s0x = pdfContainer.scrollLeft;
+          const s0y = pdfContainer.scrollTop;
+          const zoomRatio = nextZoom / oldZoom;
+          docViewer.zoom = nextZoom;
+          applyCanvasVisualZoom(nextZoom);
+          pdfContainer.scrollLeft = (s0x + fx) * zoomRatio - fx;
+          pdfContainer.scrollTop = (s0y + fy) * zoomRatio - fy;
+          const zoomLevel = document.getElementById('docZoomLevel');
+          if (zoomLevel) zoomLevel.textContent = `${Math.round(nextZoom * 100)}%`;
+          clearTimeout(docViewer.renderDebounceTimer);
+          docViewer.renderDebounceTimer = setTimeout(() => {
+            if (docViewer.pdfDoc && pdfContainer.style.display !== 'none') {
+              renderPdfDocPages(docViewer.pdfDoc, pdfContainer);
+            }
+          }, 150);
+        }
+      }
+    }
+  }, { passive: false });
+
+  // Mobile 2-Finger Pinch to Zoom (Focal-point centered on fingers)
+  let pinchStartDist = 0;
+  let pinchStartZoom = 1.0;
+  let pinchStartMidX = 0;
+  let pinchStartMidY = 0;
+  let pinchStartPanX = 0;
+  let pinchStartPanY = 0;
+  let pinchStartContentX = 0;
+  let pinchStartContentY = 0;
+  let ignoreSingleTouchUntil = 0;
+
+  const getTouchMetrics = (touches) => {
+    const t0 = touches[0];
+    const t1 = touches[1];
+    return {
+      dist: Math.hypot(t0.clientX - t1.clientX, t0.clientY - t1.clientY),
+      midX: (t0.clientX + t1.clientX) / 2,
+      midY: (t0.clientY + t1.clientY) / 2,
+    };
+  };
+
+  const initPinch = (touches) => {
+    docViewer.isPinchZooming = true;
+    cancelPdfRenderTasks();
+    clearTimeout(docViewer.renderDebounceTimer);
+    const m = getTouchMetrics(touches);
+    pinchStartDist = m.dist;
+    pinchStartZoom = docViewer.zoom || 1.0;
+    pinchStartMidX = m.midX;
+    pinchStartMidY = m.midY;
+
+    const meta = docViewer.files[docViewer.currentIndex] ? getFileMeta(docViewer.files[docViewer.currentIndex].name) : null;
+    if (meta?.isPdf) {
+      const pdfContainer = document.getElementById('pdfViewerCanvasContainer');
+      if (pdfContainer) {
+        const rect = pdfContainer.getBoundingClientRect();
+        const pointerX = pinchStartMidX - rect.left;
+        const pointerY = pinchStartMidY - rect.top;
+        pinchStartContentX = pdfContainer.scrollLeft + pointerX;
+        pinchStartContentY = pdfContainer.scrollTop + pointerY;
+      }
+    } else if (meta?.isImage) {
+      pinchStartPanX = docViewer.imgPanX || 0;
+      pinchStartPanY = docViewer.imgPanY || 0;
+    }
+
+    // Cancel single-finger pan immediately
+    if (isImgPanning) {
+      isImgPanning = false;
+      imgViewerContainer?.classList.remove('is-panning');
+      try { imgViewerContainer?.releasePointerCapture(panPointerId); } catch (_) {}
+      panPointerId = null;
+    }
+  };
+
+  docStage?.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      initPinch(e.touches);
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+
+  docStage?.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2) {
+      if (e.cancelable) e.preventDefault();
+      const m = getTouchMetrics(e.touches);
+
+      if (!docViewer.isPinchZooming || pinchStartDist <= 5) {
+        initPinch(e.touches);
+        return;
+      }
+
+      const factor = m.dist / pinchStartDist;
+      const targetZoom = Math.min(Math.max(Number((pinchStartZoom * factor).toFixed(3)), 0.25), 5.0);
+      docViewer.zoom = targetZoom;
+
+      const zoomLevel = document.getElementById('docZoomLevel');
+      if (zoomLevel) zoomLevel.textContent = `${Math.round(targetZoom * 100)}%`;
+
+      const meta = docViewer.files[docViewer.currentIndex] ? getFileMeta(docViewer.files[docViewer.currentIndex].name) : null;
+      if (meta?.isPdf) {
+        const pdfContainer = document.getElementById('pdfViewerCanvasContainer');
+        if (pdfContainer && pdfContainer.style.display !== 'none') {
+          applyCanvasVisualZoom(targetZoom);
+          const rect = pdfContainer.getBoundingClientRect();
+          const newPointerX = m.midX - rect.left;
+          const newPointerY = m.midY - rect.top;
+          const zoomFactor = targetZoom / pinchStartZoom;
+          pdfContainer.scrollLeft = pinchStartContentX * zoomFactor - newPointerX;
+          pdfContainer.scrollTop = pinchStartContentY * zoomFactor - newPointerY;
+        }
+      } else if (meta?.isImage) {
+        const imgContainer = document.getElementById('imageViewerContainer');
+        if (imgContainer && imgContainer.style.display !== 'none') {
+          const rect = imgContainer.getBoundingClientRect();
+          const centerX = rect.left + rect.width / 2;
+          const centerY = rect.top + rect.height / 2;
+          const f0x = pinchStartMidX - centerX;
+          const f0y = pinchStartMidY - centerY;
+          const f1x = m.midX - centerX;
+          const f1y = m.midY - centerY;
+          const zoomRatio = targetZoom / pinchStartZoom;
+          docViewer.imgPanX = f1x - (f0x - pinchStartPanX) * zoomRatio;
+          docViewer.imgPanY = f1y - (f0y - pinchStartPanY) * zoomRatio;
+
+          const img = document.getElementById('imageViewerImg');
+          if (img) {
+            img.style.transition = 'none';
+            img.style.transform = `translate(${docViewer.imgPanX}px, ${docViewer.imgPanY}px) scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
+          }
+        }
+      }
+    } else if (docViewer.isPinchZooming || (e.touches.length === 1 && Date.now() < ignoreSingleTouchUntil)) {
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+
+  const endPinch = (e) => {
+    if (!e.touches || e.touches.length < 2) {
+      if (docViewer.isPinchZooming) {
+        docViewer.isPinchZooming = false;
+        pinchStartDist = 0;
+        ignoreSingleTouchUntil = Date.now() + 350;
+        if (docViewer.pdfDoc) {
+          const container = document.getElementById('pdfViewerCanvasContainer');
+          if (container && container.style.display !== 'none') {
+            clearTimeout(docViewer.renderDebounceTimer);
+            docViewer.renderDebounceTimer = setTimeout(() => {
+              if (!docViewer.isPinchZooming && docViewer.pdfDoc) {
+                renderPdfDocPages(docViewer.pdfDoc, container);
+              }
+            }, 500);
+          }
+        }
+      }
+    }
+  };
+  docStage?.addEventListener('touchend', endPinch, { passive: false });
+  docStage?.addEventListener('touchcancel', endPinch, { passive: false });
+
+  // Image Panning (Mouse Drag / Touch Drag)
+  let isImgPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+  let panStartImgX = 0;
+  let panStartImgY = 0;
+  let panPointerId = null;
+  const imgViewerContainer = document.getElementById('imageViewerContainer');
+  const imgViewerElement = document.getElementById('imageViewerImg');
+
+  imgViewerContainer?.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (docViewer.isPinchZooming) return;
+    const meta = docViewer.files[docViewer.currentIndex] ? getFileMeta(docViewer.files[docViewer.currentIndex].name) : null;
+    if (!meta?.isImage) return;
+
+    isImgPanning = true;
+    panPointerId = e.pointerId;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    panStartImgX = docViewer.imgPanX || 0;
+    panStartImgY = docViewer.imgPanY || 0;
+
+    imgViewerContainer.classList.add('is-panning');
+    if (imgViewerElement) imgViewerElement.style.transition = 'none';
+    try { imgViewerContainer.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+
+  imgViewerContainer?.addEventListener('pointermove', (e) => {
+    if (!isImgPanning || docViewer.isPinchZooming) return;
+    if (panPointerId !== null && e.pointerId !== panPointerId) return;
+
+    const dx = e.clientX - panStartX;
+    const dy = e.clientY - panStartY;
+    docViewer.imgPanX = panStartImgX + dx;
+    docViewer.imgPanY = panStartImgY + dy;
+
+    if (imgViewerElement) {
+      imgViewerElement.style.transition = 'none';
+      imgViewerElement.style.transform = `translate(${docViewer.imgPanX}px, ${docViewer.imgPanY}px) scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
+    }
+  });
+
+  const stopImgPan = (e) => {
+    if (!isImgPanning) return;
+    isImgPanning = false;
+    imgViewerContainer?.classList.remove('is-panning');
+    try { imgViewerContainer?.releasePointerCapture(panPointerId); } catch (_) {}
+    panPointerId = null;
+  };
+  imgViewerContainer?.addEventListener('pointerup', stopImgPan);
+  imgViewerContainer?.addEventListener('pointercancel', stopImgPan);
+
+  // PDF Desktop Mouse Drag Pan
+  let isPdfPanning = false;
+  let pdfPanStartX = 0;
+  let pdfPanStartY = 0;
+  let pdfPanStartScrollLeft = 0;
+  let pdfPanStartScrollTop = 0;
+  let pdfPanPointerId = null;
+  const pdfViewerCanvasContainer = document.getElementById('pdfViewerCanvasContainer');
+
+  pdfViewerCanvasContainer?.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    if (pdfViewerCanvasContainer.scrollWidth > pdfViewerCanvasContainer.clientWidth || pdfViewerCanvasContainer.scrollHeight > pdfViewerCanvasContainer.clientHeight) {
+      isPdfPanning = true;
+      pdfPanPointerId = e.pointerId;
+      pdfPanStartX = e.clientX;
+      pdfPanStartY = e.clientY;
+      pdfPanStartScrollLeft = pdfViewerCanvasContainer.scrollLeft;
+      pdfPanStartScrollTop = pdfViewerCanvasContainer.scrollTop;
+      pdfViewerCanvasContainer.style.cursor = 'grabbing';
+      try { pdfViewerCanvasContainer.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+  });
+
+  pdfViewerCanvasContainer?.addEventListener('pointermove', (e) => {
+    if (!isPdfPanning) return;
+    if (pdfPanPointerId !== null && e.pointerId !== pdfPanPointerId) return;
+    const dx = e.clientX - pdfPanStartX;
+    const dy = e.clientY - pdfPanStartY;
+    pdfViewerCanvasContainer.scrollLeft = pdfPanStartScrollLeft - dx;
+    pdfViewerCanvasContainer.scrollTop = pdfPanStartScrollTop - dy;
+  });
+
+  const stopPdfPan = () => {
+    if (!isPdfPanning) return;
+    isPdfPanning = false;
+    if (pdfViewerCanvasContainer) pdfViewerCanvasContainer.style.cursor = '';
+    try { pdfViewerCanvasContainer?.releasePointerCapture(pdfPanPointerId); } catch (_) {}
+    pdfPanPointerId = null;
+  };
+  pdfViewerCanvasContainer?.addEventListener('pointerup', stopPdfPan);
+  pdfViewerCanvasContainer?.addEventListener('pointercancel', stopPdfPan);
+
   document.getElementById('pdfPrevPage')?.addEventListener('click', () => {
     scrollPdfToPage(docViewer.pdfPageNum - 1);
   });
@@ -2827,6 +3128,234 @@ function bindEvents() {
     e.target.value = '';
     openDocumentViewer(locationId, newFileName);
   });
+  document.getElementById('docOpenNewTabLink')?.addEventListener('click', async (e) => {
+    e.preventDefault();
+    if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) return;
+    const file = docViewer.files[docViewer.currentIndex];
+    const locId = docViewer.locationId;
+
+    let token = '';
+    try {
+      const res = await fetch(`/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(file.name)}/view-token`);
+      if (res.ok) {
+        const d = await res.json();
+        token = d.token || '';
+      }
+    } catch (_) {}
+
+    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
+    const viewerUrl = `/doc-viewer/${encodeURIComponent(locId)}/${encodeURIComponent(file.name)}${tokenParam}`;
+    const fullViewerUrl = new URL(viewerUrl, window.location.origin).href;
+
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+    if (isAndroid && isStandalone) {
+      // In Android Standalone PWA, launch external system browser via Android Intent
+      const hostPath = fullViewerUrl.replace(/^https?:\/\//, '');
+      const scheme = window.location.protocol.replace(':', '');
+      const intentUrl = `intent://${hostPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;end;`;
+      try {
+        window.location.href = intentUrl;
+        return;
+      } catch (_) {}
+    }
+
+    const win = window.open(fullViewerUrl, '_blank');
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      window.location.href = fullViewerUrl;
+    }
+  });
+
+  const openDocShareModal = (filename, locationName, shareUrl) => {
+    const modal = document.getElementById('docShareModal');
+    if (!modal) return;
+
+    const fnEl = document.getElementById('docShareFilename');
+    if (fnEl) fnEl.textContent = filename;
+    const locEl = document.getElementById('docShareLocation');
+    if (locEl) locEl.textContent = locationName || 'EuroTrip';
+
+    const ext = filename.split('.').pop().toLowerCase();
+    const iconEl = document.getElementById('docShareIcon');
+    if (iconEl) {
+      if (ext === 'pdf') iconEl.textContent = '📕';
+      else if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)) iconEl.textContent = '🖼️';
+      else iconEl.textContent = '📄';
+    }
+
+    const waBtn = document.getElementById('docShareOptWhatsApp');
+    if (waBtn) waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent('EuroTrip - ' + filename + ':\n' + shareUrl)}`;
+
+    const tgBtn = document.getElementById('docShareOptTelegram');
+    if (tgBtn) tgBtn.href = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(filename)}`;
+
+    const emBtn = document.getElementById('docShareOptEmail');
+    if (emBtn) emBtn.href = `mailto:?subject=${encodeURIComponent('Document: ' + filename)}&body=${encodeURIComponent('Vezi documentul atașat aici:\n' + shareUrl)}`;
+
+    modal.style.display = 'flex';
+  };
+
+  const closeDocShareModal = () => {
+    const modal = document.getElementById('docShareModal');
+    if (modal) modal.style.display = 'none';
+  };
+
+  document.getElementById('closeDocShareModal')?.addEventListener('click', closeDocShareModal);
+  document.getElementById('docShareModalBackdrop')?.addEventListener('click', closeDocShareModal);
+
+  document.getElementById('docShareOptCopy')?.addEventListener('click', async () => {
+    if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) return;
+    const filename = docViewer.files[docViewer.currentIndex].name;
+    const locId = docViewer.locationId;
+    const shareUrl = new URL(`/doc-viewer/${encodeURIComponent(locId)}/${encodeURIComponent(filename)}`, window.location.origin).href;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      toast('Link copiat în clipboard!', 'success');
+      closeDocShareModal();
+    } catch (_) {
+      toast('Nu s-a putut copia linkul.', 'error');
+    }
+  });
+
+  document.getElementById('docShareOptDownload')?.addEventListener('click', (e) => {
+    closeDocShareModal();
+    handleAttachmentDownloadClick(e);
+  });
+
+  const shareCurrentDocument = async () => {
+    if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) {
+      toast('Niciun document selectat.', 'error');
+      return;
+    }
+    const file = docViewer.files[docViewer.currentIndex];
+    const locId = docViewer.locationId;
+    const filename = file.name;
+    const shareBtn = document.getElementById('docShareBtn');
+    if (shareBtn) shareBtn.style.opacity = '0.5';
+
+    const loc = state.trip?.locations?.find(l => l.id === locId);
+    const locationName = loc ? loc.name : '';
+    const shareUrl = new URL(`/doc-viewer/${encodeURIComponent(locId)}/${encodeURIComponent(filename)}`, window.location.origin).href;
+
+    const canNativeShare = typeof navigator.share === 'function';
+    if (canNativeShare) {
+      if (docViewer.cachedShareFile && navigator.canShare && navigator.canShare({ files: [docViewer.cachedShareFile] })) {
+        try {
+          await navigator.share({
+            files: [docViewer.cachedShareFile],
+            title: filename,
+          });
+          toast('Document partajat!', 'success');
+          if (shareBtn) shareBtn.style.opacity = '';
+          return;
+        } catch (err) {
+          if (err?.name === 'AbortError') {
+            if (shareBtn) shareBtn.style.opacity = '';
+            return;
+          }
+          console.warn('Native file share failed, trying URL share:', err);
+        }
+      }
+
+      try {
+        await navigator.share({
+          title: filename,
+          url: shareUrl,
+        });
+        if (shareBtn) shareBtn.style.opacity = '';
+        return;
+      } catch (err) {
+        if (err?.name === 'AbortError') {
+          if (shareBtn) shareBtn.style.opacity = '';
+          return;
+        }
+        console.warn('Native URL share failed:', err);
+      }
+    }
+
+    if (shareBtn) shareBtn.style.opacity = '';
+
+    // If native share is unavailable (e.g. over HTTP on mobile LAN) or fails:
+    // Open the custom Share Sheet with WhatsApp, Telegram, Email, Copy Link, Download!
+    openDocShareModal(filename, locationName, shareUrl);
+  };
+
+  const handleAttachmentDownloadClick = async (e) => {
+    e.preventDefault();
+    if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) return;
+    const file = docViewer.files[docViewer.currentIndex];
+    const locId = docViewer.locationId;
+    const filename = file.name;
+
+    const isAndroid = /android/i.test(navigator.userAgent);
+
+    toast('Se pregătește descărcarea…', 'info');
+
+    // 1. Android Standalone PWA intent fallback
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (isAndroid && isStandalone) {
+      try {
+        let token = '';
+        try {
+          const tokRes = await fetch(`/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}/view-token`);
+          if (tokRes.ok) {
+            const d = await tokRes.json();
+            token = d.token || '';
+          }
+        } catch (_) {}
+        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+        const dlUrl = new URL(`/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}?download=1${tokenParam}`, window.location.origin).href;
+        const hostPath = dlUrl.replace(/^https?:\/\//, '');
+        const scheme = window.location.protocol.replace(':', '');
+        const intentUrl = `intent://${hostPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;end;`;
+        window.location.href = intentUrl;
+        toast('Descărcare inițiată în browser…', 'success');
+        return;
+      } catch (intentErr) {
+        console.warn('Intent download failed:', intentErr);
+      }
+    }
+
+    // 2. Standard browser / Desktop / Mobile browser:
+    try {
+      const fileUrl = `/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}`;
+      const res = await fetch(fileUrl, { credentials: 'same-origin' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const tempLink = document.createElement('a');
+      tempLink.style.display = 'none';
+      tempLink.href = blobUrl;
+      tempLink.download = filename;
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      setTimeout(() => {
+        document.body.removeChild(tempLink);
+        URL.revokeObjectURL(blobUrl);
+      }, 2000);
+      toast('Fișier descărcat cu succes.', 'success');
+    } catch (err) {
+      // Fallback: direct navigation
+      window.location.href = `/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}?download=1`;
+    }
+  };
+
+  document.getElementById('docShareBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    shareCurrentDocument();
+  });
+  document.getElementById('pdfDownloadLink')?.addEventListener('click', handleAttachmentDownloadClick);
+  document.getElementById('genericDocDownloadBtn')?.addEventListener('click', handleAttachmentDownloadClick);
   document.getElementById('modalDeleteAttachmentBtn')?.addEventListener('click', () => {
     if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) return;
     openDeleteAttachmentModal(docViewer.locationId, docViewer.files[docViewer.currentIndex].name);
@@ -3270,12 +3799,17 @@ const docViewer = {
   files: [],
   currentIndex: 0,
   zoom: 1.0,
+  renderedZoom: 1.0,
   rotation: 0,
+  imgPanX: 0,
+  imgPanY: 0,
   pdfDoc: null,
   pdfPageNum: 1,
   pdfTotalPages: 1,
   pdfRenderTasks: [],
+  renderDebounceTimer: null,
   isLoading: false,
+  isPinchZooming: false,
 };
 
 async function uploadLocationAttachments(locationId, files) {
@@ -3342,7 +3876,11 @@ function openLocationAttachments(locationId) {
 function openDocumentViewer(locationId, initialFileName = null) {
   const location = state.trip?.locations.find(item => item.id === locationId);
   if (!location) return;
-  const files = location.attachments || [];
+  const files = (location.attachments || []).slice().sort((a, b) => {
+    const oa = (a && typeof a.order === 'number') ? a.order : 999999;
+    const ob = (b && typeof b.order === 'number') ? b.order : 999999;
+    return oa - ob;
+  });
 
   docViewer.locationId = locationId;
   docViewer.files = [...files];
@@ -3354,7 +3892,10 @@ function openDocumentViewer(locationId, initialFileName = null) {
   }
   docViewer.currentIndex = targetIndex;
   docViewer.zoom = 1.0;
+  docViewer.renderedZoom = 1.0;
   docViewer.rotation = 0;
+  docViewer.imgPanX = 0;
+  docViewer.imgPanY = 0;
 
   renderViewerTabs();
 
@@ -3379,19 +3920,450 @@ function renderViewerTabs() {
   }
   list.innerHTML = docViewer.files.map((file, index) => {
     const meta = getFileMeta(file.name);
-    return `<button class="pdf-attachment-item${index === docViewer.currentIndex ? ' active' : ''}" type="button" data-file-index="${index}" title="${esc(file.name)}">${meta.icon} <span>${esc(file.name)}</span></button>`;
+    return `<button class="pdf-attachment-item${index === docViewer.currentIndex ? ' active' : ''}" type="button" data-file-index="${index}" data-filename="${esc(file.name)}" title="${esc(file.name)}">${meta.icon} <span>${esc(file.name)}</span></button>`;
   }).join('');
 
-  list.querySelectorAll('[data-file-index]').forEach(button => {
-    button.addEventListener('click', () => {
-      const idx = Number(button.dataset.fileIndex);
-      if (idx !== docViewer.currentIndex) {
-        docViewer.currentIndex = idx;
-        docViewer.zoom = 1.0;
-        docViewer.rotation = 0;
-        renderViewerTabs();
-        loadViewerAttachment(idx);
+  setupAttachmentTabReorder(list);
+
+  // Keep active tab visible in horizontal scroll
+  const activeBtn = list.querySelector('.pdf-attachment-item.active');
+  if (activeBtn) {
+    try {
+      activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    } catch (_) {}
+  }
+}
+
+function setupAttachmentTabReorder(list) {
+  const items = list.querySelectorAll('.pdf-attachment-item');
+  if (items.length <= 1) {
+    items.forEach(button => {
+      button.addEventListener('contextmenu', e => e.preventDefault());
+      button.addEventListener('click', () => {
+        const idx = Number(button.dataset.fileIndex);
+        if (idx !== docViewer.currentIndex) {
+          docViewer.currentIndex = idx;
+          docViewer.zoom = 1.0;
+          docViewer.renderedZoom = 1.0;
+          docViewer.rotation = 0;
+          docViewer.imgPanX = 0;
+          docViewer.imgPanY = 0;
+          renderViewerTabs();
+          loadViewerAttachment(idx);
+        }
+      });
+    });
+    return;
+  }
+
+  let activeItem = null;
+  let isDragging = false;
+  let isScrolling = false;
+  let justFinishedDrag = false;
+  let justFinishedScroll = false;
+  let holdTimer = null;
+  let startX = 0;
+  let startY = 0;
+  let currentX = 0;
+  let currentY = 0;
+  let startScrollLeft = 0;
+  let startIndex = -1;
+  let targetIndex = -1;
+  let itemGeom = [];
+  let autoScrollRaf = null;
+  let momentumRaf = null;
+  let activePointerId = null;
+  let didMoveFar = false;
+  let lastMoveTime = 0;
+  let lastMoveX = 0;
+  let scrollVelocity = 0;
+
+  const cancelHold = () => {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  };
+
+  const stopMomentum = () => {
+    if (momentumRaf) {
+      cancelAnimationFrame(momentumRaf);
+      momentumRaf = null;
+    }
+  };
+
+  const stopAutoScroll = () => {
+    if (autoScrollRaf) {
+      cancelAnimationFrame(autoScrollRaf);
+      autoScrollRaf = null;
+    }
+  };
+
+  const updatePositions = () => {
+    if (!isDragging || !activeItem || startIndex < 0 || !itemGeom.length) return;
+
+    const dx = currentX - startX;
+    activeItem.style.transform = `translate3d(${dx}px, -3px, 0) scale(1.05)`;
+
+    const scrollDelta = list.scrollLeft - startScrollLeft;
+    const contentDeltaX = dx + scrollDelta;
+    const draggedCurrentCenter = itemGeom[startIndex].contentCenter + contentDeltaX;
+
+    let newTargetIndex = startIndex;
+    if (contentDeltaX > 0) {
+      for (let i = startIndex + 1; i < itemGeom.length; i++) {
+        if (draggedCurrentCenter > itemGeom[i].contentCenter) {
+          newTargetIndex = i;
+        }
       }
+    } else if (contentDeltaX < 0) {
+      for (let i = startIndex - 1; i >= 0; i--) {
+        if (draggedCurrentCenter < itemGeom[i].contentCenter) {
+          newTargetIndex = i;
+        }
+      }
+    }
+
+    targetIndex = newTargetIndex;
+    const slotWidth = itemGeom[startIndex].width + 6;
+
+    itemGeom.forEach(pos => {
+      if (pos.index === startIndex) return;
+      let shiftX = 0;
+      if (startIndex < targetIndex) {
+        if (pos.index > startIndex && pos.index <= targetIndex) {
+          shiftX = -slotWidth;
+        }
+      } else if (startIndex > targetIndex) {
+        if (pos.index >= targetIndex && pos.index < startIndex) {
+          shiftX = slotWidth;
+        }
+      }
+      pos.el.style.transform = shiftX !== 0 ? `translate3d(${shiftX}px, 0, 0)` : '';
+      pos.el.style.transition = 'transform 0.18s cubic-bezier(0.2, 0, 0, 1)';
+    });
+  };
+
+  const startAutoScroll = () => {
+    if (autoScrollRaf) return;
+    const tick = () => {
+      if (!isDragging) {
+        autoScrollRaf = null;
+        return;
+      }
+      const listRect = list.getBoundingClientRect();
+      const edgeZone = 44;
+      const maxSpeed = 10;
+      let scrolled = false;
+
+      if (currentX < listRect.left + edgeZone && list.scrollLeft > 0) {
+        const ratio = 1 - Math.max(0, currentX - listRect.left) / edgeZone;
+        list.scrollLeft -= Math.ceil(maxSpeed * ratio);
+        scrolled = true;
+      } else if (currentX > listRect.right - edgeZone && list.scrollLeft < list.scrollWidth - list.clientWidth) {
+        const ratio = 1 - Math.max(0, listRect.right - currentX) / edgeZone;
+        list.scrollLeft += Math.ceil(maxSpeed * ratio);
+        scrolled = true;
+      }
+
+      if (scrolled) {
+        updatePositions();
+      }
+      autoScrollRaf = requestAnimationFrame(tick);
+    };
+    autoScrollRaf = requestAnimationFrame(tick);
+  };
+
+  const startDrag = (event) => {
+    if (isDragging || !activeItem) return;
+    isDragging = true;
+    isScrolling = false;
+
+    try { navigator.vibrate?.(40); } catch (_) {}
+    try { activeItem.setPointerCapture(activePointerId); } catch (_) {}
+
+    list.classList.add('tabs-reordering');
+    activeItem.classList.add('is-dragging');
+
+    startScrollLeft = list.scrollLeft;
+    const allButtons = [...list.querySelectorAll('.pdf-attachment-item')];
+    startIndex = allButtons.indexOf(activeItem);
+    targetIndex = startIndex;
+    itemGeom = allButtons.map((btn, idx) => {
+      const rect = btn.getBoundingClientRect();
+      return {
+        el: btn,
+        index: idx,
+        width: rect.width,
+        contentCenter: rect.left + startScrollLeft + rect.width / 2,
+      };
+    });
+
+    startAutoScroll();
+    updatePositions();
+  };
+
+  items.forEach(button => {
+    // Prevent context menu on touch devices
+    button.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+    });
+
+    button.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      if (e.isPrimary === false) return;
+
+      cancelHold();
+      stopMomentum();
+      stopAutoScroll();
+
+      activeItem = button;
+      activePointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      currentX = e.clientX;
+      currentY = e.clientY;
+      startScrollLeft = list.scrollLeft;
+      didMoveFar = false;
+      isDragging = false;
+      isScrolling = false;
+      lastMoveTime = Date.now();
+      lastMoveX = e.clientX;
+      scrollVelocity = 0;
+
+      const isTouch = e.pointerType === 'touch';
+      // 220ms hold threshold for reorder activation
+      const holdDelay = isTouch ? 220 : 200;
+      // Allow slight finger wobble on mobile without canceling hold gesture (16px vs 6px)
+      const holdSlop = isTouch ? 16 : 6;
+
+      holdTimer = setTimeout(() => {
+        holdTimer = null;
+        startDrag(e);
+      }, holdDelay);
+
+      const onPointerMove = (moveEvent) => {
+        if (moveEvent.pointerId !== activePointerId) return;
+        currentX = moveEvent.clientX;
+        currentY = moveEvent.clientY;
+        const dx = moveEvent.clientX - startX;
+        const dy = moveEvent.clientY - startY;
+        const dist = Math.hypot(dx, dy);
+
+        // Velocity tracking for horizontal inertia scroll
+        const now = Date.now();
+        const dt = now - lastMoveTime || 16;
+        if (dt > 0) {
+          const instV = (moveEvent.clientX - lastMoveX) / dt;
+          scrollVelocity = scrollVelocity * 0.4 + instV * 0.6;
+          lastMoveX = moveEvent.clientX;
+          lastMoveTime = now;
+        }
+
+        if (!isDragging) {
+          if (!isScrolling) {
+            if (dist > holdSlop) {
+              didMoveFar = true;
+              if (isTouch) {
+                // User swiped quickly before hold timer -> horizontal scroll tabs
+                cancelHold();
+                isScrolling = true;
+                list.scrollLeft = startScrollLeft - dx;
+              } else {
+                // Desktop mouse -> start drag immediately on movement
+                cancelHold();
+                startDrag(moveEvent);
+              }
+            }
+          } else {
+            // Actively scrolling horizontally
+            if (moveEvent.cancelable) moveEvent.preventDefault();
+            list.scrollLeft = startScrollLeft - dx;
+          }
+        }
+
+        if (isDragging) {
+          if (moveEvent.cancelable) moveEvent.preventDefault();
+          updatePositions();
+        }
+      };
+
+      const onPointerUp = async (upEvent) => {
+        if (upEvent.pointerId !== activePointerId) return;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerCancel);
+
+        cancelHold();
+        stopAutoScroll();
+
+        if (isDragging) {
+          isDragging = false;
+          justFinishedDrag = true;
+          setTimeout(() => { justFinishedDrag = false; }, 250);
+
+          try { activeItem?.releasePointerCapture(activePointerId); } catch (_) {}
+          list.classList.remove('tabs-reordering');
+          activeItem?.classList.remove('is-dragging');
+
+          if (activeItem) {
+            activeItem.style.transform = '';
+            activeItem.style.transition = '';
+          }
+
+          itemGeom.forEach(pos => {
+            pos.el.style.transform = '';
+            pos.el.style.transition = '';
+          });
+
+          const finalTarget = targetIndex;
+          const finalStart = startIndex;
+          activeItem = null;
+          startIndex = -1;
+          targetIndex = -1;
+
+          if (finalTarget !== -1 && finalStart !== -1 && finalTarget !== finalStart) {
+            const activeName = docViewer.files[docViewer.currentIndex]?.name;
+            const moved = docViewer.files.splice(finalStart, 1)[0];
+            docViewer.files.splice(finalTarget, 0, moved);
+
+            docViewer.files.forEach((f, idx) => {
+              f.order = idx + 1;
+            });
+
+            const newActive = docViewer.files.findIndex(f => f.name === activeName);
+            docViewer.currentIndex = newActive !== -1 ? newActive : 0;
+
+            const location = state.trip?.locations.find(item => item.id === docViewer.locationId);
+            if (location) {
+              location.attachments = docViewer.files.map((f, idx) => ({ ...f, order: idx + 1 }));
+            }
+
+            renderViewerTabs();
+
+            if (docViewer.locationId) {
+              try {
+                const response = await fetch(`/api/locations/${encodeURIComponent(docViewer.locationId)}/attachments/reorder`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ order: docViewer.files.map(f => f.name) }),
+                });
+                const resData = await response.json();
+                if (resData.status === 'ok' && Array.isArray(resData.attachments)) {
+                  if (location) location.attachments = resData.attachments;
+                  docViewer.files = [...resData.attachments];
+                }
+              } catch (err) {
+                console.warn('Could not persist attachment order:', err);
+              }
+            }
+
+            renderMain();
+            toast('Ordinea documentelor a fost actualizată.', 'success');
+          }
+        } else if (isScrolling) {
+          // Swiped to scroll tabs list
+          isScrolling = false;
+          justFinishedScroll = true;
+          setTimeout(() => { justFinishedScroll = false; }, 250);
+
+          activeItem = null;
+          startIndex = -1;
+          targetIndex = -1;
+
+          // Momentum coasting
+          if (Math.abs(scrollVelocity) > 0.15) {
+            let v = scrollVelocity * 14;
+            const momentumStep = () => {
+              if (Math.abs(v) < 0.4) {
+                momentumRaf = null;
+                return;
+              }
+              list.scrollLeft -= v;
+              v *= 0.90;
+              momentumRaf = requestAnimationFrame(momentumStep);
+            };
+            momentumRaf = requestAnimationFrame(momentumStep);
+          }
+        } else {
+          // Clean tap on tab (no drag, no swipe scroll)
+          activeItem = null;
+          startIndex = -1;
+          targetIndex = -1;
+
+          if (!didMoveFar) {
+            const idx = Number(button.dataset.fileIndex);
+            if (idx !== docViewer.currentIndex) {
+              docViewer.currentIndex = idx;
+              docViewer.zoom = 1.0;
+              docViewer.renderedZoom = 1.0;
+              docViewer.rotation = 0;
+              docViewer.imgPanX = 0;
+              docViewer.imgPanY = 0;
+              renderViewerTabs();
+              loadViewerAttachment(idx);
+            }
+          }
+        }
+      };
+
+      const onPointerCancel = (cancelEvent) => {
+        if (cancelEvent.pointerId !== activePointerId) return;
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerCancel);
+
+        cancelHold();
+        stopAutoScroll();
+        stopMomentum();
+
+        if (isDragging) {
+          isDragging = false;
+          justFinishedDrag = true;
+          setTimeout(() => { justFinishedDrag = false; }, 250);
+
+          try { activeItem?.releasePointerCapture(activePointerId); } catch (_) {}
+          list.classList.remove('tabs-reordering');
+          activeItem?.classList.remove('is-dragging');
+
+          if (activeItem) {
+            activeItem.style.transform = '';
+            activeItem.style.transition = '';
+          }
+
+          itemGeom.forEach(pos => {
+            pos.el.style.transform = '';
+            pos.el.style.transition = '';
+          });
+        }
+
+        isScrolling = false;
+        activeItem = null;
+        startIndex = -1;
+        targetIndex = -1;
+      };
+
+      window.addEventListener('pointermove', onPointerMove, { passive: false });
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerCancel);
+    });
+
+    button.addEventListener('click', (e) => {
+      // Keyboard interaction (Enter/Space on focused button)
+      if (e.detail === 0 && !justFinishedDrag && !justFinishedScroll) {
+        const idx = Number(button.dataset.fileIndex);
+        if (idx !== docViewer.currentIndex) {
+          docViewer.currentIndex = idx;
+          docViewer.zoom = 1.0;
+          docViewer.renderedZoom = 1.0;
+          docViewer.rotation = 0;
+          docViewer.imgPanX = 0;
+          docViewer.imgPanY = 0;
+          renderViewerTabs();
+          loadViewerAttachment(idx);
+        }
+      }
+      e.preventDefault();
     });
   });
 }
@@ -3411,6 +4383,8 @@ function showEmptyViewer() {
   if (rotateBtn) rotateBtn.style.display = 'none';
   if (zoomControls) zoomControls.style.display = 'none';
   if (downloadLink) downloadLink.style.display = 'none';
+  const shareBtn = document.getElementById('docShareBtn');
+  if (shareBtn) shareBtn.style.display = 'none';
   if (openNewTabLink) openNewTabLink.style.display = 'none';
   if (deleteBtn) deleteBtn.style.display = 'none';
 
@@ -3442,17 +4416,21 @@ async function loadViewerAttachment(index) {
   const subtitle = document.getElementById('docViewerSubtitle');
   if (subtitle) subtitle.textContent = `${file.name} ${file.size ? `(${formatFileSize(file.size)})` : ''}`;
 
-  // Download & Open in New Tab links
+  // Download, Share & Open in New Tab links
   const downloadLink = document.getElementById('pdfDownloadLink');
   if (downloadLink) {
     downloadLink.style.display = 'inline-flex';
     downloadLink.href = `${fileUrl}?download=1`;
     downloadLink.download = file.name;
   }
+  const shareBtn = document.getElementById('docShareBtn');
+  if (shareBtn) {
+    shareBtn.style.display = 'inline-flex';
+  }
   const openNewTabLink = document.getElementById('docOpenNewTabLink');
   if (openNewTabLink) {
     openNewTabLink.style.display = 'inline-flex';
-    openNewTabLink.href = fileUrl;
+    openNewTabLink.href = `/doc-viewer/${encodeURIComponent(locationId)}/${encodeURIComponent(file.name)}`;
   }
 
   // Delete button (admin only)
@@ -3483,8 +4461,32 @@ async function loadViewerAttachment(index) {
   if (zoomControls) zoomControls.style.display = 'inline-flex';
   if (zoomLevel) zoomLevel.textContent = '100%';
 
-  // Cancel any ongoing PDF rendering
+  // Cancel any ongoing PDF rendering or debounce
   cancelPdfRenderTasks();
+  clearTimeout(docViewer.renderDebounceTimer);
+  docViewer.zoom = 1.0;
+  docViewer.renderedZoom = 1.0;
+  docViewer.rotation = 0;
+  docViewer.imgPanX = 0;
+  docViewer.imgPanY = 0;
+
+  docViewer.cachedShareFile = null;
+  (async () => {
+    try {
+      const res = await fetch(fileUrl, { credentials: 'same-origin' });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const ext = file.name.split('.').pop().toLowerCase();
+      let mimeType = blob.type;
+      if (!mimeType || mimeType === 'application/octet-stream') {
+        if (ext === 'pdf') mimeType = 'application/pdf';
+        else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+        else if (ext === 'png') mimeType = 'image/png';
+        else if (ext === 'webp') mimeType = 'image/webp';
+      }
+      docViewer.cachedShareFile = new File([blob], file.name, { type: mimeType });
+    } catch (_) {}
+  })();
 
   if (meta.isImage) {
     if (rotateBtn) rotateBtn.style.display = 'inline-flex';
@@ -3496,7 +4498,7 @@ async function loadViewerAttachment(index) {
         img.onload = () => { if (loadingEl) loadingEl.style.display = 'none'; };
         img.onerror = () => { if (loadingEl) loadingEl.style.display = 'none'; };
         img.src = fileUrl;
-        img.style.transform = `scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
+        img.style.transform = `translate(0px, 0px) scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
       }
     }
   } else if (meta.isPdf) {
@@ -3521,6 +4523,8 @@ async function loadViewerAttachment(index) {
       } catch (pdfErr) {
         console.warn('PDF.js failed, falling back to iframe/direct:', pdfErr);
         if (pdfContainer) pdfContainer.style.display = 'none';
+        if (pdfControls) pdfControls.style.display = 'none';
+        if (zoomControls) zoomControls.style.display = 'none';
         if (fallbackFrame) {
           fallbackFrame.style.display = 'block';
           fallbackFrame.src = fileUrl;
@@ -3530,6 +4534,8 @@ async function loadViewerAttachment(index) {
       }
     } else {
       if (loadingEl) loadingEl.style.display = 'none';
+      if (pdfControls) pdfControls.style.display = 'none';
+      if (zoomControls) zoomControls.style.display = 'none';
       if (fallbackFrame) {
         fallbackFrame.style.display = 'block';
         fallbackFrame.src = fileUrl;
@@ -3556,6 +4562,7 @@ async function loadViewerAttachment(index) {
 }
 
 function cancelPdfRenderTasks() {
+  docViewer.renderGeneration = (docViewer.renderGeneration || 0) + 1;
   if (docViewer.pdfRenderTasks && docViewer.pdfRenderTasks.length) {
     docViewer.pdfRenderTasks.forEach(task => {
       try { task.cancel(); } catch (e) { }
@@ -3565,59 +4572,115 @@ function cancelPdfRenderTasks() {
 }
 
 async function renderPdfDocPages(pdfDoc, container) {
-  container.innerHTML = '';
+  if (docViewer.isPinchZooming) return;
+  cancelPdfRenderTasks();
+  const myGen = ++docViewer.renderGeneration;
   const numPages = pdfDoc.numPages;
   const dpr = window.devicePixelRatio || 1;
   const baseScale = docViewer.zoom || 1.0;
+  docViewer.renderedZoom = baseScale;
+
+  const existingWrappers = container.querySelectorAll('.pdf-page-wrapper');
+  const needsDomCreation = existingWrappers.length !== numPages;
+
+  if (needsDomCreation) {
+    container.innerHTML = '';
+  }
 
   for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+    if (docViewer.isPinchZooming || myGen !== docViewer.renderGeneration) break;
     const page = await pdfDoc.getPage(pageNum);
-    const wrapper = document.createElement('div');
-    wrapper.className = 'pdf-page-wrapper';
-    wrapper.id = `pdfPageWrap_${pageNum}`;
+    if (docViewer.isPinchZooming || myGen !== docViewer.renderGeneration) break;
 
-    const canvas = document.createElement('canvas');
-    canvas.className = 'pdf-page-canvas';
-    canvas.dataset.pageNum = pageNum;
+    let wrapper = document.getElementById(`pdfPageWrap_${pageNum}`);
+    let canvas = null;
 
-    const containerWidth = Math.max(280, (container.clientWidth || window.innerWidth) - 16);
+    if (!wrapper || needsDomCreation) {
+      wrapper = document.createElement('div');
+      wrapper.className = 'pdf-page-wrapper';
+      wrapper.id = `pdfPageWrap_${pageNum}`;
+
+      canvas = document.createElement('canvas');
+      canvas.className = 'pdf-page-canvas';
+      canvas.dataset.pageNum = pageNum;
+      wrapper.appendChild(canvas);
+
+      if (numPages > 1) {
+        const badge = document.createElement('div');
+        badge.className = 'pdf-page-num-badge';
+        badge.textContent = `Page ${pageNum} of ${numPages}`;
+        wrapper.appendChild(badge);
+      }
+      container.appendChild(wrapper);
+    } else {
+      canvas = wrapper.querySelector('canvas');
+    }
+
+    const containerWidth = Math.max(280, (container.clientWidth || window.innerWidth) - 24);
     const unscaledViewport = page.getViewport({ scale: 1.0 });
     const fitScale = Math.min(4.0, (containerWidth - 8) / unscaledViewport.width);
     const scale = Math.max(0.2, fitScale * baseScale);
     const viewport = page.getViewport({ scale: scale * dpr });
 
-    canvas.width = viewport.width;
-    canvas.height = viewport.height;
-    canvas.style.width = `${Math.round(viewport.width / dpr)}px`;
-    canvas.style.height = `${Math.round(viewport.height / dpr)}px`;
+    const cssWidth = Math.round(viewport.width / dpr);
+    const cssHeight = Math.round(viewport.height / dpr);
+    wrapper.style.width = `${cssWidth}px`;
+    wrapper.style.minHeight = `${cssHeight}px`;
 
-    const ctx = canvas.getContext('2d');
-    const renderContext = {
+    // Offscreen render to avoid flashing / white screen jitter
+    const offscreenCanvas = document.createElement('canvas');
+    offscreenCanvas.width = Math.round(viewport.width);
+    offscreenCanvas.height = Math.round(viewport.height);
+    const ctx = offscreenCanvas.getContext('2d');
+
+    const renderTask = page.render({
       canvasContext: ctx,
       viewport: viewport,
-    };
-
-    wrapper.appendChild(canvas);
-    if (numPages > 1) {
-      const badge = document.createElement('div');
-      badge.className = 'pdf-page-num-badge';
-      badge.textContent = `Page ${pageNum} of ${numPages}`;
-      wrapper.appendChild(badge);
-    }
-    container.appendChild(wrapper);
-
-    const renderTask = page.render(renderContext);
+    });
     docViewer.pdfRenderTasks.push(renderTask);
+
     try {
       await renderTask.promise;
     } catch (err) {
-      if (err.name !== 'RenderingCancelledException') {
+      if (err?.name !== 'RenderingCancelledException') {
         console.error('Page render error:', err);
       }
+      continue;
     }
+
+    if (docViewer.isPinchZooming || myGen !== docViewer.renderGeneration) break;
+
+    canvas.width = offscreenCanvas.width;
+    canvas.height = offscreenCanvas.height;
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+    canvas.dataset.baseWidth = Math.round(fitScale * unscaledViewport.width);
+    const destCtx = canvas.getContext('2d');
+    destCtx.drawImage(offscreenCanvas, 0, 0);
   }
 
   setupPdfScrollObserver(container);
+}
+
+function applyCanvasVisualZoom(zoom) {
+  const container = document.getElementById('pdfViewerCanvasContainer');
+  if (!container) return;
+  const wrappers = container.querySelectorAll('.pdf-page-wrapper');
+  if (!wrappers.length) return;
+  wrappers.forEach(wrap => {
+    const canvas = wrap.querySelector('canvas');
+    if (canvas) {
+      const baseWidth = parseFloat(canvas.dataset.baseWidth) || (parseFloat(canvas.style.width) / (docViewer.renderedZoom || 1.0));
+      canvas.dataset.baseWidth = baseWidth;
+      const newW = Math.round(baseWidth * zoom);
+      const aspect = (canvas.height && canvas.width) ? (canvas.height / canvas.width) : 1.414;
+      const newH = Math.round(newW * aspect);
+      canvas.style.width = `${newW}px`;
+      canvas.style.height = `${newH}px`;
+      wrap.style.width = `${newW}px`;
+      wrap.style.minHeight = `${newH}px`;
+    }
+  });
 }
 
 function setupPdfScrollObserver(container) {
@@ -3653,12 +4716,23 @@ function updateViewerZoom() {
   if (meta.isImage) {
     const img = document.getElementById('imageViewerImg');
     if (img) {
-      img.style.transform = `scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
+      img.style.transform = `translate(${docViewer.imgPanX || 0}px, ${docViewer.imgPanY || 0}px) scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
     }
   } else if (meta.isPdf && docViewer.pdfDoc) {
     const container = document.getElementById('pdfViewerCanvasContainer');
     if (container) {
-      renderPdfDocPages(docViewer.pdfDoc, container);
+      // Immediate visual scaling of existing canvases for instant feedback
+      applyCanvasVisualZoom(docViewer.zoom);
+
+      // Debounce the high-DPI re-render so fast clicks don't thrash PDF.js
+      clearTimeout(docViewer.renderDebounceTimer);
+      if (!docViewer.isPinchZooming) {
+        docViewer.renderDebounceTimer = setTimeout(() => {
+          if (!docViewer.isPinchZooming && docViewer.pdfDoc && container.style.display !== 'none') {
+            renderPdfDocPages(docViewer.pdfDoc, container);
+          }
+        }, 500);
+      }
     }
   }
 }
