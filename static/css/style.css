@@ -41,7 +41,9 @@
   --cat-club: #f59e0b;
   --cat-other: #64748b;
 
-  --header-h: 64px;
+  --header-base-h: 64px;
+  --header-safe-top: env(safe-area-inset-top, 0px);
+  --header-h: calc(var(--header-base-h) + var(--header-safe-top));
   --summary-h: 72px;
   --controls-h: 106px;
   --controls-bar-h: 94px;
@@ -55,6 +57,19 @@
   --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.55);
   --shadow-accent: 0 4px 20px rgba(92, 115, 242, 0.35);
+}
+
+/* iOS Standalone Mode (Home Screen PWA / Full Screen) */
+@supports (-webkit-touch-callout: none) {
+  @media (display-mode: standalone) {
+    :root {
+      --header-safe-top: max(env(safe-area-inset-top, 0px), 44px);
+    }
+  }
+}
+
+html.is-ios-standalone {
+  --header-safe-top: max(env(safe-area-inset-top, 0px), 44px);
 }
 
 /* ============================================================
@@ -135,6 +150,7 @@ body::before {
   align-items: center;
   gap: 14px;
   padding: 0 20px;
+  padding-top: var(--header-safe-top);
   background: rgba(8, 12, 20, 0.94);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
@@ -7177,7 +7193,7 @@ input[type="time"].field-input {
     gap: 6px;
     position: absolute;
     right: 10px;
-    top: 13px;
+    top: calc(13px + var(--header-safe-top));
     z-index: 102;
   }
 
@@ -7210,7 +7226,7 @@ input[type="time"].field-input {
   }
 
   .app-header {
-    padding: 0 12px;
+    padding: var(--header-safe-top) 12px 0 12px;
   }
 
   .trip-brand-details {
@@ -9513,6 +9529,10 @@ input[type="time"].field-input {
 @media (max-width: 980px) {
   .settings-desktop-menu {
     display: none !important;
+  }
+
+  .settings-page {
+    padding-top: max(24px, calc(var(--header-safe-top) + 16px));
   }
 }
 
