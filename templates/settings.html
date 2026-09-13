@@ -1083,7 +1083,7 @@
       danger: document.getElementById('paneDanger')
     };
 
-    function switchTab(targetTab) {
+    function switchTab(targetTab, options = {}) {
       if (!tabPanes[targetTab]) targetTab = 'backup';
 
       tabButtons.forEach(btn => {
@@ -1102,7 +1102,18 @@
       // Update URL query string without page refresh
       const url = new URL(window.location.href);
       url.searchParams.set('tab', targetTab);
-      window.history.replaceState({}, '', url.toString());
+
+      // Clean up filter params when leaving a tab or switching tabs so they don't persist everywhere
+      if (!options.preserveFilters) {
+        const filterParamsToRemove = [
+          'version', 'version_id', 'q', 'history_q', 'date',
+          'source', 'history_source', 'device', 'ip', 'status',
+          'method', 'limit', 'offset'
+        ];
+        filterParamsToRemove.forEach(p => url.searchParams.delete(p));
+      }
+
+      window.history.replaceState({}, '', url.pathname + url.search);
 
       // Lazy load tab contents when opened
       if (targetTab === 'backup') loadBackups();
@@ -1510,19 +1521,22 @@
     function syncHistoryUrl() {
       const url = new URL(window.location.href);
       if (url.searchParams.get('tab') === 'history') {
+        url.searchParams.delete('version');
+        url.searchParams.delete('version_id');
+        url.searchParams.delete('history_q');
+        url.searchParams.delete('date');
         if (historyState.q) {
           url.searchParams.set('q', historyState.q);
-          url.searchParams.delete('version');
         } else {
           url.searchParams.delete('q');
-          url.searchParams.delete('version');
         }
         if (historyState.source && historyState.source !== 'all') {
           url.searchParams.set('source', historyState.source);
         } else {
           url.searchParams.delete('source');
+          url.searchParams.delete('history_source');
         }
-        window.history.replaceState({}, '', url.toString());
+        window.history.replaceState({}, '', url.pathname + url.search);
       }
     }
 
@@ -1667,11 +1681,20 @@
           if (params.get('version') || params.get('version_id')) {
             historyState.highlight_version_id = urlQ;
           }
+        } else {
+          historyState.q = '';
+          historyState.highlight_version_id = '';
+          const sInput = document.getElementById('historySearchInput');
+          if (sInput) sInput.value = '';
         }
         if (urlSource) {
           historyState.source = urlSource;
           const sFilter = document.getElementById('historyFilterSource');
           if (sFilter) sFilter.value = urlSource;
+        } else {
+          historyState.source = 'all';
+          const sFilter = document.getElementById('historyFilterSource');
+          if (sFilter) sFilter.value = 'all';
         }
 
         renderVersionsList();
@@ -2373,8 +2396,8 @@
             const sFilter = document.getElementById('historyFilterSource');
             if (sFilter) sFilter.value = 'all';
 
-            // Switch to History tab
-            switchTab('history');
+            // Switch to History tab, preserving filter
+            switchTab('history', { preserveFilters: true });
 
             // Update URL with ?tab=history&version=...
             const url = new URL(window.location.href);
@@ -2382,8 +2405,10 @@
             if (targetVer) {
               url.searchParams.set('version', targetVer);
               url.searchParams.delete('q');
+            } else {
+              url.searchParams.delete('version');
             }
-            window.history.replaceState({}, '', url.toString());
+            window.history.replaceState({}, '', url.pathname + url.search);
 
             // Render filtered list immediately
             renderVersionsList();
@@ -2549,8 +2574,25 @@
     // ==========================================
     startLiveClocks();
     loadTimezoneSettings().finally(() => {
-      const initialTab = new URLSearchParams(window.location.search).get('tab') || '{{ active_tab | default("backup") }}';
-      switchTab(initialTab);
+      const currentParams = new URLSearchParams(window.location.search);
+      let initialTab = currentParams.get('tab');
+      const hasVersionParam = currentParams.has('version') || currentParams.has('version_id');
+
+      if (!initialTab) {
+        if (hasVersionParam) {
+          initialTab = 'history';
+        } else {
+          initialTab = '{{ active_tab | default("backup") }}';
+        }
+      }
+
+      // If initial tab is not history, cleanly strip leftover version/filter params from the URL
+      if (initialTab !== 'history') {
+        switchTab(initialTab, { preserveFilters: false });
+      } else {
+        // If initial tab is history, preserve filters only if explicitly present
+        switchTab(initialTab, { preserveFilters: hasVersionParam || currentParams.has('q') || currentParams.has('source') });
+      }
     });
 
   })();

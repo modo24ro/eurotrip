@@ -1303,7 +1303,12 @@ def admin():
 @require_auth
 @require_role('admin')
 def admin_settings():
-    tab = request.args.get('tab', 'backup')
+    tab = request.args.get('tab')
+    if not tab:
+        if request.args.get('version') or request.args.get('version_id'):
+            tab = 'history'
+        else:
+            tab = 'backup'
     trip_data = load_trip_data()
     trip_name = (trip_data and trip_data.get('trip_name')) or active_trip_id()
     return render_template(

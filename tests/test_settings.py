@@ -52,6 +52,17 @@ class TestSettingsPage(unittest.TestCase):
         res = self.client.get('/admin/settings?tab=security')
         self.assertEqual(res.status_code, 200)
 
+    def test_settings_version_param_without_tab_defaults_to_history(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        res = self.client.get('/admin/settings?version=20260913-233940-583519_visited')
+        self.assertEqual(res.status_code, 200)
+        content = res.data.decode('utf-8')
+        self.assertIn('history', content)
+
     def test_legacy_security_and_versions_redirects(self):
         with self.client.session_transaction() as sess:
             sess['authenticated'] = True
