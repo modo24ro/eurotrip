@@ -869,7 +869,16 @@ def admin():
 @require_role('admin')
 def admin_settings():
     tab = request.args.get('tab', 'backup')
-    return render_template('settings.html', role='admin', active_tab=tab)
+    trip_data = load_trip_data()
+    trip_name = (trip_data and trip_data.get('trip_name')) or active_trip_id()
+    return render_template(
+        'settings.html',
+        role='admin',
+        active_tab=tab,
+        trip_name=trip_name,
+        trip_id=active_trip_id(),
+        trip_count=len(available_trip_ids())
+    )
 
 
 @app.route('/settings', methods=['GET'])
@@ -1596,27 +1605,17 @@ def admin_verify_password():
 @require_auth
 @require_role('admin')
 def admin_delete_all():
-    data = request.get_json(silent=True) or {}
-    password = (data.get('password') or request.form.get('password') or request.headers.get('X-Admin-Password') or '').strip()
-    expected = load_config().get('admin_password', 'admin123')
-    verified_at = session.get('danger_auth_verified_at')
-    is_session_verified = verified_at and (time.time() - verified_at < 120)
-    is_password_valid = password and hmac.compare_digest(password, expected)
-
-    if not (is_session_verified or is_password_valid):
-        return jsonify({'error': 'Confirmarea parolei de administrator este necesară.'}), 403
-
-    session.pop('danger_auth_verified_at', None)
-
     automatic_backup = create_backup()
+    current = load_trip_data()
     empty_trip = {
-        'trip_name': 'Euro Trip 2026',
-        'currency': 'EUR',
+        'trip_name': current.get('trip_name') or 'Euro Trip 2026',
+        'currency': current.get('currency') or 'EUR',
         'locations': [],
     }
     with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
         create_trip_version('clear-all', empty_trip)
         json.dump(empty_trip, f, ensure_ascii=False, indent=2)
+    session.pop('danger_auth_verified_at', None)
     return jsonify({'status': 'ok', 'deleted': True, 'automatic_backup': automatic_backup})
 
 

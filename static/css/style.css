@@ -2864,15 +2864,19 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
 body.single-col-cards .card-address-row,
 .single-col-cards .card-address-row {
   font-size: 0.8rem;
-  padding: 5px 10px;
+  padding: 2px 0;
   margin-top: -2px;
   margin-bottom: 7px;
+  border: none !important;
+  background: transparent !important;
 }
 
 body.single-col-cards .card-notes-row,
 .single-col-cards .card-notes-row {
   font-size: 0.82rem;
-  padding: 7px 12px;
+  padding: 2px 0;
+  border: none !important;
+  background: transparent !important;
 }
 
 
@@ -3786,12 +3790,12 @@ body.single-col-cards .card-notes-row,
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  margin: 6px 0 4px;
-  padding: 6px 10px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-left: 3px solid rgba(148, 163, 184, 0.45);
-  border-radius: var(--radius-xs, 4px);
+  margin: 4px 0;
+  padding: 2px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   font-size: 0.78rem;
   line-height: 1.45;
   color: #cbd5e1;
@@ -3806,13 +3810,17 @@ body.single-col-cards .card-notes-row,
   opacity: 0.85;
 }
 
-.card-notes-row .notes-row-text {
+.card-notes-row .notes-row-text,
+.notes-row-text {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .location-card.editing .card-notes-row {
@@ -4127,11 +4135,11 @@ body.single-col-cards .place-info-text,
   gap: 6px;
   margin-top: -3px;
   margin-bottom: 6px;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-left: 2px solid var(--accent-light);
-  border-radius: var(--radius-sm);
+  padding: 2px 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   font-size: 0.76rem;
   color: var(--text-muted);
   min-width: 0;
@@ -4146,6 +4154,9 @@ body.single-col-cards .place-info-text,
 
 .card-address-row.is-open {
   display: flex;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 @keyframes addressRowFadeIn {
@@ -7468,7 +7479,10 @@ input[type="time"].field-input {
   .card-address-row {
     margin-top: -2px;
     margin-bottom: 6px;
-    padding: 4px 7px;
+    padding: 2px 0;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .card-address {
@@ -7480,9 +7494,12 @@ input[type="time"].field-input {
   }
 
   .card-notes-row {
-    margin: 5px 0 4px;
-    padding: 5px 8px;
+    margin: 4px 0;
+    padding: 2px 0;
     font-size: 0.74rem;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
   }
 
   .card-info-strip {
@@ -9438,8 +9455,67 @@ input[type="time"].field-input {
 }
 
 /* ============================================================
-   SETTINGS & ADMINISTRATION PAGE
+   SETTINGS TOP MENU (DESKTOP ONLY)
    ============================================================ */
+.settings-desktop-menu {
+  display: block;
+  width: 100%;
+}
+
+.settings-desktop-menu .app-header {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 1000 !important;
+}
+
+.trip-name-display {
+  display: inline-flex;
+  align-items: center;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.trip-name-display:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.hdr-btn.back-btn-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 13px;
+  height: 38px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.hdr-btn.back-btn-top:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: var(--border-hover);
+  color: #fff;
+}
+
+/* Pe mobile (<= 980px): meniul de sus din settings este ascuns, ramanand la fel */
+@media (max-width: 980px) {
+  .settings-desktop-menu {
+    display: none !important;
+  }
+}
+
 .settings-page {
   min-height: 100vh;
   padding: 24px clamp(16px, 3vw, 40px);

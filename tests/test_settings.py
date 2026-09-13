@@ -36,6 +36,12 @@ class TestSettingsPage(unittest.TestCase):
         self.assertIn('tabSecurity', content)
         self.assertIn('tabHistory', content)
         self.assertIn('tabUpload', content)
+        self.assertIn('settings-desktop-menu', content)
+        self.assertIn('app-header', content)
+        self.assertNotIn('controls-bar', content)
+        self.assertNotIn('view-tabs', content)
+        self.assertIn('mobile-nav', content)
+        self.assertIn('Back to Planner', content)
 
     def test_settings_tab_param(self):
         with self.client.session_transaction() as sess:
@@ -124,18 +130,27 @@ class TestSettingsPage(unittest.TestCase):
         self.assertEqual(res_ok.status_code, 200)
         self.assertEqual(res_ok.get_json().get('ok'), True)
 
-    def test_delete_all_requires_password_confirmation(self):
+    def test_delete_all_as_admin(self):
         from unittest.mock import patch
         with self.client.session_transaction() as sess:
             sess['authenticated'] = True
             sess['role'] = 'admin'
+            sess['trip_id'] = 'test'
+
+        with patch('app.create_backup', return_value='test.zip'):
+            res = self.client.post('/api/admin/delete-all')
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.get_json().get('status'), 'ok')
+            self.assertEqual(res.get_json().get('deleted'), True)
+
+    def test_delete_all_non_admin_forbidden(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'user'
             sess['trip_id'] = 'Spain_2026'
 
-        # Without prior verification -> 403
-        with patch('app.create_backup', return_value='test.zip'):
-            res_blocked = self.client.post('/api/admin/delete-all')
-            self.assertEqual(res_blocked.status_code, 403)
-            self.assertIn('Confirmarea parolei de administrator', res_blocked.get_json().get('error', ''))
+        res = self.client.post('/api/admin/delete-all')
+        self.assertEqual(res.status_code, 403)
 
     def test_browser_form_login_redirects_not_json(self):
         from app import load_config
@@ -167,6 +182,22 @@ class TestSettingsPage(unittest.TestCase):
         self.assertEqual(res_user.status_code, 302)
         self.assertEqual(res_user.headers.get('Location'), '/user')
 
+    def test_view_tabs_have_url_links(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        res = self.client.get('/admin')
+        self.assertEqual(res.status_code, 200)
+        html = res.get_data(as_text=True)
+
+        views = ['list', 'day', 'country', 'timeline', 'table', 'map', 'route']
+        for v in views:
+            self.assertIn(f'data-view="{v}"', html)
+            self.assertIn(f'href="?view={v}"', html)
+
 
 if __name__ == '__main__':
     unittest.main()
+

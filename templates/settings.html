@@ -2,6 +2,59 @@
 {% block title %}Settings &amp; Administration · EuroTrip{% endblock %}
 
 {% block body %}
+<!-- ===== DESKTOP TOP MENU (VISIBLE ON DESKTOP ONLY) ===== -->
+<div class="settings-desktop-menu">
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="header-brand">
+      <a href="/admin" class="header-brand-link" title="EuroTrip Planner">
+        <img src="/static/icons/icon-192.svg?v=2" alt="EuroTrip" class="brand-logo">
+      </a>
+      <div class="trip-brand-details">
+        <a href="/admin" class="trip-name-display" title="Back to Planner">{{ trip_name | default('EuroTrip') }}</a>
+      </div>
+    </div>
+    <div class="header-nav-group">
+      <a class="hdr-btn back-btn-top" href="/admin" title="Back to Planner">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+        </svg>
+        <span class="menu-btn-text">Back to Planner</span>
+      </a>
+      <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
+    </div>
+    <div class="header-actions" id="headerActions">
+      <!-- Category 1: Trips -->
+      <div class="menu-category">
+        <div class="menu-category-header">
+          <span class="menu-category-icon">🗺️</span>
+          <span class="menu-category-title">Trips &amp; Planner</span>
+        </div>
+        <div class="menu-subgroup">
+          <a class="hdr-btn menu-btn" href="/admin" title="Go to Planner">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+            </svg>
+            <span class="menu-btn-text">Planner</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="menu-divider"></div>
+
+      <!-- Category 2: Account / Session -->
+      <div class="menu-category">
+        <a class="hdr-btn menu-btn logout-btn" id="logoutBtn" href="/logout" title="Logout">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+          </svg>
+          <span class="menu-btn-text">Logout</span>
+        </a>
+      </div>
+    </div>
+  </header>
+</div>
+
 <div class="settings-page">
   <!-- Settings Header -->
   <header class="settings-header">
@@ -380,18 +433,17 @@
   </div>
 </div>
 
-<!-- Admin Password Confirmation Modal (Danger Zone) -->
+<!-- Confirmation Modal (Danger Zone) -->
 <div class="modal-overlay" id="dangerAuthModal" role="dialog" aria-modal="true" aria-labelledby="dangerAuthTitle">
   <div class="modal-box danger-auth-modal-box">
     <div class="modal-header">
-      <h2 id="dangerAuthTitle">⚠️ Confirmare Admin</h2>
+      <h2 id="dangerAuthTitle">⚠️ Șterge toate locațiile</h2>
       <button class="modal-close" id="closeDangerAuthModal" aria-label="Close">✕</button>
     </div>
     <div class="modal-body">
-      <p id="dangerAuthDesc" style="margin-bottom:14px;">Această acțiune este ireversibilă. Introdu parola de admin pentru a continua.</p>
-      <div style="margin-bottom:6px;font-size:0.82rem;color:var(--text-muted);">Parolă admin</div>
-      <input type="password" id="dangerAuthPassword" class="url-input" placeholder="Parola ta de admin…"
-        autocomplete="current-password" style="margin-bottom:12px;width:100%;">
+      <p id="dangerAuthDesc" style="margin-bottom:14px;color:var(--text-secondary);line-height:1.5;">
+        Ești sigur că vrei să ștergi <strong>TOATE locațiile</strong> din călătoria curentă? Un backup de siguranță va fi creat automat înainte. Această acțiune este ireversibilă.
+      </p>
       <div id="dangerAuthError" style="color:#f87171;font-size:0.82rem;min-height:18px;margin-bottom:10px;"></div>
       <div class="backup-delete-actions">
         <button class="btn-secondary" id="cancelDangerAuth" type="button">Anulează</button>
@@ -399,7 +451,7 @@
           <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="margin-right:4px;">
             <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
           </svg>
-          Confirmă &amp; Execută
+          Șterge tot
         </button>
       </div>
     </div>
@@ -481,6 +533,27 @@
         toast.classList.add('toast-fade');
         setTimeout(() => toast.remove(), 300);
       }, 3500);
+    }
+
+    // Header Actions Dropdown Handler
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const appHeader = document.querySelector('.settings-desktop-menu .app-header');
+    if (mobileMenuBtn && appHeader) {
+      const closeMenu = () => {
+        appHeader.classList.remove('mobile-menu-open');
+        mobileMenuBtn.setAttribute('aria-expanded', 'false');
+        mobileMenuBtn.textContent = '☰';
+      };
+      mobileMenuBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const open = appHeader.classList.toggle('mobile-menu-open');
+        mobileMenuBtn.setAttribute('aria-expanded', String(open));
+        mobileMenuBtn.textContent = open ? '×' : '☰';
+      });
+      document.addEventListener('click', e => {
+        if (!appHeader.classList.contains('mobile-menu-open') || e.target.closest('.app-header')) return;
+        closeMenu();
+      });
     }
 
     // ==========================================
@@ -736,77 +809,64 @@
     });
 
     // ==========================================
-    // DANGER ZONE — Admin password confirmation
+    // DANGER ZONE — Confirmation & Execution
     // ==========================================
     const dangerAuthModal = document.getElementById('dangerAuthModal');
-    const dangerAuthPassword = document.getElementById('dangerAuthPassword');
     const dangerAuthError = document.getElementById('dangerAuthError');
     let _dangerCallback = null;
 
     function openDangerAuth(description, callback) {
       _dangerCallback = callback;
-      document.getElementById('dangerAuthDesc').textContent = description;
-      dangerAuthPassword.value = '';
-      dangerAuthError.textContent = '';
-      dangerAuthModal.classList.add('open');
-      setTimeout(() => dangerAuthPassword.focus(), 80);
+      const descEl = document.getElementById('dangerAuthDesc');
+      if (descEl && description) descEl.textContent = description;
+      if (dangerAuthError) dangerAuthError.textContent = '';
+      dangerAuthModal?.classList.add('open');
     }
+
     function closeDangerAuth() {
       _dangerCallback = null;
-      dangerAuthModal.classList.remove('open');
-      dangerAuthPassword.value = '';
-      dangerAuthError.textContent = '';
+      dangerAuthModal?.classList.remove('open');
+      if (dangerAuthError) dangerAuthError.textContent = '';
     }
 
     document.getElementById('closeDangerAuthModal')?.addEventListener('click', closeDangerAuth);
     document.getElementById('cancelDangerAuth')?.addEventListener('click', closeDangerAuth);
 
     document.getElementById('confirmDangerAuth')?.addEventListener('click', async () => {
-      const pwd = dangerAuthPassword.value.trim();
-      if (!pwd) { dangerAuthError.textContent = 'Introdu parola.'; return; }
       const btn = document.getElementById('confirmDangerAuth');
       btn.disabled = true;
-      btn.textContent = 'Se verifică…';
-      dangerAuthError.textContent = '';
+      btn.textContent = 'Se șterge…';
+      if (dangerAuthError) dangerAuthError.textContent = '';
+
+      const cb = _dangerCallback;
       try {
-        const res = await fetch('/api/admin/verify-password', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pwd })
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) {
-          dangerAuthError.textContent = data.error || 'Parolă greșită.';
-          dangerAuthPassword.value = '';
-          dangerAuthPassword.focus();
-          return;
+        if (cb) {
+          await cb();
         }
-        // Password verified — run the pending action
         closeDangerAuth();
-        if (_dangerCallback) await _dangerCallback();
       } catch (err) {
-        dangerAuthError.textContent = 'Eroare de rețea: ' + err.message;
+        if (dangerAuthError) dangerAuthError.textContent = 'Eroare: ' + err.message;
+        showToast(err.message, 'danger');
       } finally {
         btn.disabled = false;
-        btn.textContent = 'Confirmă & Execută';
+        btn.textContent = 'Șterge tot';
       }
     });
 
-    // Enter key submits the modal
-    dangerAuthPassword?.addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('confirmDangerAuth')?.click();
-    });
-
-    // Clear All Locations — now requires admin password
+    // Clear All Locations
     document.getElementById('clearAllBtn')?.addEventListener('click', () => {
       openDangerAuth(
-        'Ești sigur că vrei să ștergi TOATE locațiile din trip-ul curent? Un backup automat va fi creat înainte.',
+        'Ești sigur că vrei să ștergi TOATE locațiile din trip-ul curent? Un backup de siguranță va fi creat automat înainte. Această acțiune este ireversibilă.',
         async () => {
-          const res = await fetch('/api/admin/delete-all', { method: 'POST' });
+          const res = await fetch('/api/admin/delete-all', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
           const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Could not clear locations');
+          if (!res.ok) throw new Error(data.error || 'Nu s-au putut șterge locațiile');
           showToast('Toate locațiile au fost șterse. Backup creat automat.', 'success');
           if (document.getElementById('paneBackup')?.classList.contains('active')) loadBackups();
+          if (document.getElementById('paneHistory')?.classList.contains('active')) loadVersions();
         }
       );
     });

@@ -3023,11 +3023,7 @@ function updateAddBtnText() {
 function updateNarrowMobileNav() {
   const isMobile = window.innerWidth <= 980 || isNarrowScreen();
   if ((state.view === 'list' || state.view === 'table') && isMobile) {
-    state.view = 'day';
-    savePrefs({ view: 'day' });
-    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
-    document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
-    renderMain();
+    switchView('day', true, false);
   }
   updateAddBtnText();
   updateControlsBarHeight();
@@ -3392,23 +3388,13 @@ function bindEvents() {
 
   // View tabs (both desktop tabs and mobile nav)
   document.querySelectorAll('.view-tab, .mnav-btn[data-view]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      let v = btn.dataset.view;
+    btn.addEventListener('click', (e) => {
+      if (e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      e.preventDefault();
+      const v = btn.dataset.view;
       if (!v) return;
-      const isMobile = window.innerWidth <= 980 || isNarrowScreen();
-      if ((v === 'list' || v === 'table') && isMobile) {
-        v = 'day';
-      }
-      if (v !== 'map') {
-        exitMapFullscreen();
-      }
-      state.view = v;
-      savePrefs({ view: v });
-      document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
-      document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === v));
-      renderMain();
-      updateControlsBarHeight();
-      updateDaysToggleLabel();
+      if (v === state.view) return;
+      switchView(v, true, true);
     });
   });
 
@@ -4646,8 +4632,12 @@ function bindEvents() {
     }
   });
 
-  // Browser Back/Forward navigation sync for map day & fullscreen in URL
+  // Browser Back/Forward navigation sync for view, map day & fullscreen in URL
   window.addEventListener('popstate', () => {
+    const urlView = getInitialView();
+    if (urlView && urlView !== state.view) {
+      switchView(urlView, false, false);
+    }
     const urlDay = getInitialMapDay();
     if (urlDay && urlDay !== state.mapDay) {
       state.mapDay = urlDay;
@@ -6720,6 +6710,7 @@ async function init() {
     // Restore persisted view tab
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === state.view));
     document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === state.view));
+    updateViewUrl(state.view, false);
 
     if (state.view === 'map' && state.isMapFullscreen) {
       updateMapFullscreenUrl(true);
