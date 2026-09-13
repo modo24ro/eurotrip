@@ -187,5 +187,75 @@ class TestAttachmentViewer(unittest.TestCase):
         res_token_dl.close()
 
 
+class TestMobileIntegration(unittest.TestCase):
+    def setUp(self):
+        self.app = app
+        self.app.config['TESTING'] = True
+        self.client = self.app.test_client()
+
+    def test_preflight_options_cors(self):
+        # OPTIONS preflight must succeed with 204 and CORS headers without session
+        res = self.client.open(
+            '/api/locations/loc-1/attachments/test.pdf',
+            method='OPTIONS',
+            headers={'Origin': 'capacitor://localhost'}
+        )
+        self.assertEqual(res.status_code, 204)
+        self.assertEqual(res.headers.get('Access-Control-Allow-Origin'), 'capacitor://localhost')
+        self.assertEqual(res.headers.get('Access-Control-Allow-Credentials'), 'true')
+
+    def test_form_login_and_header_session(self):
+        # 1. Mobile form-urlencoded login returns JSON and session_token
+        res_login = self.client.post(
+            '/login',
+            data={'password': 'spain', 'remember': '1'},
+            headers={'Origin': 'http://localhost', 'Accept': '*/*'}
+        )
+        self.assertEqual(res_login.status_code, 200)
+        data = res_login.get_json()
+        self.assertEqual(data.get('status'), 'ok')
+        self.assertEqual(data.get('role'), 'user')
+        session_token = data.get('session_token')
+        self.assertTrue(session_token)
+
+        # 2. Access protected endpoint using X-Session-Token
+        unauth_client = self.app.test_client()
+        res_trip = unauth_client.get('/api/trip', headers={'X-Session-Token': session_token})
+        self.assertEqual(res_trip.status_code, 200)
+        self.assertIn('locations', res_trip.get_json())
+
+        # 3. Access protected endpoint using Authorization: Bearer
+        res_bearer = unauth_client.get('/api/trip', headers={'Authorization': f'Bearer {session_token}'})
+        self.assertEqual(res_bearer.status_code, 200)
+
+    def test_attachment_download_with_header_token(self):
+        with self.app.test_request_context():
+            trip = load_trip_data()
+            locations_with_att = [l for l in trip.get('locations', []) if l.get('attachments')]
+            if not locations_with_att:
+                self.skipTest("No locations with attachments found")
+            loc = locations_with_att[0]
+            loc_id = loc['id']
+            file_name = loc['attachments'][0]['name']
+
+        # Get token
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+        tok_res = self.client.get(f'/api/locations/{loc_id}/attachments/{file_name}/view-token')
+        token = tok_res.get_json()['token']
+
+        # Download with X-Attachment-Token header (no session)
+        unauth_client = self.app.test_client()
+        res = unauth_client.get(
+            f'/api/locations/{loc_id}/attachments/{file_name}',
+            headers={'X-Attachment-Token': token}
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(len(res.data) > 0)
+        res.close()
+
+
 if __name__ == '__main__':
     unittest.main()

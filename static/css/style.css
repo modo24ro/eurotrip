@@ -866,6 +866,7 @@ body::before {
 .map-float-fullscreen-btn .fs-exit-icon {
   display: none;
 }
+
 .map-float-fullscreen-btn .fs-enter-icon {
   display: block;
 }
@@ -879,6 +880,7 @@ body::before {
 .map-float-fullscreen-btn.is-active .fs-enter-icon {
   display: none;
 }
+
 .map-float-fullscreen-btn.is-active .fs-exit-icon {
   display: block;
 }
@@ -945,12 +947,15 @@ body::before {
 body.map-is-fullscreen {
   overflow: hidden !important;
 }
+
 body.map-is-fullscreen .modal-overlay {
   z-index: 100000 !important;
 }
+
 body.map-is-fullscreen .toast-container {
   z-index: 100001 !important;
 }
+
 body.map-is-fullscreen .mobile-nav {
   display: none !important;
 }
@@ -1413,8 +1418,15 @@ body.map-is-fullscreen .mobile-nav {
 }
 
 @keyframes userGpsPulse {
-  0% { transform: scale(0.6); opacity: 1; }
-  100% { transform: scale(2.2); opacity: 0; }
+  0% {
+    transform: scale(0.6);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
 }
 
 /* GPS nav button on cards */
@@ -1493,7 +1505,7 @@ body.map-is-fullscreen .mobile-nav {
   border-color: var(--border-hover);
 }
 
-.route-radio-card input:checked + .route-card-content {
+.route-radio-card input:checked+.route-card-content {
   background: rgba(99, 102, 241, 0.12);
   border-color: #6366f1;
   box-shadow: 0 0 14px rgba(99, 102, 241, 0.25);
@@ -1555,7 +1567,7 @@ body.map-is-fullscreen .mobile-nav {
   transition: all 0.2s;
 }
 
-.route-mode-pill input:checked + span {
+.route-mode-pill input:checked+span {
   background: rgba(67, 97, 238, 0.16);
   border-color: var(--accent);
   color: #fff;
@@ -3023,6 +3035,7 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
   opacity: 0.72;
   border-style: dashed;
 }
+
 .location-card.card-excluded:hover {
   opacity: 0.95;
 }
@@ -3174,7 +3187,8 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
 }
 
 .doc-viewer-top-row {
-  display: contents; /* On desktop, children sit directly in the header flex layout */
+  display: contents;
+  /* On desktop, children sit directly in the header flex layout */
 }
 
 .doc-viewer-title-wrap {
@@ -3693,8 +3707,13 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
 }
 
 @keyframes shareFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .share-modal-backdrop {
@@ -3722,8 +3741,13 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
 }
 
 @keyframes shareSlideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+  from {
+    transform: translateY(100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
 }
 
 .share-sheet-handle {
@@ -3763,6 +3787,7 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
   justify-content: center;
   transition: background 0.15s;
 }
+
 .share-sheet-close:hover {
   background: rgba(255, 255, 255, 0.18);
   color: #fff;
@@ -3825,6 +3850,7 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
   transition: transform 0.15s, color 0.15s;
   font-family: inherit;
 }
+
 .share-option-btn:active {
   transform: scale(0.92);
 }
@@ -3839,6 +3865,7 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   transition: transform 0.15s;
 }
+
 .share-option-btn:hover .share-icon-wrap {
   transform: translateY(-2px);
 }
@@ -3858,6 +3885,7 @@ body.single-col-cards .card-nav-btns .loc-nav-btn {
   border-radius: 10px;
   padding: 8px 12px;
 }
+
 .share-sheet-note code {
   color: #93c5fd;
   font-size: 0.70rem;
@@ -4591,8 +4619,6 @@ input[type="time"].field-input {
   color: var(--accent-light);
   border-bottom-color: var(--accent);
 }
-
-.modal-tab-pane {}
 
 /* URL import */
 .url-import-area {
@@ -5608,6 +5634,7 @@ input[type="time"].field-input {
 }
 
 @media (max-width: 600px) {
+
   /* Folded outer screen / standard mobile */
   .locations-grid {
     grid-template-columns: 1fr;
@@ -5627,6 +5654,7 @@ input[type="time"].field-input {
    SAMSUNG GALAXY Z FOLD 6 (INNER SCREEN) OPTIMIZATIONS
    ============================================================ */
 @media (min-width: 600px) and (max-width: 960px) {
+
   /* Galaxy Z Fold 6 Inner Screen: 768px-832px width, aspect ratio ~4:3 */
   .main-content {
     padding: 14px 16px;
@@ -6781,6 +6809,7 @@ input[type="time"].field-input {
   -webkit-backdrop-filter: blur(10px);
   pointer-events: none;
 }
+
 .leaflet-tooltip.route-leg-tooltip::before {
   border-top-color: rgba(15, 23, 42, 0.94) !important;
 }

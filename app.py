@@ -8,13 +8,15 @@ import socket
 import urllib.request
 import urllib.parse
 import unicodedata
+import logging
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, make_response
 from werkzeug.utils import secure_filename
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 app = Flask(__name__)
+logger = app.logger
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'eurotrip-secret-change-me')
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 # Keep session active for at least 7 days (30 days when "Remember me" is checked)
@@ -491,15 +493,45 @@ def load_trip_data():
 
 @app.before_request
 def protect_app():
+    if request.method == 'OPTIONS':
+        resp = make_response('', 204)
+        origin = request.headers.get('Origin')
+        if origin:
+            resp.headers['Access-Control-Allow-Origin'] = origin
+            resp.headers['Access-Control-Allow-Credentials'] = 'true'
+            resp.headers['Access-Control-Allow-Headers'] = (
+                'Content-Type, Authorization, X-Requested-With, X-Session-Token, '
+                'X-EuroTrip-Session, X-Capacitor-Http, X-Native-Fetch, X-Attachment-Token, Accept, Origin, Range'
+            )
+            resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, HEAD'
+            resp.headers['Access-Control-Max-Age'] = '86400'
+        return resp
+
+    # Check for session token passed in header if not already in session cookie
+    if not session.get('authenticated'):
+        auth_header = request.headers.get('Authorization') or ''
+        token = None
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:].strip()
+        if not token:
+            token = request.headers.get('X-Session-Token') or request.headers.get('X-EuroTrip-Session')
+        if token:
+            try:
+                serializer = app.session_interface.get_signing_serializer(app)
+                if serializer:
+                    data = serializer.loads(token)
+                    if isinstance(data, dict):
+                        session.update(data)
+            except Exception:
+                pass
+
     if request.endpoint in {'login', 'login_post', 'login_admin', 'login_admin_post', 'static'}:
-        return None
-    if request.method == 'OPTIONS' and request.path == '/api/integrations/tampermonkey/location':
         return None
     if request.path.startswith('/static/'):
         return None
-    if request.path.startswith('/doc-viewer/') and request.args.get('token'):
+    if request.path.startswith('/doc-viewer/') and (request.args.get('token') or request.headers.get('X-Attachment-Token')):
         return None
-    if '/attachments/' in request.path and request.args.get('token'):
+    if '/attachments/' in request.path and (request.args.get('token') or request.headers.get('X-Attachment-Token')):
         return None
     if not session.get('authenticated'):
         if request.path.startswith('/api/'):
@@ -699,16 +731,42 @@ def route_geometry():
 
 
 @app.after_request
-def add_tampermonkey_cors(response):
-    if request.path == '/api/integrations/tampermonkey/location':
-        origin = request.headers.get('Origin')
-        allowed_origins = ('https://www.google.com', 'https://maps.google.com', 'https://maps.app.goo.gl')
-        if origin and origin in allowed_origins:
-            response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Credentials'] = 'true'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-            response.headers['Access-Control-Allow-Methods'] = 'POST, OPTIONS'
+def add_cors_headers(response):
+    origin = request.headers.get('Origin')
+    if origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Access-Control-Allow-Headers'] = (
+            'Content-Type, Authorization, X-Requested-With, X-Session-Token, '
+            'X-EuroTrip-Session, X-Capacitor-Http, X-Native-Fetch, X-Attachment-Token, Accept, Origin, Range'
+        )
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, HEAD'
+        response.headers['Access-Control-Expose-Headers'] = (
+            'Content-Disposition, Content-Length, Content-Type, Content-Range, '
+            'Accept-Ranges, Set-Cookie, X-Session-Token'
+        )
+        response.headers['Access-Control-Max-Age'] = '86400'
     return response
+
+
+def is_api_request():
+    if request.is_json:
+        return True
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    if request.headers.get('X-Capacitor-Http') or request.headers.get('X-Native-Fetch'):
+        return True
+    if request.args.get('format') == 'json' or request.form.get('format') == 'json':
+        return True
+    accept = request.headers.get('Accept', '').lower()
+    if 'application/json' in accept:
+        return True
+    sec_dest = request.headers.get('Sec-Fetch-Dest', '').lower()
+    if sec_dest in ('document', 'iframe'):
+        return False
+    if 'text/html' not in accept:
+        return True
+    return False
 
 
 @app.route('/login', methods=['GET'])
@@ -718,15 +776,27 @@ def login():
     return render_template('login.html', error='', show_role=False)
 
 
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST', 'OPTIONS'])
 def login_post():
-    password = (request.form.get('password') or '').strip()
-    remember = request.form.get('remember') in ('1', 'true', 'on', 'yes')
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    password = (request.form.get('password') or data.get('password') or '').strip()
+    remember = request.form.get('remember') in ('1', 'true', 'on', 'yes') or bool(data.get('remember'))
     if password == load_config().get('user_password', 'user123'):
         session.permanent = bool(remember)
         session['authenticated'] = True
         session['role'] = 'user'
+        if is_api_request():
+            serializer = app.session_interface.get_signing_serializer(app)
+            session_token = serializer.dumps(dict(session)) if serializer else ''
+            resp = jsonify({'status': 'ok', 'role': 'user', 'trip_id': active_trip_id(), 'session_token': session_token})
+            if session_token:
+                resp.headers['X-Session-Token'] = session_token
+            return resp
         return redirect(url_for('user'))
+    if is_api_request():
+        return jsonify({'error': 'Parola este incorectă.'}), 401
     return render_template('login.html', error='Parola este incorectă.', show_role=False), 401
 
 
@@ -737,22 +807,38 @@ def login_admin():
     return render_template('login.html', error='', show_role=False, admin_mode=True)
 
 
-@app.route('/loginadmin', methods=['POST'])
+@app.route('/loginadmin', methods=['POST', 'OPTIONS'])
 def login_admin_post():
-    password = (request.form.get('password') or '').strip()
-    remember = request.form.get('remember') in ('1', 'true', 'on', 'yes')
+    if request.method == 'OPTIONS':
+        return ('', 204)
+    data = request.get_json(silent=True) or {}
+    password = (request.form.get('password') or data.get('password') or '').strip()
+    remember = request.form.get('remember') in ('1', 'true', 'on', 'yes') or bool(data.get('remember'))
     if password == load_config().get('admin_password', 'admin123'):
         session.permanent = bool(remember)
         session['authenticated'] = True
         session['role'] = 'admin'
+        if is_api_request():
+            serializer = app.session_interface.get_signing_serializer(app)
+            session_token = serializer.dumps(dict(session)) if serializer else ''
+            resp = jsonify({'status': 'ok', 'role': 'admin', 'trip_id': active_trip_id(), 'session_token': session_token})
+            if session_token:
+                resp.headers['X-Session-Token'] = session_token
+            return resp
         return redirect(url_for('admin'))
+    if is_api_request():
+        return jsonify({'error': 'Parola este incorectă.'}), 401
     return render_template('login.html', error='Parola este incorectă.', show_role=False, admin_mode=True), 401
 
 
-@app.route('/logout')
+@app.route('/logout', methods=['GET', 'POST', 'OPTIONS'])
 def logout():
+    if request.method == 'OPTIONS':
+        return ('', 204)
     session.pop('authenticated', None)
     session.pop('role', None)
+    if is_api_request():
+        return jsonify({'status': 'ok'})
     return redirect(url_for('login'))
 
 
@@ -1092,19 +1178,23 @@ def location_attachments(location_id, location=None):
     return [{'name': entry.name, 'size': entry.stat().st_size, 'order': idx + 1} for idx, entry in enumerate(files)]
 
 
-@app.route('/api/locations/<path:location_id>/attachments', methods=['GET'])
+@app.route('/api/locations/<path:location_id>/attachments', methods=['GET', 'OPTIONS'])
 @require_auth
 def list_location_attachments(location_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
     _, location = find_active_location(location_id)
     if not location:
         return jsonify({'error': 'Location not found'}), 404
     return jsonify({'attachments': location_attachments(location_id, location)})
 
 
-@app.route('/api/locations/<path:location_id>/attachments', methods=['POST'])
+@app.route('/api/locations/<path:location_id>/attachments', methods=['POST', 'OPTIONS'])
 @require_auth
 @require_role('admin')
 def upload_location_attachment(location_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
     trip, location = find_active_location(location_id)
     if not location:
         return jsonify({'error': 'Location not found'}), 404
@@ -1164,14 +1254,19 @@ def verify_attachment_token(token, location_id, filename, max_age=86400 * 7):
     s = get_attachment_serializer()
     try:
         data = s.loads(token, max_age=max_age)
-        return str(data.get('loc')) == str(location_id) and str(data.get('file')) == str(filename)
+        if str(data.get('loc')) != str(location_id):
+            return False
+        target_file = str(filename)
+        return str(data.get('file')) in (target_file, secure_filename(target_file))
     except (BadSignature, SignatureExpired, Exception):
         return False
 
 
-@app.route('/api/locations/<path:location_id>/attachments/<path:filename>/view-token', methods=['GET'])
+@app.route('/api/locations/<path:location_id>/attachments/<path:filename>/view-token', methods=['GET', 'OPTIONS'])
 @require_auth
 def get_attachment_view_token(location_id, filename):
+    if request.method == 'OPTIONS':
+        return ('', 204)
     safe_name = secure_filename(filename)
     token = generate_attachment_token(location_id, safe_name)
     return jsonify({'token': token})
@@ -1216,21 +1311,31 @@ def standalone_doc_viewer(location_id, filename):
     )
 
 
-@app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['GET'])
+@app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['GET', 'HEAD', 'OPTIONS'])
 def download_location_attachment(location_id, filename):
+    if request.method == 'OPTIONS':
+        return ('', 204)
     safe_name = secure_filename(filename)
-    token = request.args.get('token')
+    token = request.args.get('token') or request.headers.get('X-Attachment-Token')
+    if not token and request.headers.get('Authorization', '').startswith('Bearer '):
+        token = request.headers.get('Authorization')[7:].strip()
+
     authenticated = session.get('authenticated')
     if not authenticated and token:
-        authenticated = verify_attachment_token(token, location_id, safe_name)
+        authenticated = verify_attachment_token(token, location_id, safe_name) or verify_attachment_token(token, location_id, filename)
     if not authenticated:
         return jsonify({'error': 'Authentication required'}), 401
 
     _, location = find_active_location(location_id)
     if not location:
         return jsonify({'error': 'Location not found'}), 404
-    if safe_name != filename or not os.path.isfile(os.path.join(active_attachments_dir(location_id), safe_name)):
-        return jsonify({'error': 'Attachment not found'}), 404
+    file_path = os.path.join(active_attachments_dir(location_id), safe_name)
+    if not os.path.isfile(file_path):
+        raw_path = os.path.join(active_attachments_dir(location_id), filename)
+        if os.path.isfile(raw_path):
+            safe_name = filename
+        else:
+            return jsonify({'error': 'Attachment not found'}), 404
     ext = os.path.splitext(safe_name)[1].lower()
     previewable_mimes = {
         '.pdf': 'application/pdf',
@@ -1250,10 +1355,12 @@ def download_location_attachment(location_id, filename):
     )
 
 
-@app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['DELETE'])
+@app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['DELETE', 'OPTIONS'])
 @require_auth
 @require_role('admin')
 def delete_location_attachment(location_id, filename):
+    if request.method == 'OPTIONS':
+        return ('', 204)
     trip, location = find_active_location(location_id)
     safe_name = secure_filename(filename)
     path = os.path.join(active_attachments_dir(location_id), safe_name)
@@ -1274,9 +1381,11 @@ def delete_location_attachment(location_id, filename):
     return jsonify({'status': 'ok', 'attachments': location['attachments']})
 
 
-@app.route('/api/locations/<path:location_id>/attachments/reorder', methods=['POST', 'PUT'])
+@app.route('/api/locations/<path:location_id>/attachments/reorder', methods=['POST', 'PUT', 'OPTIONS'])
 @require_auth
 def reorder_location_attachments(location_id):
+    if request.method == 'OPTIONS':
+        return ('', 204)
     trip, location = find_active_location(location_id)
     if not location:
         return jsonify({'error': 'Location not found'}), 404
@@ -1587,6 +1696,9 @@ def _scrape_google_maps_list(url: str):
         })
 
     return locations[:100], title
+
+
+def normalize_share_url(url: str) -> str:
     """Convert cloud share links to direct-download URLs."""
     # Google Drive  /file/d/<ID>/view  →  /uc?export=download&id=<ID>
     m = re.search(r'drive\.google\.com/file/d/([A-Za-z0-9_-]+)', url)
