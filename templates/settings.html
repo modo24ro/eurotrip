@@ -97,6 +97,20 @@
       </svg>
       <span>Upload &amp; Import</span>
     </button>
+    <button class="settings-tab-btn" data-tab="timezone" role="tab" aria-selected="false" aria-controls="paneTimezone"
+      id="tabTimezone">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+      </svg>
+      <span>Fus Orar</span>
+    </button>
+    <button class="settings-tab-btn" data-tab="apilogs" role="tab" aria-selected="false" aria-controls="paneApiLogs"
+      id="tabApiLogs">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+      </svg>
+      <span>Monitor API</span>
+    </button>
     <button class="settings-tab-btn settings-tab-danger" data-tab="danger" role="tab" aria-selected="false" aria-controls="paneDanger"
       id="tabDanger">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -330,7 +344,265 @@
     </div>
   </section>
 
-  <!-- ==================== TAB 5: DANGER ZONE ==================== -->
+  <!-- ==================== TAB 5: TIMEZONE ==================== -->
+  <section class="settings-tab-pane" id="paneTimezone" role="tabpanel" aria-labelledby="tabTimezone" style="display:none;">
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div>
+          <h2>⏰ Fus Orar &amp; Setări Oră</h2>
+          <p class="settings-card-desc">Configurează fusul orar utilizat pentru înregistrările de istoric, backup-uri și afișarea orelor în aplicație.</p>
+        </div>
+      </div>
+
+      <div class="settings-card-body" style="padding: 24px;">
+        <!-- Live Clocks -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 10px; padding: 18px; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px;">
+                🇷🇴 Ora României
+              </span>
+              <span id="badgeActiveRomania" class="backup-pill" style="background:#10b981; color:#fff; display:none;">Activ</span>
+            </div>
+            <div id="clockRomania" style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
+              --:--:--
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-muted);">
+              Europe/Bucharest (EET UTC+2 / EEST UTC+3)
+            </div>
+          </div>
+
+          <div style="background: rgba(107, 114, 128, 0.08); border: 1px solid rgba(107, 114, 128, 0.25); border-radius: 10px; padding: 18px; position: relative;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+                🖥️ Ora Serverului
+              </span>
+              <span id="badgeActiveServer" class="backup-pill" style="background:#10b981; color:#fff; display:none;">Activ</span>
+            </div>
+            <div id="clockServer" style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
+              --:--:--
+            </div>
+            <div id="serverTzLabel" style="font-size: 0.78rem; color: var(--text-muted);">
+              Sistem local găzduire
+            </div>
+          </div>
+        </div>
+
+        <!-- Options Form -->
+        <div style="margin-bottom: 24px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">
+            Selectează fusul orar de referință pentru EuroTrip:
+          </label>
+
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <label style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
+              <input type="radio" name="timezoneMode" value="romania" id="tzModeRomania" style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+              <div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🇷🇴 Ora României (Europe/Bucharest) — Recomandat</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">
+                  Toate backup-urile, înregistrările din istoricul de versiuni și timestamp-urile din aplicație folosesc ora exactă a României, indiferent pe ce server sau container Docker rulează aplicația.
+                </div>
+              </div>
+            </label>
+
+            <label style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
+              <input type="radio" name="timezoneMode" value="server" id="tzModeServer" style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+              <div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🖥️ Ora Serverului (System Local Time)</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">
+                  Folosește ceasul intern al sistemului de operare unde rulează serverul backend (pe mașinile cloud este de obicei UTC).
+                </div>
+              </div>
+            </label>
+
+            <label style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
+              <input type="radio" name="timezoneMode" value="utc" id="tzModeUtc" style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+              <div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🌐 UTC (Coordinated Universal Time)</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">
+                  Timpul Universal Coordonat standard fără offset sau ajustare de vară/iarnă.
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border); padding-top: 20px;">
+          <button class="btn-primary" id="saveTimezoneBtn" type="button" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+            </svg>
+            <span>Salvează fusul orar</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 6: API LOGS ==================== -->
+  <section class="settings-tab-pane" id="paneApiLogs" role="tabpanel" aria-labelledby="tabApiLogs" style="display:none;">
+    <div class="settings-card">
+      <div class="settings-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <h2 style="display: flex; align-items: center; gap: 10px;">
+            <span>📡 Monitorizare Cereri API</span>
+            <span id="apiLiveIndicator" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulse 2s infinite;"></span>
+              <span>LIVE</span>
+            </span>
+          </h2>
+          <p class="settings-card-desc">
+            Monitorizează apelurile API în timp real: vezi dispozitivele conectate (aplicație Android, browser, etc.), adresele IP, latența și sincronizările 304.
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <button class="btn-secondary" id="apiLiveToggleBtn" type="button" title="Pauză / Reia actualizarea automată" style="display: inline-flex; align-items: center; gap: 6px;">
+            <span id="apiLiveBtnIcon">⏸️</span>
+            <span id="apiLiveBtnText">Pauză Live</span>
+          </button>
+          <button class="btn-secondary" id="apiRefreshBtn" type="button" title="Reîmprospătează lista" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+            <span>Reîmprospătează</span>
+          </button>
+          <a class="btn-secondary" id="apiExportBtn" href="/api/admin/request-logs/export" download title="Exportă istoricul cererilor ca JSON" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z"/>
+            </svg>
+            <span>Export JSON</span>
+          </a>
+          <button class="btn-danger" id="apiClearLogsBtn" type="button" title="Șterge istoricul cererilor" style="display: inline-flex; align-items: center; gap: 6px;">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+            </svg>
+            <span>Șterge log-uri</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 18px; margin-bottom: 20px;">
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Total Cereri</div>
+          <div id="statTotalReq" style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin-top: 4px;">0</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">înregistrate în buffer</div>
+        </div>
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Sincronizări 304</div>
+          <div id="stat304Req" style="font-size: 1.6rem; font-weight: 700; color: #3b82f6; margin-top: 4px;">0</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">economie completă de date</div>
+        </div>
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Dispozitive Active</div>
+          <div id="statDevices" style="font-size: 1.6rem; font-weight: 700; color: #8b5cf6; margin-top: 4px;">0</div>
+          <div id="statIps" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">0 IP-uri unice</div>
+        </div>
+        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Latență Medie</div>
+          <div id="statLatency" style="font-size: 1.6rem; font-weight: 700; color: #10b981; margin-top: 4px;">0 ms</div>
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">timp procesare backend</div>
+        </div>
+      </div>
+
+      <!-- Quick Filter Chips: Dispozitive & IP-uri Active -->
+      <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">
+            🔍 Dispozitive &amp; IP-uri active (apasă pentru a filtra instant):
+          </span>
+          <button id="clearActiveFilterBtn" type="button" style="display: none; background: none; border: none; color: #ef4444; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+            ✕ Resetează filtrele rapide
+          </button>
+        </div>
+        <div id="apiDeviceChips" style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span style="font-size: 0.82rem; color: var(--text-muted);">Se încarcă dispozitivele...</span>
+        </div>
+      </div>
+
+      <!-- Toolbar: Search & Filters -->
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
+        <div style="position: relative; flex: 1; min-width: 220px;">
+          <input type="text" id="apiSearchInput" placeholder="Caută după IP, endpoint (/api/trip), dispozitiv, status..." style="width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; outline: none;">
+          <span style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: var(--text-muted);">🔍</span>
+        </div>
+        <select id="apiFilterMethod" style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
+          <option value="ALL">Toate Metodele</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="HEAD">HEAD</option>
+          <option value="OPTIONS">OPTIONS</option>
+        </select>
+        <select id="apiFilterStatus" style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
+          <option value="all">Toate Statusurile</option>
+          <option value="2xx">2xx Succes</option>
+          <option value="304">304 Not Modified</option>
+          <option value="4xx">4xx Erori Client</option>
+          <option value="5xx">5xx Erori Server</option>
+        </select>
+        <select id="apiFilterDevice" style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
+          <option value="all">Toate Dispozitivele</option>
+          <option value="Android">📱 Android</option>
+          <option value="EuroTrip">📱 EuroTrip App</option>
+          <option value="iPhone">📱 iPhone / iOS</option>
+          <option value="Windows">💻 Windows</option>
+          <option value="macOS">💻 macOS</option>
+          <option value="Linux">💻 Linux</option>
+          <option value="Script">🤖 Scripturi / Bots</option>
+        </select>
+      </div>
+
+      <!-- Logs Table -->
+      <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left;">
+          <thead>
+            <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 2px solid var(--border); color: var(--text-primary); user-select: none;">
+              <th style="padding: 11px 14px; cursor: pointer;" data-sort="timestamp" title="Sortare după dată și oră">
+                🕒 Dată &amp; Oră <span class="sort-icon" id="sortIcon_timestamp">▼</span>
+              </th>
+              <th style="padding: 11px 10px; cursor: pointer;" data-sort="method" title="Sortare după metodă">
+                ⚡ Metodă <span class="sort-icon" id="sortIcon_method"></span>
+              </th>
+              <th style="padding: 11px 14px; cursor: pointer;" data-sort="path" title="Sortare după endpoint">
+                🔗 Endpoint / Cale <span class="sort-icon" id="sortIcon_path"></span>
+              </th>
+              <th style="padding: 11px 10px; cursor: pointer;" data-sort="status_code" title="Sortare după status">
+                📊 Status <span class="sort-icon" id="sortIcon_status_code"></span>
+              </th>
+              <th style="padding: 11px 12px; cursor: pointer;" data-sort="ip" title="Sortare după IP">
+                🌐 IP Client <span class="sort-icon" id="sortIcon_ip"></span>
+              </th>
+              <th style="padding: 11px 14px; cursor: pointer;" data-sort="device" title="Sortare după dispozitiv">
+                📱 Dispozitiv / Client <span class="sort-icon" id="sortIcon_device"></span>
+              </th>
+              <th style="padding: 11px 12px; cursor: pointer;" data-sort="duration_ms" title="Sortare după latență">
+                ⏱️ Latență <span class="sort-icon" id="sortIcon_duration_ms"></span>
+              </th>
+              <th style="padding: 11px 14px; text-align: center;">Acțiuni</th>
+            </tr>
+          </thead>
+          <tbody id="apiLogsTableBody">
+            <tr>
+              <td colspan="8" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                Se încarcă cererile API...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination / Count Footer -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 0.85rem; color: var(--text-muted);">
+        <div id="apiLogsCountInfo">Afișare 0 cereri</div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn-secondary" id="apiPrevPageBtn" type="button" disabled style="padding: 6px 12px; font-size: 0.82rem;">« Înapoi</button>
+          <button class="btn-secondary" id="apiNextPageBtn" type="button" disabled style="padding: 6px 12px; font-size: 0.82rem;">Înainte »</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB 7: DANGER ZONE ==================== -->
   <section class="settings-tab-pane" id="paneDanger" role="tabpanel" aria-labelledby="tabDanger" style="display:none;">
     <div class="settings-card danger-zone-card">
       <div class="settings-card-header">
@@ -458,6 +730,100 @@
   </div>
 </div>
 
+<!-- ==================== REQUEST DETAIL MODAL (API LOGS) ==================== -->
+<div class="modal-overlay" id="requestDetailModal" role="dialog" aria-modal="true" aria-labelledby="requestDetailModalTitle">
+  <div class="modal-box" style="max-width: 680px !important; width: 94%; max-height: 88vh; display: flex; flex-direction: column;">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
+      <h2 id="requestDetailModalTitle" style="font-size: 1.15rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+        <span>🔎 Detalii Cerere API</span>
+      </h2>
+      <button class="modal-close" id="closeRequestDetailModal" type="button" aria-label="Închide" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);">✕</button>
+    </div>
+    <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;">
+      
+      <!-- Top badges: Method, Status, Duration, Time -->
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: rgba(255, 255, 255, 0.03); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+        <span id="modalReqMethod" class="backup-pill" style="font-weight: 700; font-size: 0.9rem;">GET</span>
+        <span id="modalReqStatus" class="backup-pill" style="font-weight: 700; font-size: 0.9rem;">200 OK</span>
+        <span id="modalReqDuration" style="font-size: 0.85rem; color: var(--text-secondary);">⏱️ 0 ms</span>
+        <span id="modalReqTime" style="font-size: 0.85rem; color: var(--text-secondary); margin-left: auto;">🕒 -</span>
+      </div>
+
+      <!-- Endpoint & Query -->
+      <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
+        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">Cale &amp; Endpoint</div>
+        <div id="modalReqPath" style="font-family: monospace; font-size: 0.95rem; font-weight: 600; word-break: break-all; color: var(--text-primary);">/api/trip</div>
+        <div id="modalReqQueryWrap" style="margin-top: 8px; display: none;">
+          <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Parametri Query</div>
+          <div id="modalReqQuery" style="font-family: monospace; font-size: 0.82rem; background: rgba(0, 0, 0, 0.25); color: var(--text-primary); padding: 6px 10px; border-radius: 4px; word-break: break-all;"></div>
+        </div>
+      </div>
+
+      <!-- Client & Device Info -->
+      <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
+        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">Dispozitiv &amp; Rețea Client</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">IP Client</div>
+            <div id="modalReqIp" style="font-family: monospace; font-weight: 700; font-size: 0.9rem; margin-top: 2px; color: var(--text-primary);">127.0.0.1</div>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Dispozitiv / Client</div>
+            <div id="modalReqDevice" style="font-weight: 600; font-size: 0.9rem; margin-top: 2px; color: var(--text-primary);">📱 Android · EuroTrip App</div>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Sistem Operare</div>
+            <div id="modalReqOs" style="font-size: 0.85rem; margin-top: 2px; color: var(--text-secondary);">Android</div>
+          </div>
+          <div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">Rol &amp; Autentificare</div>
+            <div id="modalReqRole" style="font-size: 0.85rem; margin-top: 2px; color: var(--text-secondary);">admin</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 12px;">
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">User-Agent complet</div>
+          <div id="modalReqUa" style="font-family: monospace; font-size: 0.78rem; background: rgba(0, 0, 0, 0.25); color: var(--text-secondary); padding: 8px 10px; border-radius: 6px; word-break: break-all; max-height: 80px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <!-- Sync & Cache Headers -->
+      <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
+        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">Sincronizare Smart &amp; Cache</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.82rem;">
+          <div>
+            <span style="color: var(--text-muted);">ETag Client (If-None-Match):</span>
+            <div id="modalReqEtagReq" style="font-family: monospace; font-weight: 600; margin-top: 2px; color: var(--text-primary);">-</div>
+          </div>
+          <div>
+            <span style="color: var(--text-muted);">ETag Răspuns Server:</span>
+            <div id="modalReqEtagResp" style="font-family: monospace; font-weight: 600; margin-top: 2px; color: var(--text-primary);">-</div>
+          </div>
+          <div>
+            <span style="color: var(--text-muted);">Dimensiune Răspuns:</span>
+            <div id="modalReqSize" style="font-family: monospace; margin-top: 2px; color: var(--text-secondary);">-</div>
+          </div>
+          <div>
+            <span style="color: var(--text-muted);">Trip ID activ:</span>
+            <div id="modalReqTripId" style="font-family: monospace; margin-top: 2px; color: var(--text-secondary);">Spain_2026</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Raw Headers Accordion / Pre -->
+      <details style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; background: var(--bg-surface);">
+        <summary style="font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--text-secondary);">
+          Antete HTTP Complete (Headers)
+        </summary>
+        <pre id="modalReqHeaders" style="margin-top: 10px; background: rgba(0, 0, 0, 0.35); color: var(--text-primary); padding: 10px; border-radius: 6px; font-size: 0.75rem; max-height: 160px; overflow-y: auto; white-space: pre-wrap; font-family: monospace;"></pre>
+      </details>
+    </div>
+    <div style="padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+      <button class="btn-secondary" id="dismissRequestDetailModal" type="button">Închide</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast Feedback Container -->
 <div class="toast-container" id="toastContainer" aria-live="polite"></div>
 
@@ -565,6 +931,8 @@
       security: document.getElementById('paneSecurity'),
       history: document.getElementById('paneHistory'),
       upload: document.getElementById('paneUpload'),
+      timezone: document.getElementById('paneTimezone'),
+      apilogs: document.getElementById('paneApiLogs'),
       danger: document.getElementById('paneDanger')
     };
 
@@ -593,15 +961,36 @@
       if (targetTab === 'backup') loadBackups();
       if (targetTab === 'security') runAudit();
       if (targetTab === 'history') loadVersions();
+      if (targetTab === 'timezone') loadTimezoneSettings();
+      if (targetTab === 'apilogs') {
+        loadApiLogs();
+        if (apiLivePollingActive) startApiLivePolling();
+      } else {
+        stopApiLivePolling();
+      }
     }
 
     tabButtons.forEach(btn => {
       btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
-    // Initial tab from server template or URL query
-    const initialTab = new URLSearchParams(window.location.search).get('tab') || '{{ active_tab | default("backup") }}';
-    switchTab(initialTab);
+    // ==========================================
+    // TIMEZONE HELPER
+    // ==========================================
+    let currentAppTimezoneMode = 'romania';
+    let clocksTimer = null;
+
+    function formatAppDateTime(isoString) {
+      if (!isoString) return '-';
+      try {
+        const d = new Date(isoString);
+        if (isNaN(d.getTime())) return isoString;
+        const tz = currentAppTimezoneMode === 'romania' ? 'Europe/Bucharest' : (currentAppTimezoneMode === 'utc' ? 'UTC' : undefined);
+        return d.toLocaleString('ro-RO', tz ? { timeZone: tz } : undefined);
+      } catch (e) {
+        return isoString;
+      }
+    }
 
     // ==========================================
     // TAB 1: BACKUP MANAGEMENT
@@ -648,7 +1037,7 @@
               <span class="backup-pill">${sizeKb} KB</span>
             </div>
             <div class="backup-item-meta">
-              <span>📅 ${escapeHtml(new Date(b.created).toLocaleString())}</span>
+              <span>📅 ${escapeHtml(formatAppDateTime(b.created))}</span>
               <span>📍 ${b.location_count || 0} locations</span>
               ${b.date_from ? `<span>🗓️ ${escapeHtml(b.date_from)} → ${escapeHtml(b.date_to)}</span>` : ''}
             </div>
@@ -927,7 +1316,7 @@
         }
         versionsBody.innerHTML = versions.map(v => `
         <tr>
-          <td>${escapeHtml(new Date(v.created).toLocaleString())}</td>
+          <td>${escapeHtml(formatAppDateTime(v.created))}</td>
           <td><span class="backup-pill">${escapeHtml(v.action)}</span></td>
           <td>${escapeHtml(v.role)}</td>
           <td>${v.location_count || 0}</td>
@@ -1132,6 +1521,570 @@
         confirmUploadBtn.textContent = 'Import Locations';
       }
     });
+
+    // ==========================================
+    // TAB 5: TIMEZONE SETTINGS
+    // ==========================================
+
+    async function loadTimezoneSettings() {
+      try {
+        const res = await fetch('/api/admin/settings');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Nu s-au putut încărca setările de fus orar');
+        currentAppTimezoneMode = data.timezone_mode || 'romania';
+
+        const radio = document.querySelector(`input[name="timezoneMode"][value="${currentAppTimezoneMode}"]`);
+        if (radio) radio.checked = true;
+
+        updateTimezoneBadges(currentAppTimezoneMode);
+        if (data.server_timezone) {
+          const srvLabel = document.getElementById('serverTzLabel');
+          if (srvLabel) srvLabel.textContent = `Sistem: ${data.server_timezone}`;
+        }
+      } catch (err) {
+        console.warn('Could not load timezone settings:', err);
+      }
+    }
+
+    function updateTimezoneBadges(mode) {
+      const bRo = document.getElementById('badgeActiveRomania');
+      const bSrv = document.getElementById('badgeActiveServer');
+      if (bRo) bRo.style.display = (mode === 'romania') ? 'inline-block' : 'none';
+      if (bSrv) bSrv.style.display = (mode === 'server') ? 'inline-block' : 'none';
+    }
+
+    function startLiveClocks() {
+      if (clocksTimer) return;
+      function tick() {
+        const now = new Date();
+        const cRo = document.getElementById('clockRomania');
+        const cSrv = document.getElementById('clockServer');
+        if (cRo) {
+          cRo.textContent = now.toLocaleTimeString('ro-RO', { timeZone: 'Europe/Bucharest', hour12: false });
+        }
+        if (cSrv) {
+          cSrv.textContent = now.toLocaleTimeString('ro-RO', { hour12: false });
+        }
+      }
+      tick();
+      clocksTimer = setInterval(tick, 1000);
+    }
+
+    document.getElementById('saveTimezoneBtn')?.addEventListener('click', async () => {
+      const selected = document.querySelector('input[name="timezoneMode"]:checked')?.value || 'romania';
+      const btn = document.getElementById('saveTimezoneBtn');
+      btn.disabled = true;
+      btn.textContent = 'Se salvează…';
+
+      try {
+        const res = await fetch('/api/admin/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ timezone_mode: selected })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Salvarea a eșuat');
+        currentAppTimezoneMode = selected;
+        updateTimezoneBadges(selected);
+        showToast(
+          selected === 'romania'
+            ? 'Fusul orar a fost setat pe: Ora României (Europe/Bucharest)'
+            : (selected === 'utc' ? 'Fusul orar a fost setat pe: UTC' : 'Fusul orar a fost setat pe: Ora Serverului'),
+          'success'
+        );
+        if (document.getElementById('paneBackup')?.classList.contains('active')) renderBackups();
+        if (document.getElementById('paneHistory')?.classList.contains('active')) loadVersions();
+      } catch (err) {
+        showToast(err.message, 'danger');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+          </svg>
+          <span>Salvează fusul orar</span>
+        `;
+      }
+    });
+
+    // ==========================================
+    // TAB 6: API REQUESTS MONITOR
+    // ==========================================
+    let apiLogsData = [];
+    let apiLogsState = {
+      q: '',
+      device: 'all',
+      ip: 'all',
+      method: 'ALL',
+      status: 'all',
+      sort_by: 'timestamp',
+      sort_order: 'desc',
+      limit: 100,
+      offset: 0
+    };
+    let apiLivePollingTimer = null;
+    let apiLivePollingActive = true;
+    let apiSearchDebounceTimer = null;
+    let currentLogsCacheById = {};
+
+    function startApiLivePolling() {
+      if (apiLivePollingTimer) return;
+      apiLivePollingTimer = setInterval(() => {
+        const pane = document.getElementById('paneApiLogs');
+        if (pane && pane.classList.contains('active') && apiLivePollingActive) {
+          loadApiLogs(true);
+        }
+      }, 3000);
+    }
+
+    function stopApiLivePolling() {
+      if (apiLivePollingTimer) {
+        clearInterval(apiLivePollingTimer);
+        apiLivePollingTimer = null;
+      }
+    }
+
+    async function loadApiLogs(isSilent = false) {
+      const tbody = document.getElementById('apiLogsTableBody');
+      if (!isSilent && tbody && !tbody.querySelector('tr[data-log-id]')) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">Se încarcă cererile API...</td></tr>`;
+      }
+
+      try {
+        const params = new URLSearchParams({
+          q: apiLogsState.q,
+          device: apiLogsState.device,
+          ip: apiLogsState.ip,
+          method: apiLogsState.method,
+          status: apiLogsState.status,
+          sort_by: apiLogsState.sort_by,
+          sort_order: apiLogsState.sort_order,
+          limit: apiLogsState.limit,
+          offset: apiLogsState.offset
+        });
+
+        const res = await fetch(`/api/admin/request-logs?${params.toString()}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Eroare la încărcarea log-urilor');
+
+        apiLogsData = data.logs || [];
+        currentLogsCacheById = {};
+        apiLogsData.forEach(item => { currentLogsCacheById[item.id] = item; });
+
+        renderApiStats(data.stats, data.total, data.total_unfiltered);
+        renderApiDeviceChips(data.stats?.top_devices, data.stats?.top_ips);
+        renderApiLogsTable(apiLogsData);
+        renderApiPagination(data.total, data.offset, data.limit);
+      } catch (err) {
+        console.error('Error fetching API request logs:', err);
+        if (!isSilent && tbody) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#ef4444;">Eroare la preluarea cererilor API: ${escapeHtml(err.message)}</td></tr>`;
+        }
+      }
+    }
+
+    function renderApiStats(stats, totalFiltered, totalUnfiltered) {
+      if (!stats) return;
+      const elTotal = document.getElementById('statTotalReq');
+      const el304 = document.getElementById('stat304Req');
+      const elDevices = document.getElementById('statDevices');
+      const elIps = document.getElementById('statIps');
+      const elLatency = document.getElementById('statLatency');
+
+      if (elTotal) elTotal.textContent = stats.total_requests || 0;
+      if (el304) el304.textContent = stats.count_304 || 0;
+      if (elDevices) elDevices.textContent = stats.unique_devices_count || 0;
+      if (elIps) elIps.textContent = `${stats.unique_ips_count || 0} IP-uri unice`;
+      if (elLatency) elLatency.textContent = `${stats.avg_duration_ms || 0} ms`;
+    }
+
+    function renderApiDeviceChips(devices, ips) {
+      const container = document.getElementById('apiDeviceChips');
+      const clearBtn = document.getElementById('clearActiveFilterBtn');
+      if (!container) return;
+
+      const hasActive = (apiLogsState.device !== 'all' || apiLogsState.ip !== 'all');
+      if (clearBtn) clearBtn.style.display = hasActive ? 'inline-block' : 'none';
+
+      if ((!devices || !devices.length) && (!ips || !ips.length)) {
+        container.innerHTML = '<span style="font-size:0.82rem; color:var(--text-muted);">Niciun dispozitiv înregistrat încă.</span>';
+        return;
+      }
+
+      let html = '';
+      (devices || []).slice(0, 6).forEach(d => {
+        const isSelected = (apiLogsState.device === d.name);
+        html += `
+          <button type="button" class="api-chip-btn ${isSelected ? 'active' : ''}" data-type="device" data-value="${escapeHtml(d.name)}"
+            style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:16px; font-size:0.82rem; cursor:pointer; border:1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; background:${isSelected ? 'rgba(92, 115, 242, 0.25)' : 'var(--bg-surface)'}; color:${isSelected ? '#fff' : 'var(--text-primary)'}; font-weight:${isSelected ? '700' : '500'}; transition:all 0.15s;">
+            <span>${escapeHtml(d.name)}</span>
+            <span style="font-size:0.75rem; opacity:0.85; background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:10px;">${d.count}</span>
+          </button>
+        `;
+      });
+
+      (ips || []).slice(0, 5).forEach(ip => {
+        const isSelected = (apiLogsState.ip === ip.ip);
+        html += `
+          <button type="button" class="api-chip-btn ${isSelected ? 'active' : ''}" data-type="ip" data-value="${escapeHtml(ip.ip)}"
+            style="display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:16px; font-size:0.82rem; cursor:pointer; border:1px solid ${isSelected ? 'var(--success)' : 'var(--border)'}; background:${isSelected ? 'rgba(16, 185, 129, 0.25)' : 'var(--bg-surface)'}; color:${isSelected ? '#fff' : 'var(--text-primary)'}; font-weight:${isSelected ? '700' : '500'}; font-family:monospace; transition:all 0.15s;">
+            <span>🌐 ${escapeHtml(ip.ip)}</span>
+            <span style="font-size:0.75rem; opacity:0.85; background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:10px;">${ip.count}</span>
+          </button>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      container.querySelectorAll('.api-chip-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const type = btn.dataset.type;
+          const val = btn.dataset.value;
+          if (type === 'device') {
+            apiLogsState.device = (apiLogsState.device === val) ? 'all' : val;
+            const devSelect = document.getElementById('apiFilterDevice');
+            if (devSelect) devSelect.value = apiLogsState.device;
+          } else if (type === 'ip') {
+            apiLogsState.ip = (apiLogsState.ip === val) ? 'all' : val;
+          }
+          apiLogsState.offset = 0;
+          loadApiLogs();
+        });
+      });
+    }
+
+    function renderApiLogsTable(logs) {
+      const tbody = document.getElementById('apiLogsTableBody');
+      if (!tbody) return;
+
+      if (!logs || !logs.length) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; padding:35px; color:var(--text-muted);">
+              Nu a fost găsită nicio cerere API conform filtrelor selectate.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = logs.map(item => {
+        const code = item.status_code || 200;
+        let statusColor = '#10b981';
+        let statusBg = 'rgba(16,185,129,0.12)';
+        if (code === 304) {
+          statusColor = '#3b82f6';
+          statusBg = 'rgba(59,130,246,0.14)';
+        } else if (code >= 400 && code < 500) {
+          statusColor = '#f59e0b';
+          statusBg = 'rgba(245,158,11,0.15)';
+        } else if (code >= 500) {
+          statusColor = '#ef4444';
+          statusBg = 'rgba(239,68,68,0.15)';
+        }
+
+        const method = item.method || 'GET';
+        let methodColor = '#3b82f6';
+        if (method === 'POST') methodColor = '#f97316';
+        else if (method === 'HEAD') methodColor = '#8b5cf6';
+        else if (method === 'DELETE') methodColor = '#ef4444';
+
+        const formattedTime = formatAppDateTime(item.timestamp_iso || item.timestamp);
+        const querySnippet = item.query ? `<span style="font-size:0.75rem; color:var(--text-muted); display:block; font-family:monospace; word-break:break-all;">?${escapeHtml(item.query.substring(0, 40))}${item.query.length > 40 ? '…' : ''}</span>` : '';
+
+        return `
+          <tr data-log-id="${item.id}" style="border-bottom:1px solid var(--border); transition:background 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+            <td style="padding:10px 14px; white-space:nowrap; font-size:0.82rem; color:var(--text-secondary);">
+              ${escapeHtml(formattedTime)}
+            </td>
+            <td style="padding:10px 10px; white-space:nowrap;">
+              <span style="display:inline-block; font-weight:700; font-size:0.78rem; padding:2px 7px; border-radius:4px; color:${methodColor}; background:rgba(255,255,255,0.04); border:1px solid currentColor;">
+                ${escapeHtml(method)}
+              </span>
+            </td>
+            <td style="padding:10px 14px; max-width:260px;">
+              <span style="font-family:monospace; font-weight:600; font-size:0.85rem; color:var(--text-primary); word-break:break-all;">
+                ${escapeHtml(item.path)}
+              </span>
+              ${querySnippet}
+            </td>
+            <td style="padding:10px 10px; white-space:nowrap;">
+              <span style="display:inline-block; font-weight:700; font-size:0.8rem; padding:3px 8px; border-radius:12px; color:${statusColor}; background:${statusBg};">
+                ${code} ${code === 304 ? 'Not Mod' : (code === 200 ? 'OK' : '')}
+              </span>
+            </td>
+            <td style="padding:10px 12px; white-space:nowrap;">
+              <button type="button" class="btn-filter-ip" data-ip="${escapeHtml(item.ip)}" title="Filtrează după acest IP"
+                style="background:none; border:none; color:var(--accent-light, #818cf8); cursor:pointer; font-family:monospace; font-size:0.84rem; text-decoration:underline; padding:0;">
+                ${escapeHtml(item.ip)}
+              </button>
+            </td>
+            <td style="padding:10px 14px; font-size:0.82rem; white-space:nowrap; color:var(--text-primary);">
+              <span title="${escapeHtml(item.user_agent || '')}" style="cursor:help;">
+                ${escapeHtml(item.device_summary || item.client_name || 'Necunoscut')}
+              </span>
+            </td>
+            <td style="padding:10px 12px; white-space:nowrap; font-size:0.82rem; color:${item.duration_ms > 50 ? '#f59e0b' : 'var(--text-muted)'}; font-family:monospace;">
+              ${item.duration_ms} ms
+            </td>
+            <td style="padding:10px 14px; text-align:center; white-space:nowrap;">
+              <button type="button" class="btn-secondary btn-inspect-log" data-log-id="${item.id}"
+                style="padding:4px 9px; font-size:0.78rem; font-weight:600;">
+                Detalii
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('.btn-filter-ip').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          apiLogsState.ip = btn.dataset.ip;
+          apiLogsState.offset = 0;
+          loadApiLogs();
+        });
+      });
+
+      tbody.querySelectorAll('.btn-inspect-log').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const logId = String(btn.dataset.logId || '');
+          const log = currentLogsCacheById[logId] || apiLogsData.find(item => String(item.id) === logId);
+          if (log) openRequestDetailModal(log);
+        });
+      });
+
+      tbody.querySelectorAll('tr[data-log-id]').forEach(tr => {
+        tr.style.cursor = 'pointer';
+        tr.addEventListener('click', (e) => {
+          if (e.target.closest('.btn-filter-ip') || e.target.closest('.btn-inspect-log')) return;
+          const logId = String(tr.dataset.logId || '');
+          const log = currentLogsCacheById[logId] || apiLogsData.find(item => String(item.id) === logId);
+          if (log) openRequestDetailModal(log);
+        });
+      });
+    }
+
+    function renderApiPagination(total, offset, limit) {
+      const info = document.getElementById('apiLogsCountInfo');
+      const prev = document.getElementById('apiPrevPageBtn');
+      const next = document.getElementById('apiNextPageBtn');
+
+      if (info) {
+        const start = total === 0 ? 0 : offset + 1;
+        const end = Math.min(offset + limit, total);
+        info.textContent = `Afișare ${start}–${end} din ${total} cereri`;
+      }
+      if (prev) {
+        prev.disabled = (offset <= 0);
+      }
+      if (next) {
+        next.disabled = (offset + limit >= total);
+      }
+    }
+
+    function openRequestDetailModal(log) {
+      const modal = document.getElementById('requestDetailModal');
+      if (!modal) return;
+
+      const mBadge = document.getElementById('modalReqMethod');
+      if (mBadge) {
+        mBadge.textContent = log.method || 'GET';
+        const method = log.method || 'GET';
+        let methodColor = '#3b82f6';
+        if (method === 'POST') methodColor = '#f97316';
+        else if (method === 'HEAD') methodColor = '#8b5cf6';
+        else if (method === 'DELETE') methodColor = '#ef4444';
+        mBadge.style.color = methodColor;
+      }
+
+      const sBadge = document.getElementById('modalReqStatus');
+      if (sBadge) {
+        const code = log.status_code || 200;
+        sBadge.textContent = `${code} ${code === 304 ? 'Not Modified' : (code === 200 ? 'OK' : '')}`;
+        let statusColor = '#10b981';
+        if (code === 304) statusColor = '#3b82f6';
+        else if (code >= 400 && code < 500) statusColor = '#f59e0b';
+        else if (code >= 500) statusColor = '#ef4444';
+        sBadge.style.color = statusColor;
+      }
+
+      document.getElementById('modalReqDuration').textContent = `⏱️ ${log.duration_ms || 0} ms`;
+      document.getElementById('modalReqTime').textContent = `🕒 ${formatAppDateTime(log.timestamp_iso || log.timestamp)}`;
+      document.getElementById('modalReqPath').textContent = log.path || '-';
+
+      const qWrap = document.getElementById('modalReqQueryWrap');
+      const qEl = document.getElementById('modalReqQuery');
+      if (log.query) {
+        qWrap.style.display = 'block';
+        qEl.textContent = log.query;
+      } else {
+        qWrap.style.display = 'none';
+      }
+
+      document.getElementById('modalReqIp').textContent = log.ip || '127.0.0.1';
+      document.getElementById('modalReqDevice').textContent = log.device_summary || log.client_name || '-';
+      document.getElementById('modalReqOs').textContent = log.os || '-';
+      document.getElementById('modalReqRole').textContent = log.role || 'unauth';
+      document.getElementById('modalReqUa').textContent = log.user_agent || '-';
+
+      document.getElementById('modalReqEtagReq').textContent = log.etag_req || '(niciunul)';
+      document.getElementById('modalReqEtagResp').textContent = log.etag_resp || '(niciunul)';
+      document.getElementById('modalReqSize').textContent = log.resp_size ? `${log.resp_size} bytes` : '0 bytes';
+      document.getElementById('modalReqTripId').textContent = log.trip_id || '-';
+
+      const headersObj = {
+        'Antete Cerere (Request)': log.headers_req || {},
+        'Antete Răspuns (Response)': log.headers_resp || {}
+      };
+      document.getElementById('modalReqHeaders').textContent = JSON.stringify(headersObj, null, 2);
+
+      modal.classList.add('open');
+      modal.style.display = 'flex';
+      modal.style.opacity = '1';
+      modal.style.visibility = 'visible';
+      modal.style.pointerEvents = 'auto';
+    }
+
+    function closeRequestDetailModal() {
+      const modal = document.getElementById('requestDetailModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+      modal.style.opacity = '0';
+      modal.style.visibility = 'hidden';
+      modal.style.pointerEvents = 'none';
+    }
+
+    document.getElementById('closeRequestDetailModal')?.addEventListener('click', closeRequestDetailModal);
+    document.getElementById('dismissRequestDetailModal')?.addEventListener('click', closeRequestDetailModal);
+    document.getElementById('requestDetailModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'requestDetailModal' || e.target.classList.contains('modal-overlay')) {
+        closeRequestDetailModal();
+      }
+    });
+
+    // Toolbar event listeners
+    document.getElementById('apiSearchInput')?.addEventListener('input', (e) => {
+      clearTimeout(apiSearchDebounceTimer);
+      apiSearchDebounceTimer = setTimeout(() => {
+        apiLogsState.q = e.target.value.trim();
+        apiLogsState.offset = 0;
+        loadApiLogs();
+      }, 250);
+    });
+
+    document.getElementById('apiFilterMethod')?.addEventListener('change', (e) => {
+      apiLogsState.method = e.target.value;
+      apiLogsState.offset = 0;
+      loadApiLogs();
+    });
+
+    document.getElementById('apiFilterStatus')?.addEventListener('change', (e) => {
+      apiLogsState.status = e.target.value;
+      apiLogsState.offset = 0;
+      loadApiLogs();
+    });
+
+    document.getElementById('apiFilterDevice')?.addEventListener('change', (e) => {
+      apiLogsState.device = e.target.value;
+      apiLogsState.offset = 0;
+      loadApiLogs();
+    });
+
+    document.getElementById('clearActiveFilterBtn')?.addEventListener('click', () => {
+      apiLogsState.device = 'all';
+      apiLogsState.ip = 'all';
+      const devSelect = document.getElementById('apiFilterDevice');
+      if (devSelect) devSelect.value = 'all';
+      apiLogsState.offset = 0;
+      loadApiLogs();
+    });
+
+    document.getElementById('apiRefreshBtn')?.addEventListener('click', () => {
+      loadApiLogs();
+      showToast('Lista cererilor API a fost reîmprospătată.', 'info');
+    });
+
+    document.getElementById('apiLiveToggleBtn')?.addEventListener('click', () => {
+      apiLivePollingActive = !apiLivePollingActive;
+      const btnText = document.getElementById('apiLiveBtnText');
+      const btnIcon = document.getElementById('apiLiveBtnIcon');
+      const indicator = document.getElementById('apiLiveIndicator');
+
+      if (apiLivePollingActive) {
+        if (btnText) btnText.textContent = 'Pauză Live';
+        if (btnIcon) btnIcon.textContent = '⏸️';
+        if (indicator) indicator.style.display = 'inline-flex';
+        startApiLivePolling();
+        showToast('Actualizarea live este activă (la 3 secunde).', 'info');
+      } else {
+        if (btnText) btnText.textContent = 'Reia Live';
+        if (btnIcon) btnIcon.textContent = '▶️';
+        if (indicator) indicator.style.display = 'none';
+        stopApiLivePolling();
+        showToast('Actualizarea automată a fost pusă pe pauză.', 'info');
+      }
+    });
+
+    document.getElementById('apiClearLogsBtn')?.addEventListener('click', async () => {
+      if (!confirm('Ești sigur că vrei să ștergi întregul istoric al cererilor API?')) return;
+      try {
+        const res = await fetch('/api/admin/request-logs/clear', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Ștergerea a eșuat');
+        showToast(data.message || 'Logurile au fost șterse.', 'success');
+        loadApiLogs();
+      } catch (err) {
+        showToast(err.message, 'danger');
+      }
+    });
+
+    // Column sorting headers
+    document.querySelectorAll('#paneApiLogs th[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const sortCol = th.dataset.sort;
+        if (apiLogsState.sort_by === sortCol) {
+          apiLogsState.sort_order = (apiLogsState.sort_order === 'desc') ? 'asc' : 'desc';
+        } else {
+          apiLogsState.sort_by = sortCol;
+          apiLogsState.sort_order = 'desc';
+        }
+
+        document.querySelectorAll('#paneApiLogs .sort-icon').forEach(icon => { icon.textContent = ''; });
+        const activeIcon = document.getElementById(`sortIcon_${sortCol}`);
+        if (activeIcon) {
+          activeIcon.textContent = apiLogsState.sort_order === 'asc' ? '▲' : '▼';
+        }
+
+        apiLogsState.offset = 0;
+        loadApiLogs();
+      });
+    });
+
+    // Pagination buttons
+    document.getElementById('apiPrevPageBtn')?.addEventListener('click', () => {
+      if (apiLogsState.offset > 0) {
+        apiLogsState.offset = Math.max(0, apiLogsState.offset - apiLogsState.limit);
+        loadApiLogs();
+      }
+    });
+
+    document.getElementById('apiNextPageBtn')?.addEventListener('click', () => {
+      apiLogsState.offset += apiLogsState.limit;
+      loadApiLogs();
+    });
+
+    // ==========================================
+    // INITIALIZATION & TAB ACTIVATION
+    // ==========================================
+    startLiveClocks();
+    loadTimezoneSettings();
+
+    const initialTab = new URLSearchParams(window.location.search).get('tab') || '{{ active_tab | default("backup") }}';
+    switchTab(initialTab);
 
   })();
 </script>

@@ -1,3 +1,5 @@
+import collections
+import threading
 import json
 import uuid
 import os
@@ -11,10 +13,13 @@ import unicodedata
 import logging
 import hmac
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+import zoneinfo
+import email.utils
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, make_response
 from werkzeug.utils import secure_filename
+from werkzeug.http import parse_etags, parse_date
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 app = Flask(__name__)
@@ -29,11 +34,163 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PLACES_FILE = os.path.join(BASE_DIR, 'places.json')
 CONFIG_FILE = os.path.join(BASE_DIR, 'config.json')
+API_LOGS_FILE = os.path.join(BASE_DIR, 'api_requests_log.json')
 TRIPS_DIR = os.path.join(BASE_DIR, 'trips')
 DEFAULT_TRIP_ID = 'Spain_2026'
 LEGACY_DEFAULT_TRIP_ID = 'default'
 TRIP_DATA_FILE = os.path.join(TRIPS_DIR, DEFAULT_TRIP_ID, 'trip_data.json')
 BACKUP_DIR = os.path.join(TRIPS_DIR, DEFAULT_TRIP_ID, 'backup')
+
+MAX_API_LOGS = 2000
+API_LOGS = collections.deque(maxlen=MAX_API_LOGS)
+API_LOGS_LOCK = threading.Lock()
+_LAST_LOG_SAVE_TIME = 0
+
+
+def get_client_ip(req):
+    forwarded = req.headers.get('X-Forwarded-For')
+    if forwarded:
+        parts = [p.strip() for p in forwarded.split(',') if p.strip()]
+        if parts:
+            return parts[0]
+    real_ip = req.headers.get('X-Real-IP')
+    if real_ip:
+        return real_ip.strip()
+    return req.remote_addr or '127.0.0.1'
+
+
+def parse_user_agent_device(ua):
+    if not ua:
+        return {
+            'device_type': 'Unknown',
+            'os': 'Unknown',
+            'client_name': 'Unknown Client',
+            'device_summary': '❓ Client necunoscut',
+            'icon': '❓'
+        }
+
+    ua_str = str(ua)
+    ua_lower = ua_str.lower()
+
+    # Client/Tool identification
+    is_eurotrip = 'eurotrip' in ua_lower
+    is_postman = 'postman' in ua_lower
+    is_curl = 'curl' in ua_lower
+    is_python = 'python' in ua_lower
+
+    # OS & Device type
+    if 'iphone' in ua_lower:
+        os_name = 'iOS'
+        dev_type = 'Mobile'
+        icon = '📱'
+        client = 'EuroTrip iOS App' if is_eurotrip else 'iPhone Safari'
+    elif 'ipad' in ua_lower:
+        os_name = 'iPadOS'
+        dev_type = 'Tablet'
+        icon = '📱'
+        client = 'iPad Safari'
+    elif 'android' in ua_lower:
+        os_name = 'Android'
+        dev_type = 'Tablet' if 'tablet' in ua_lower else 'Mobile'
+        icon = '📱'
+        if is_eurotrip:
+            client = 'EuroTrip Android App'
+        elif 'wv' in ua_lower or 'version/' in ua_lower:
+            client = 'Android WebView'
+        elif 'chrome' in ua_lower:
+            client = 'Android Chrome'
+        else:
+            client = 'Android Browser'
+    elif 'windows' in ua_lower:
+        os_name = 'Windows'
+        dev_type = 'Desktop'
+        icon = '💻'
+        if 'edg' in ua_lower:
+            client = 'Edge Windows'
+        elif 'chrome' in ua_lower:
+            client = 'Chrome Windows'
+        elif 'firefox' in ua_lower:
+            client = 'Firefox Windows'
+        else:
+            client = 'Windows Browser'
+    elif 'macintosh' in ua_lower or 'mac os' in ua_lower:
+        os_name = 'macOS'
+        dev_type = 'Desktop'
+        icon = '💻'
+        if 'chrome' in ua_lower:
+            client = 'Chrome macOS'
+        elif 'safari' in ua_lower:
+            client = 'Safari macOS'
+        elif 'firefox' in ua_lower:
+            client = 'Firefox macOS'
+        else:
+            client = 'Mac Browser'
+    elif 'linux' in ua_lower:
+        os_name = 'Linux'
+        dev_type = 'Desktop'
+        icon = '💻'
+        client = 'Linux Browser'
+    else:
+        os_name = 'Other'
+        dev_type = 'Other'
+        icon = '🌐'
+        client = 'Browser'
+
+    # Special scripts/tools override
+    if is_postman:
+        dev_type = 'API Client'
+        client = 'Postman'
+        icon = '🤖'
+    elif is_curl:
+        dev_type = 'CLI Tool'
+        client = 'curl'
+        icon = '🤖'
+    elif is_python:
+        dev_type = 'Script'
+        client = 'Python Script'
+        icon = '🤖'
+
+    summary = f"{icon} {os_name} · {client}" if os_name != 'Other' else f"{icon} {client}"
+
+    return {
+        'device_type': dev_type,
+        'os': os_name,
+        'client_name': client,
+        'device_summary': summary,
+        'icon': icon
+    }
+
+
+def load_initial_api_logs():
+    if os.path.isfile(API_LOGS_FILE):
+        try:
+            with open(API_LOGS_FILE, 'r', encoding='utf-8') as f:
+                entries = json.load(f)
+            if isinstance(entries, list):
+                with API_LOGS_LOCK:
+                    API_LOGS.clear()
+                    for item in entries[-MAX_API_LOGS:]:
+                        if isinstance(item, dict):
+                            API_LOGS.append(item)
+        except Exception as e:
+            logger.warning("Could not load stored API logs: %s", e)
+
+
+def persist_api_logs_throttled(force=False):
+    global _LAST_LOG_SAVE_TIME
+    now = time.time()
+    if force or (now - _LAST_LOG_SAVE_TIME > 15):
+        _LAST_LOG_SAVE_TIME = now
+        try:
+            with API_LOGS_LOCK:
+                snapshot = list(API_LOGS)
+            with open(API_LOGS_FILE, 'w', encoding='utf-8') as f:
+                json.dump(snapshot[-MAX_API_LOGS:], f, ensure_ascii=False, indent=2)
+        except Exception as err:
+            logger.debug("Failed saving API logs to file: %s", err)
+
+
+load_initial_api_logs()
 
 CATEGORY_KEYWORDS = {
     'hotel':      ['hotel', 'b&b', 'hostel', 'inn', 'motel', 'resort'],
@@ -213,7 +370,12 @@ def parse_places(data):
 
 
 def load_config():
-    default = {'admin_password': 'admin123', 'user_password': 'user123'}
+    default = {
+        'admin_password': 'admin123',
+        'user_password': 'user123',
+        'timezone_mode': 'romania',
+        'timezone': 'Europe/Bucharest'
+    }
     if not os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
             json.dump(default, f, ensure_ascii=False, indent=2)
@@ -225,6 +387,8 @@ def load_config():
             return default
         data.setdefault('admin_password', 'admin123')
         data.setdefault('user_password', 'user123')
+        data.setdefault('timezone_mode', 'romania')
+        data.setdefault('timezone', 'Europe/Bucharest')
         return data
     except Exception:
         return default
@@ -233,6 +397,36 @@ def load_config():
 def save_config(cfg):
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
         json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def get_app_timezone():
+    cfg = load_config()
+    mode = cfg.get('timezone_mode', 'romania')
+    if mode == 'romania':
+        try:
+            return zoneinfo.ZoneInfo('Europe/Bucharest')
+        except Exception:
+            # Fallback for systems without full tzdata database:
+            # Romania observes EET (UTC+2) in winter, EEST (UTC+3) in summer.
+            # DST runs from last Sunday of March (01:00 UTC) to last Sunday of October (01:00 UTC).
+            now_utc = datetime.now(timezone.utc)
+            year = now_utc.year
+            mar31 = datetime(year, 3, 31, 1, 0, 0, tzinfo=timezone.utc)
+            dst_start = mar31 - timedelta(days=(mar31.weekday() + 1) % 7)
+            oct31 = datetime(year, 10, 31, 1, 0, 0, tzinfo=timezone.utc)
+            dst_end = oct31 - timedelta(days=(oct31.weekday() + 1) % 7)
+            is_dst = dst_start <= now_utc < dst_end
+            return timezone(timedelta(hours=3 if is_dst else 2))
+    elif mode == 'utc':
+        return timezone.utc
+    return None
+
+
+def get_current_datetime():
+    tz = get_app_timezone()
+    if tz is not None:
+        return datetime.now(tz)
+    return datetime.now()
 
 
 def current_role():
@@ -263,7 +457,10 @@ def ensure_backup_dir():
 
 
 def active_trip_id():
-    trip_id = session.get('trip_id', DEFAULT_TRIP_ID)
+    try:
+        trip_id = session.get('trip_id', DEFAULT_TRIP_ID)
+    except RuntimeError:
+        trip_id = DEFAULT_TRIP_ID
     return DEFAULT_TRIP_ID if trip_id == LEGACY_DEFAULT_TRIP_ID else trip_id
 
 
@@ -294,12 +491,13 @@ def active_versions_dir():
 def create_trip_version(action, data=None):
     data = data if data is not None else load_trip_data()
     os.makedirs(active_versions_dir(), exist_ok=True)
-    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S-%f')
+    now_dt = get_current_datetime()
+    timestamp = now_dt.strftime('%Y%m%d-%H%M%S-%f')
     version_id = f'{timestamp}_{secure_filename(action) or "change"}'
     path = os.path.join(active_versions_dir(), version_id + '.json')
     with open(path, 'w', encoding='utf-8') as f:
         json.dump({
-            'version_id': version_id, 'created': datetime.now().isoformat(timespec='seconds'),
+            'version_id': version_id, 'created': now_dt.isoformat(timespec='seconds'),
             'action': action, 'role': current_role(), 'trip': data,
         }, f, ensure_ascii=False, indent=2)
     return version_id
@@ -436,9 +634,16 @@ def backup_created_at(entry):
         try:
             timestamp = match.group(1) + match.group(2) + (match.group(3) or '')
             timestamp_format = '%Y%m%d%H%M%S' + ('%f' if match.group(3) else '')
-            return datetime.strptime(timestamp, timestamp_format)
+            parsed_dt = datetime.strptime(timestamp, timestamp_format)
+            tz = get_app_timezone()
+            if tz is not None:
+                return parsed_dt.replace(tzinfo=tz)
+            return parsed_dt
         except ValueError:
             pass
+    tz = get_app_timezone()
+    if tz is not None:
+        return datetime.fromtimestamp(entry.stat().st_mtime, tz=tz)
     return datetime.fromtimestamp(entry.stat().st_mtime)
 
 
@@ -451,10 +656,11 @@ def create_backup(include_empty=False):
         if not isinstance(current_trip, dict) or not current_trip.get('locations'):
             return None
     backup_dir = ensure_backup_dir()
-    timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+    now_dt = get_current_datetime()
+    timestamp = now_dt.strftime('%Y%m%d-%H%M%S')
     backup_path = os.path.join(backup_dir, f'trip_data_{timestamp}.json')
     if os.path.exists(backup_path):
-        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S%f')
+        timestamp = now_dt.strftime('%Y%m%d-%H%M%S%f')
         backup_path = os.path.join(backup_dir, f'trip_data_{timestamp}.json')
     shutil.copy2(trip_data_file, backup_path)
     return os.path.basename(backup_path)
@@ -469,8 +675,27 @@ def protected_backup_name():
     return max(candidates)[1] if candidates else None
 
 
-def load_trip_data():
-    trip_data_file = active_trip_data_file()
+def write_trip_data_atomic(data, trip_id=None):
+    trip_id = trip_id or active_trip_id()
+    dest_path = os.path.join(trip_directory(trip_id), 'trip_data.json')
+    dir_name = os.path.dirname(dest_path)
+    os.makedirs(dir_name, exist_ok=True)
+    temp_path = os.path.join(dir_name, f'.tmp_trip_{uuid.uuid4().hex}.json')
+    try:
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        os.replace(temp_path, dest_path)
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+
+def load_trip_data(trip_id=None):
+    trip_id = trip_id or active_trip_id()
+    trip_data_file = os.path.join(trip_directory(trip_id), 'trip_data.json')
     if os.path.exists(trip_data_file):
         try:
             with open(trip_data_file, 'r', encoding='utf-8') as f:
@@ -495,6 +720,7 @@ def load_trip_data():
 
 @app.before_request
 def protect_app():
+    request._req_start_time = time.time()
     if request.method == 'OPTIONS':
         resp = make_response('', 204)
         origin = request.headers.get('Origin')
@@ -503,9 +729,14 @@ def protect_app():
             resp.headers['Access-Control-Allow-Credentials'] = 'true'
             resp.headers['Access-Control-Allow-Headers'] = (
                 'Content-Type, Authorization, X-Requested-With, X-Session-Token, '
-                'X-EuroTrip-Session, X-Capacitor-Http, X-Native-Fetch, X-Attachment-Token, Accept, Origin, Range'
+                'X-EuroTrip-Session, X-Capacitor-Http, X-Native-Fetch, X-Attachment-Token, Accept, Origin, Range, If-None-Match, If-Modified-Since'
             )
+            resp.headers['Access-Control-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, HEAD'
             resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, HEAD'
+            resp.headers['Access-Control-Expose-Headers'] = (
+                'Content-Disposition, Content-Length, Content-Type, Content-Range, '
+                'Accept-Ranges, Set-Cookie, X-Session-Token, ETag, Last-Modified'
+            )
             resp.headers['Access-Control-Max-Age'] = '86400'
         return resp
 
@@ -740,14 +971,95 @@ def add_cors_headers(response):
         response.headers['Access-Control-Allow-Credentials'] = 'true'
         response.headers['Access-Control-Allow-Headers'] = (
             'Content-Type, Authorization, X-Requested-With, X-Session-Token, '
-            'X-EuroTrip-Session, X-Capacitor-Http, X-Native-Fetch, X-Attachment-Token, Accept, Origin, Range'
+            'X-EuroTrip-Session, X-Capacitor-Http, X-Native-Fetch, X-Attachment-Token, Accept, Origin, Range, If-None-Match, If-Modified-Since'
         )
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, HEAD'
         response.headers['Access-Control-Expose-Headers'] = (
             'Content-Disposition, Content-Length, Content-Type, Content-Range, '
-            'Accept-Ranges, Set-Cookie, X-Session-Token'
+            'Accept-Ranges, Set-Cookie, X-Session-Token, ETag, Last-Modified'
         )
         response.headers['Access-Control-Max-Age'] = '86400'
+    return response
+
+
+@app.after_request
+def track_api_request(response):
+    path = request.path
+    if not path.startswith('/api/') or path.startswith('/api/admin/request-logs'):
+        return response
+
+    try:
+        start = getattr(request, '_req_start_time', None)
+        duration_ms = round((time.time() - start) * 1000, 2) if start else 0.0
+
+        ip = get_client_ip(request)
+        ua = request.headers.get('User-Agent', '')
+        device_info = parse_user_agent_device(ua)
+        now_dt = get_current_datetime()
+
+        headers_captured = {
+            'User-Agent': ua,
+            'If-None-Match': request.headers.get('If-None-Match'),
+            'If-Modified-Since': request.headers.get('If-Modified-Since'),
+            'Accept': request.headers.get('Accept'),
+            'Content-Type': request.headers.get('Content-Type'),
+            'X-Requested-With': request.headers.get('X-Requested-With'),
+            'Origin': request.headers.get('Origin'),
+            'Referer': request.headers.get('Referer'),
+        }
+        headers_captured = {k: v for k, v in headers_captured.items() if v}
+
+        resp_headers = {
+            'ETag': response.headers.get('ETag'),
+            'Last-Modified': response.headers.get('Last-Modified'),
+            'Content-Type': response.headers.get('Content-Type'),
+            'Cache-Control': response.headers.get('Cache-Control'),
+        }
+        resp_headers = {k: v for k, v in resp_headers.items() if v}
+
+        resp_size = response.content_length
+        if resp_size is None and not getattr(response, 'direct_passthrough', False):
+            try:
+                resp_size = len(response.get_data(as_text=False))
+            except Exception:
+                resp_size = 0
+
+        is_auth = bool(session.get('authenticated'))
+        user_role = session.get('role') if is_auth else 'unauth'
+
+        log_entry = {
+            'id': uuid.uuid4().hex[:10],
+            'timestamp': now_dt.strftime('%Y-%m-%d %H:%M:%S'),
+            'timestamp_iso': now_dt.isoformat(timespec='seconds'),
+            'epoch': time.time(),
+            'method': request.method,
+            'path': path,
+            'query': request.query_string.decode('utf-8', errors='replace'),
+            'status_code': response.status_code,
+            'duration_ms': duration_ms,
+            'ip': ip,
+            'device_type': device_info['device_type'],
+            'os': device_info['os'],
+            'client_name': device_info['client_name'],
+            'device_summary': device_info['device_summary'],
+            'icon': device_info['icon'],
+            'user_agent': ua,
+            'etag_req': request.headers.get('If-None-Match', ''),
+            'etag_resp': response.headers.get('ETag', ''),
+            'resp_size': resp_size or 0,
+            'role': user_role,
+            'trip_id': session.get('trip_id') or active_trip_id(),
+            'headers_req': headers_captured,
+            'headers_resp': resp_headers,
+        }
+
+        with API_LOGS_LOCK:
+            API_LOGS.append(log_entry)
+
+        persist_api_logs_throttled()
+    except Exception as err:
+        logger.debug("Error logging API request: %s", err)
+
     return response
 
 
@@ -935,6 +1247,229 @@ def admin_security_audit():
     return jsonify({'status': 'ok', 'routes': routes, 'all_protected': all(route['protected'] for route in routes)})
 
 
+@app.route('/api/admin/settings', methods=['GET'])
+@require_auth
+@require_role('admin')
+def admin_get_settings():
+    cfg = load_config()
+    tz_mode = cfg.get('timezone_mode', 'romania')
+    tz_name = cfg.get('timezone', 'Europe/Bucharest')
+
+    try:
+        tz_ro = zoneinfo.ZoneInfo('Europe/Bucharest')
+        now_ro = datetime.now(tz_ro)
+    except Exception:
+        tz_ro = get_app_timezone()
+        now_ro = datetime.now(tz_ro) if tz_ro else datetime.now()
+
+    now_server = datetime.now()
+    now_active = get_current_datetime()
+    server_tz_str = time.tzname[time.daylight] if hasattr(time, 'tzname') and time.tzname else 'Local'
+
+    return jsonify({
+        'ok': True,
+        'status': 'ok',
+        'timezone_mode': tz_mode,
+        'timezone_name': 'Europe/Bucharest' if tz_mode == 'romania' else ('UTC' if tz_mode == 'utc' else 'Server Local'),
+        'timezone': tz_name,
+        'current_time_active': now_active.strftime('%Y-%m-%d %H:%M:%S'),
+        'current_time_romania': now_ro.strftime('%Y-%m-%d %H:%M:%S'),
+        'current_time_server': now_server.strftime('%Y-%m-%d %H:%M:%S'),
+        'now_romania': now_ro.isoformat(timespec='seconds'),
+        'now_server': now_server.isoformat(timespec='seconds'),
+        'server_timezone': server_tz_str,
+        'settings': {
+            'timezone_mode': tz_mode,
+            'timezone': tz_name,
+        }
+    })
+
+
+@app.route('/api/admin/settings', methods=['POST'])
+@require_auth
+@require_role('admin')
+def admin_save_settings():
+    payload = request.get_json(silent=True) or {}
+    mode = payload.get('timezone_mode')
+    if mode not in {'romania', 'server', 'utc'}:
+        return jsonify({'ok': False, 'error': 'Opțiune invalidă de fus orar (permise: romania, server, utc)'}), 400
+
+    cfg = load_config()
+    cfg['timezone_mode'] = mode
+    cfg['timezone'] = 'Europe/Bucharest' if mode == 'romania' else ('UTC' if mode == 'utc' else 'Server')
+    save_config(cfg)
+    app.logger.info("Admin a schimbat fusul orar în '%s'", mode)
+
+    now_active = get_current_datetime()
+    return jsonify({
+        'ok': True,
+        'status': 'ok',
+        'timezone_mode': mode,
+        'current_time_active': now_active.strftime('%Y-%m-%d %H:%M:%S'),
+        'message': 'Fusul orar a fost actualizat cu succes!',
+        'settings': {
+            'timezone_mode': mode,
+            'timezone': cfg['timezone'],
+        }
+    })
+
+
+@app.route('/api/admin/request-logs', methods=['GET'])
+@require_auth
+@require_role('admin')
+def get_admin_request_logs():
+    q = request.args.get('q', '').strip().lower()
+    dev_filter = request.args.get('device', '').strip()
+    ip_filter = request.args.get('ip', '').strip()
+    method_filter = request.args.get('method', '').strip().upper()
+    status_filter = request.args.get('status', '').strip().lower()
+    sort_by = request.args.get('sort_by', 'timestamp').strip()
+    sort_order = request.args.get('sort_order', 'desc').strip().lower()
+
+    try:
+        limit = min(max(int(request.args.get('limit', 200)), 1), 1000)
+    except (ValueError, TypeError):
+        limit = 200
+
+    try:
+        offset = max(int(request.args.get('offset', 0)), 0)
+    except (ValueError, TypeError):
+        offset = 0
+
+    with API_LOGS_LOCK:
+        all_logs = list(API_LOGS)
+
+    total_unfiltered = len(all_logs)
+    count_304 = 0
+    count_2xx = 0
+    count_errors = 0
+    sum_duration = 0.0
+    device_counts = {}
+    ip_counts = {}
+
+    for item in all_logs:
+        code = item.get('status_code', 200)
+        if code == 304:
+            count_304 += 1
+        elif 200 <= code < 300:
+            count_2xx += 1
+        elif code >= 400:
+            count_errors += 1
+
+        sum_duration += item.get('duration_ms', 0.0)
+
+        dev_name = item.get('client_name') or item.get('device_summary') or 'Unknown'
+        device_counts[dev_name] = device_counts.get(dev_name, 0) + 1
+
+        ip_val = item.get('ip') or '127.0.0.1'
+        ip_counts[ip_val] = ip_counts.get(ip_val, 0) + 1
+
+    avg_duration = round(sum_duration / total_unfiltered, 1) if total_unfiltered > 0 else 0.0
+
+    filtered = all_logs
+    if q:
+        filtered = [
+            item for item in filtered
+            if q in item.get('ip', '').lower()
+            or q in item.get('path', '').lower()
+            or q in item.get('client_name', '').lower()
+            or q in item.get('os', '').lower()
+            or q in item.get('device_summary', '').lower()
+            or q in item.get('user_agent', '').lower()
+            or q in item.get('query', '').lower()
+            or q in str(item.get('status_code', ''))
+            or q in item.get('method', '').lower()
+        ]
+
+    if dev_filter and dev_filter != 'all':
+        filtered = [
+            item for item in filtered
+            if dev_filter.lower() in (item.get('client_name', '') + ' ' + item.get('device_summary', '') + ' ' + item.get('os', '')).lower()
+        ]
+
+    if ip_filter and ip_filter != 'all':
+        filtered = [item for item in filtered if item.get('ip') == ip_filter]
+
+    if method_filter and method_filter != 'ALL':
+        filtered = [item for item in filtered if item.get('method') == method_filter]
+
+    if status_filter and status_filter != 'all':
+        if status_filter == '304':
+            filtered = [item for item in filtered if item.get('status_code') == 304]
+        elif status_filter == '2xx':
+            filtered = [item for item in filtered if 200 <= item.get('status_code', 0) < 300]
+        elif status_filter == '4xx':
+            filtered = [item for item in filtered if 400 <= item.get('status_code', 0) < 500]
+        elif status_filter == '5xx':
+            filtered = [item for item in filtered if item.get('status_code', 0) >= 500]
+        elif status_filter.isdigit():
+            filtered = [item for item in filtered if item.get('status_code') == int(status_filter)]
+
+    reverse = (sort_order != 'asc')
+    if sort_by == 'duration_ms':
+        filtered.sort(key=lambda x: x.get('duration_ms', 0.0), reverse=reverse)
+    elif sort_by == 'status_code':
+        filtered.sort(key=lambda x: x.get('status_code', 0), reverse=reverse)
+    elif sort_by == 'method':
+        filtered.sort(key=lambda x: x.get('method', ''), reverse=reverse)
+    elif sort_by == 'path':
+        filtered.sort(key=lambda x: x.get('path', ''), reverse=reverse)
+    elif sort_by == 'ip':
+        filtered.sort(key=lambda x: x.get('ip', ''), reverse=reverse)
+    elif sort_by == 'device':
+        filtered.sort(key=lambda x: x.get('client_name', ''), reverse=reverse)
+    else:
+        filtered.sort(key=lambda x: x.get('epoch', 0.0), reverse=reverse)
+
+    paginated = filtered[offset:offset + limit]
+
+    top_devices = sorted([{'name': k, 'count': v} for k, v in device_counts.items()], key=lambda x: x['count'], reverse=True)[:10]
+    top_ips = sorted([{'ip': k, 'count': v} for k, v in ip_counts.items()], key=lambda x: x['count'], reverse=True)[:10]
+
+    return jsonify({
+        'ok': True,
+        'logs': paginated,
+        'total': len(filtered),
+        'total_unfiltered': total_unfiltered,
+        'limit': limit,
+        'offset': offset,
+        'stats': {
+            'total_requests': total_unfiltered,
+            'count_304': count_304,
+            'count_2xx': count_2xx,
+            'count_errors': count_errors,
+            'avg_duration_ms': avg_duration,
+            'unique_devices_count': len(device_counts),
+            'unique_ips_count': len(ip_counts),
+            'top_devices': top_devices,
+            'top_ips': top_ips,
+        }
+    })
+
+
+@app.route('/api/admin/request-logs/clear', methods=['POST'])
+@require_auth
+@require_role('admin')
+def clear_admin_request_logs():
+    with API_LOGS_LOCK:
+        API_LOGS.clear()
+    persist_api_logs_throttled(force=True)
+    return jsonify({'ok': True, 'message': 'Istoricul cererilor API a fost șters cu succes!'})
+
+
+@app.route('/api/admin/request-logs/export', methods=['GET'])
+@require_auth
+@require_role('admin')
+def export_admin_request_logs():
+    with API_LOGS_LOCK:
+        snapshot = list(API_LOGS)
+    now_str = get_current_datetime().strftime('%Y%m%d_%H%M%S')
+    resp = make_response(json.dumps(snapshot, ensure_ascii=False, indent=2))
+    resp.headers['Content-Type'] = 'application/json; charset=utf-8'
+    resp.headers['Content-Disposition'] = f'attachment; filename="api_requests_{now_str}.json"'
+    return resp
+
+
 @app.route('/user')
 @require_auth
 def user():
@@ -1024,8 +1559,7 @@ def restore_version(version_id):
     except (OSError, json.JSONDecodeError):
         return jsonify({'error': 'Invalid version file'}), 400
     create_trip_version('before-version-restore')
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    write_trip_data_atomic(data)
     return jsonify({'status': 'ok', 'trip': data})
 
 
@@ -1047,10 +1581,152 @@ def delete_trip(trip_id):
     return jsonify({'status': 'ok', 'deleted': trip_id, 'active': active_trip_id(), 'trip': load_trip_data()})
 
 
-@app.route('/api/trip', methods=['GET'])
+def active_trip_metadata(trip_id=None):
+    trip_id = trip_id or active_trip_id()
+    try:
+        trip_dir = trip_directory(trip_id)
+        trip_data_file = os.path.join(trip_dir, 'trip_data.json')
+        if not os.path.isfile(trip_data_file):
+            return None
+        stat = os.stat(trip_data_file)
+        mtime = stat.st_mtime
+        size = stat.st_size
+    except Exception as err:
+        app.logger.error("Failed to read trip metadata for '%s': %s", trip_id, err)
+        return None
+
+    mtime_int = int(mtime)
+    revision = f"{mtime_int}-{size}"
+    etag = f'"{mtime_int}-{size}"'
+    last_modified = email.utils.formatdate(mtime, usegmt=True)
+
+    return {
+        'trip_id': trip_id,
+        'revision': revision,
+        'etag': etag,
+        'mtime': mtime,
+        'mtime_int': mtime_int,
+        'last_modified': last_modified,
+        'size': size
+    }
+
+
+def is_resource_not_modified(meta, if_none_match, if_modified_since):
+    if not meta:
+        return False
+
+    # Check conditional ETag (If-None-Match)
+    if if_none_match:
+        raw = if_none_match.strip()
+        clean_etag = meta['etag'].strip('"')
+        try:
+            parsed = parse_etags(raw)
+        except Exception:
+            parsed = None
+
+        if parsed and ('*' in parsed or parsed.contains_weak(clean_etag) or parsed.contains(clean_etag)):
+            return True
+        if raw in (meta['etag'], clean_etag, f'W/{meta["etag"]}', f'W/"{clean_etag}"'):
+            return True
+        return False
+
+    # Check conditional date (If-Modified-Since)
+    if if_modified_since and meta.get('last_modified'):
+        try:
+            ims_dt = parse_date(if_modified_since)
+            if ims_dt:
+                ims_ts = int(ims_dt.timestamp())
+                if ims_ts >= meta['mtime_int']:
+                    return True
+        except Exception:
+            pass
+
+    return False
+
+
+@app.route('/api/trip/revision', methods=['GET', 'HEAD'])
+@require_auth
+def get_trip_revision():
+    trip_id = active_trip_id()
+    meta = active_trip_metadata(trip_id)
+    if not meta:
+        app.logger.error("Revision check failed: trip data unavailable for trip '%s'", trip_id)
+        return jsonify({'error': 'Trip data unavailable'}), 404
+
+    if request.method == 'HEAD':
+        resp = make_response('', 200)
+        resp.headers['ETag'] = meta['etag']
+        if meta['last_modified']:
+            resp.headers['Last-Modified'] = meta['last_modified']
+        resp.headers['Cache-Control'] = 'private, no-cache'
+        resp.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return resp
+
+    revision_info = {
+        'revision': meta['revision'],
+        'etag': meta['etag'],
+        'last_modified': meta['last_modified'],
+    }
+
+    # Compact JSON to keep payload well below 120 bytes (~95 bytes)
+    body = json.dumps(revision_info, separators=(',', ':'))
+    resp = make_response(body, 200)
+    resp.headers['Content-Type'] = 'application/json; charset=utf-8'
+    resp.headers['ETag'] = meta['etag']
+    if meta['last_modified']:
+        resp.headers['Last-Modified'] = meta['last_modified']
+    resp.headers['Cache-Control'] = 'private, no-cache'
+    return resp
+
+
+@app.route('/api/trip', methods=['GET', 'HEAD'])
 @require_auth
 def get_trip():
-    return jsonify(load_trip_data())
+    trip_id = active_trip_id()
+    meta = active_trip_metadata(trip_id)
+    if not meta:
+        app.logger.error("Trip data unavailable for trip '%s'", trip_id)
+        return jsonify({'error': 'Trip data unavailable'}), 404
+
+    if_none_match = request.headers.get('If-None-Match')
+    if_modified_since = request.headers.get('If-Modified-Since')
+
+    if if_none_match or if_modified_since:
+        app.logger.info("Conditional request for trip '%s' (If-None-Match: %s, If-Modified-Since: %s)",
+                        trip_id, if_none_match, if_modified_since)
+
+    # Check if resource has not been modified
+    if is_resource_not_modified(meta, if_none_match, if_modified_since):
+        app.logger.info("Trip '%s' data unchanged. Returning 304 Not Modified (ETag: %s)", trip_id, meta['etag'])
+        resp = make_response('', 304)
+        resp.headers['ETag'] = meta['etag']
+        if meta['last_modified']:
+            resp.headers['Last-Modified'] = meta['last_modified']
+        resp.headers['Cache-Control'] = 'private, must-revalidate'
+        return resp
+
+    if request.method == 'HEAD':
+        resp = make_response('', 200)
+        resp.headers['ETag'] = meta['etag']
+        if meta['last_modified']:
+            resp.headers['Last-Modified'] = meta['last_modified']
+        resp.headers['Cache-Control'] = 'private, must-revalidate'
+        resp.headers['Content-Type'] = 'application/json; charset=utf-8'
+        return resp
+
+    data = load_trip_data(trip_id)
+    fresh_meta = active_trip_metadata(trip_id) or meta
+
+    location_count = len(data.get('locations', [])) if isinstance(data, dict) else 0
+    app.logger.info("Serving full trip download for '%s' (ETag: %s, %d locations)",
+                    trip_id, fresh_meta['etag'], location_count)
+
+    resp = make_response(jsonify(data), 200)
+    resp.headers['ETag'] = fresh_meta['etag']
+    if fresh_meta['last_modified']:
+        resp.headers['Last-Modified'] = fresh_meta['last_modified']
+    resp.headers['Cache-Control'] = 'private, must-revalidate'
+    return resp
 
 
 @app.route('/api/trip', methods=['POST'])
@@ -1073,8 +1749,7 @@ def save_trip():
                     att['order'] = idx
 
     create_trip_version('save', data)
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    write_trip_data_atomic(data)
     return jsonify({'status': 'ok'})
 
 
@@ -1138,8 +1813,7 @@ def tampermonkey_add_location():
     }
     trip.setdefault('locations', []).insert(0, new_location)
     create_trip_version('tampermonkey-add', trip)
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        json.dump(trip, f, ensure_ascii=False, indent=2)
+    write_trip_data_atomic(trip)
     return jsonify({'status': 'ok', 'location': new_location, 'trip': trip})
 
 
@@ -1163,8 +1837,7 @@ def save_visited_state():
         return jsonify({'error': 'Location not found'}), 404
 
     create_trip_version('visited', trip)
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        json.dump(trip, f, ensure_ascii=False, indent=2)
+    write_trip_data_atomic(trip)
     return jsonify({'status': 'ok', 'visited': visited})
 
 
@@ -1188,8 +1861,7 @@ def save_excluded_state():
         return jsonify({'error': 'Location not found'}), 404
 
     create_trip_version('excluded', trip)
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        json.dump(trip, f, ensure_ascii=False, indent=2)
+    write_trip_data_atomic(trip)
     return jsonify({'status': 'ok', 'excluded': excluded})
 
 
@@ -1551,8 +2223,7 @@ def admin_backup_restore(filename):
 
     automatic_backup = create_backup()
     create_trip_version('restore-backup', data)
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    write_trip_data_atomic(data)
     return jsonify({'status': 'ok', 'trip': data, 'automatic_backup': automatic_backup})
 
 
@@ -1583,8 +2254,7 @@ def admin_restore():
 
     automatic_backup = create_backup()
     create_trip_version('restore-file', data)
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    write_trip_data_atomic(data)
     return jsonify({'status': 'ok', 'trip': data, 'automatic_backup': automatic_backup})
 
 
@@ -1612,9 +2282,8 @@ def admin_delete_all():
         'currency': current.get('currency') or 'EUR',
         'locations': [],
     }
-    with open(active_trip_data_file(), 'w', encoding='utf-8') as f:
-        create_trip_version('clear-all', empty_trip)
-        json.dump(empty_trip, f, ensure_ascii=False, indent=2)
+    create_trip_version('clear-all', empty_trip)
+    write_trip_data_atomic(empty_trip)
     session.pop('danger_auth_verified_at', None)
     return jsonify({'status': 'ok', 'deleted': True, 'automatic_backup': automatic_backup})
 

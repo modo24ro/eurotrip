@@ -197,6 +197,162 @@ class TestSettingsPage(unittest.TestCase):
             self.assertIn(f'data-view="{v}"', html)
             self.assertIn(f'href="?view={v}"', html)
 
+    def test_settings_timezone_tab_present(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        res = self.client.get('/admin/settings')
+        self.assertEqual(res.status_code, 200)
+        content = res.data.decode('utf-8')
+        self.assertIn('tabTimezone', content)
+        self.assertIn('paneTimezone', content)
+        self.assertIn('clockRomania', content)
+        self.assertIn('clockServer', content)
+        self.assertIn('tzModeRomania', content)
+
+    def test_get_and_update_admin_settings(self):
+        from app import get_current_datetime, get_app_timezone
+
+        # Unauthenticated -> 401
+        res_unauth = self.client.get('/api/admin/settings')
+        self.assertEqual(res_unauth.status_code, 401)
+
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        # GET settings
+        res_get = self.client.get('/api/admin/settings')
+        self.assertEqual(res_get.status_code, 200)
+        data = res_get.get_json()
+        self.assertTrue(data.get('ok'))
+        self.assertIn('settings', data)
+        self.assertIn('timezone_mode', data['settings'])
+        self.assertIn('now_romania', data)
+        self.assertIn('now_server', data)
+
+        # POST update settings (switch to server, then back to romania)
+        res_post = self.client.post('/api/admin/settings', json={'timezone_mode': 'server'})
+        self.assertEqual(res_post.status_code, 200)
+        self.assertEqual(res_post.get_json().get('settings', {}).get('timezone_mode'), 'server')
+
+        # Invalid mode -> 400
+        res_invalid = self.client.post('/api/admin/settings', json={'timezone_mode': 'invalid_zone'})
+        self.assertEqual(res_invalid.status_code, 400)
+
+        # Revert back to romania
+        res_revert = self.client.post('/api/admin/settings', json={'timezone_mode': 'romania'})
+        self.assertEqual(res_revert.status_code, 200)
+        self.assertEqual(res_revert.get_json().get('settings', {}).get('timezone_mode'), 'romania')
+
+        # Verify get_current_datetime works with Romanian time
+        now_dt = get_current_datetime()
+        self.assertIsNotNone(now_dt)
+        self.assertIsNotNone(now_dt.tzinfo)
+
+    def test_settings_apilogs_tab_and_modal_present(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        res = self.client.get('/admin/settings')
+        self.assertEqual(res.status_code, 200)
+        content = res.data.decode('utf-8')
+        self.assertIn('tabApiLogs', content)
+        self.assertIn('paneApiLogs', content)
+        self.assertIn('apiLogsTableBody', content)
+        self.assertIn('apiDeviceChips', content)
+        self.assertIn('requestDetailModal', content)
+        self.assertIn('apiSearchInput', content)
+        self.assertIn('apiFilterMethod', content)
+
+    def test_api_request_logs_tracking_and_device_detection(self):
+        # Clear logs first
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        self.client.post('/api/admin/request-logs/clear')
+
+        # Simulate Android EuroTrip app call
+        res_android = self.client.get('/api/trip/revision', headers={
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 EuroTrip/1.0',
+            'X-Forwarded-For': '198.51.100.25'
+        })
+        self.assertEqual(res_android.status_code, 200)
+        etag = res_android.headers.get('ETag')
+
+        # Simulate conditional 304 request from iPhone Safari
+        res_iphone = self.client.get('/api/trip', headers={
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile Safari/604.1',
+            'If-None-Match': etag,
+            'X-Forwarded-For': '203.0.113.88'
+        })
+        self.assertEqual(res_iphone.status_code, 304)
+
+        # Retrieve request logs as admin
+        res_logs = self.client.get('/api/admin/request-logs')
+        self.assertEqual(res_logs.status_code, 200)
+        data = res_logs.get_json()
+        self.assertTrue(data.get('ok'))
+        self.assertGreaterEqual(data.get('total'), 2)
+
+        # Check Android request details
+        logs = data.get('logs', [])
+        android_log = next((item for item in logs if item.get('ip') == '198.51.100.25'), None)
+        self.assertIsNotNone(android_log)
+        self.assertEqual(android_log.get('path'), '/api/trip/revision')
+        self.assertEqual(android_log.get('status_code'), 200)
+        self.assertEqual(android_log.get('os'), 'Android')
+        self.assertIn('EuroTrip', android_log.get('client_name'))
+
+        # Check iPhone request details (304 Not Modified)
+        iphone_log = next((item for item in logs if item.get('ip') == '203.0.113.88'), None)
+        self.assertIsNotNone(iphone_log)
+        self.assertEqual(iphone_log.get('path'), '/api/trip')
+        self.assertEqual(iphone_log.get('status_code'), 304)
+        self.assertEqual(iphone_log.get('os'), 'iOS')
+
+        # Check stats aggregation
+        stats = data.get('stats', {})
+        self.assertGreaterEqual(stats.get('count_304'), 1)
+        self.assertGreaterEqual(stats.get('unique_devices_count'), 2)
+        self.assertGreaterEqual(stats.get('unique_ips_count'), 2)
+
+    def test_api_request_logs_filtering_and_clear(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        # Filter by IP
+        res_filter_ip = self.client.get('/api/admin/request-logs?ip=198.51.100.25')
+        self.assertEqual(res_filter_ip.status_code, 200)
+        data_ip = res_filter_ip.get_json()
+        for item in data_ip.get('logs', []):
+            self.assertEqual(item.get('ip'), '198.51.100.25')
+
+        # Filter by status 304
+        res_filter_304 = self.client.get('/api/admin/request-logs?status=304')
+        self.assertEqual(res_filter_304.status_code, 200)
+        for item in res_filter_304.get_json().get('logs', []):
+            self.assertEqual(item.get('status_code'), 304)
+
+        # Clear logs
+        res_clear = self.client.post('/api/admin/request-logs/clear')
+        self.assertEqual(res_clear.status_code, 200)
+        self.assertTrue(res_clear.get_json().get('ok'))
+
+        # Verify logs empty after clear
+        res_after_clear = self.client.get('/api/admin/request-logs')
+        self.assertEqual(res_after_clear.status_code, 200)
+        self.assertEqual(res_after_clear.get_json().get('total'), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
