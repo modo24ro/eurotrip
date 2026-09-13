@@ -24,9 +24,9 @@ function getInitialView() {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get('view');
     if (isMobile) {
-      // On mobile, Days is ALWAYS the default initial navigation mode.
-      // Do not restore another previously selected mobile navigation mode as the default.
-      if (fromUrl && fromUrl !== 'list') {
+      // On mobile, Table and All (list) are completely disabled.
+      // Days is ALWAYS the default initial navigation mode.
+      if (fromUrl && fromUrl !== 'list' && fromUrl !== 'table') {
         return fromUrl;
       }
       return 'day';
@@ -36,6 +36,28 @@ function getInitialView() {
     }
   }
   return _prefs.view || 'list';
+}
+
+function updateViewUrl(view, push = false) {
+  if (typeof window === 'undefined') return;
+  try {
+    const url = new URL(window.location.href);
+    if (view) {
+      url.searchParams.set('view', view);
+    }
+    if (view !== 'map') {
+      url.searchParams.delete('fullscreen');
+      url.searchParams.delete('fs');
+    }
+    const targetUrl = url.pathname + url.search + url.hash;
+    if (push) {
+      window.history.pushState({ view }, '', targetUrl);
+    } else {
+      window.history.replaceState({ view }, '', targetUrl);
+    }
+  } catch (e) {
+    console.warn('Could not update view in URL:', e);
+  }
 }
 
 function getInitialMapDay() {
@@ -508,12 +530,54 @@ function renderCountryFilter() {
   if (selMobile) selMobile.innerHTML = optionsHtml;
 }
 
+function syncSearchInputPlacement() {
+  const searchWrap = document.getElementById('mainSearchWrap');
+  const defaultSlot = document.getElementById('defaultSearchSlot');
+  const mapSlot = document.getElementById('mapSearchSlot');
+  const searchInput = document.getElementById('searchInput');
+  const isMobile = window.innerWidth <= 768 || isNarrowScreen();
+
+  if (!searchWrap || !defaultSlot) return;
+
+  if (state.view === 'map' && mapSlot) {
+    if (searchWrap.parentElement !== mapSlot) {
+      mapSlot.appendChild(searchWrap);
+    }
+    if (searchInput) {
+      searchInput.placeholder = isMobile ? 'Caută…' : 'Search locations…';
+    }
+  } else {
+    if (searchWrap.parentElement !== defaultSlot) {
+      defaultSlot.appendChild(searchWrap);
+    }
+    if (searchInput) {
+      searchInput.placeholder = 'Search locations…';
+    }
+  }
+}
+
 function renderMain() {
   const el = document.getElementById('mainContent');
   if (!el) return;
-  if (state.view === 'list' && isNarrowScreen()) {
+
+  // Protect searchWrap from being destroyed when innerHTML is updated
+  const searchWrap = document.getElementById('mainSearchWrap');
+  const defaultSlot = document.getElementById('defaultSearchSlot');
+  const searchInput = document.getElementById('searchInput');
+  const isSearchFocused = document.activeElement === searchInput;
+  const selStart = searchInput ? searchInput.selectionStart : null;
+  const selEnd = searchInput ? searchInput.selectionEnd : null;
+
+  if (searchWrap && defaultSlot && searchWrap.parentElement !== defaultSlot) {
+    defaultSlot.appendChild(searchWrap);
+  }
+
+  document.body.dataset.view = state.view;
+  const isMobile = window.innerWidth <= 980 || isNarrowScreen();
+  if ((state.view === 'list' || state.view === 'table') && isMobile) {
     state.view = 'day';
     savePrefs({ view: 'day' });
+    updateViewUrl('day', false);
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
     document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
   }
@@ -534,13 +598,45 @@ function renderMain() {
   }
   if (state.view === 'map') requestAnimationFrame(renderMap);
   if (state.view === 'route') requestAnimationFrame(initRouteView);
+
+  syncSearchInputPlacement();
+
+  if (isSearchFocused && searchInput) {
+    searchInput.focus();
+    if (selStart !== null && selEnd !== null) {
+      try { searchInput.setSelectionRange(selStart, selEnd); } catch (_) {}
+    }
+  }
+
+  updateControlsBarHeight();
+  updateDaysToggleLabel();
+}
+
+function switchView(v, updateUrl = true, pushHistory = true) {
+  if (!v) return;
+  const isMobile = window.innerWidth <= 980 || isNarrowScreen();
+  if ((v === 'list' || v === 'table') && isMobile) {
+    v = 'day';
+  }
+  if (v !== 'map') {
+    exitMapFullscreen();
+  }
+  state.view = v;
+  savePrefs({ view: v });
+  if (updateUrl) {
+    updateViewUrl(v, pushHistory);
+  }
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
+  document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === v));
+  renderMain();
   updateControlsBarHeight();
   updateDaysToggleLabel();
 }
 
 function renderMapView() {
   const allLocations = getFilteredLocations();
-  const days = [...new Set(allLocations.map(loc => loc.visit_date).filter(Boolean))].sort();
+  const tripLocations = state.trip?.locations ?? [];
+  const days = [...new Set(tripLocations.filter(loc => loc.enabled !== false).map(loc => loc.visit_date).filter(Boolean))].sort();
   const today = getTodayDateString();
 
   if (state.mapDay === null || state.mapDay === undefined || (state.mapDay !== 'all' && !days.includes(state.mapDay))) {
@@ -566,32 +662,38 @@ function renderMapView() {
   const isFs = isMapFullscreenActive();
   if (isFs) {
     document.body.classList.add('map-is-fullscreen');
+    document.documentElement.classList.add('map-is-fullscreen');
+  } else {
+    document.body.classList.remove('map-is-fullscreen');
+    document.documentElement.classList.remove('map-is-fullscreen');
   }
 
   return `<div class="map-view-wrap${isFs ? ' is-fullscreen' : ''}">
     <div class="map-toolbar">
       <div class="map-toolbar-row map-toolbar-controls">
+        <div id="mapSearchSlot" class="map-search-slot"></div>
         <label class="map-day-label" title="Selectează ziua">
           <span class="toolbar-label-txt">Zi:</span>
           <select id="mapDaySelect" class="filter-select">
-            <option value="all"${state.mapDay === 'all' ? ' selected' : ''}>Toate zilele</option>
-            ${days.map(day => `<option value="${esc(day)}"${day === state.mapDay ? ' selected' : ''}>${esc(fmtDate(day, { day: 'numeric', month: 'short', year: 'numeric' }))}</option>`).join('')}
+            <option value="all"${state.mapDay === 'all' ? ' selected' : ''}>Toate</option>
+            ${days.map(day => `<option value="${esc(day)}"${day === state.mapDay ? ' selected' : ''}>${esc(fmtDate(day, { day: 'numeric', month: 'short' }))}</option>`).join('')}
           </select>
         </label>
         
         <button class="btn-secondary map-optimize-btn" id="optimizeMapBtn" type="button" title="Comută ordinea optimizată a traseului">
-          ${state.mapOptimized ? 'Arată orele' : 'Arată ordinea'}
+          <span class="map-btn-txt-full">${state.mapOptimized ? 'Arată orele' : 'Arată ordinea'}</span>
+          <span class="map-btn-txt-compact">${state.mapOptimized ? 'Ore' : 'Ordine'}</span>
         </button>
 
         <button class="btn-secondary map-route-mode-btn" id="toggleMapRouteModeBtn" type="button" title="${state.mapRouteType === 'direct' ? 'Comută la traseu pe străzi (varianta nouă)' : 'Comută la linii directe clasice'}">
-          ${state.mapRouteType === 'direct' ? '🛣️ Pe străzi' : '📏 Linii directe'}
+          <span class="map-btn-txt-full">${state.mapRouteType === 'direct' ? '🛣️ Pe străzi' : '📏 Linii directe'}</span>
+          <span class="map-btn-txt-compact">${state.mapRouteType === 'direct' ? '🛣️ Străzi' : '📏 Direct'}</span>
         </button>
         
-        <span class="map-locations-chip">📍 ${mapped.length} pe hartă</span>
         ${mapped.length === 0 ? '<span class="map-all-done-note">🎉 Toate locațiile sunt făcute sau excluse!</span>' : ''}
         
-        ${missing ? `<span class="map-missing" title="${missingLocations.map(loc => esc(loc.name)).join(' · ')}">⚠️ ${missing} fără coordonate</span>` : ''}
-        ${state.role === 'admin' && missing ? '<button class="btn-secondary geocode-missing-btn" id="geocodeMissingBtn" type="button">Găsește coordonate</button>' : ''}
+        ${missing ? `<span class="map-missing" title="${missingLocations.map(loc => esc(loc.name)).join(' · ')}"><span class="map-missing-full">⚠️ ${missing} fără coordonate</span><span class="map-missing-compact">⚠️ ${missing}</span></span>` : ''}
+        ${state.role === 'admin' && missing ? '<button class="btn-secondary geocode-missing-btn" id="geocodeMissingBtn" type="button" title="Găsește coordonate"><span class="map-btn-txt-full">Găsește coordonate</span><span class="map-btn-txt-compact">Coord</span></button>' : ''}
 
       </div>
     </div>
@@ -600,6 +702,7 @@ function renderMapView() {
         <svg class="fs-enter-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
         <svg class="fs-exit-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>
       </button>
+      <div class="map-float-count-chip" id="mapFloatCountChip" title="Locații active pe hartă">📍 ${mapped.length}</div>
       <div id="tripMap" class="trip-map" aria-label="Trip locations map"></div>
     </div>
   </div>`;
@@ -1021,6 +1124,7 @@ async function toggleMapFullscreen() {
     updateMapFullscreenUrl(true);
     wrap.classList.add('is-fullscreen');
     document.body.classList.add('map-is-fullscreen');
+    document.documentElement.classList.add('map-is-fullscreen');
     updateMapFullscreenButtons(true);
 
     if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
@@ -1053,6 +1157,7 @@ async function exitMapFullscreen() {
   const wrap = document.querySelector('.map-view-wrap');
   if (wrap) wrap.classList.remove('is-fullscreen');
   document.body.classList.remove('map-is-fullscreen');
+  document.documentElement.classList.remove('map-is-fullscreen');
   updateMapFullscreenButtons(false);
 
   if (document.fullscreenElement || document.webkitFullscreenElement) {
@@ -1084,7 +1189,7 @@ function setupMapFullscreenElevation() {
       e.target.closest('#mapFloatFullscreenBtn') ||
       e.target.closest('#toggleMapFullscreenBtn') ||
       e.target.closest('.map-fullscreen-btn') ||
-      e.target.closest('[data-view]')
+      e.target.closest('.view-tab, .mnav-btn[data-view]')
     )) {
       return;
     }
@@ -1254,9 +1359,18 @@ async function renderStreetRouteForDay(orderedLocations, groupIndex, mapInstance
   }
 }
 
+// AbortController pentru listenerii din renderMap()
+// La fiecare apel renderMap() anulăm controllerul precedent → listenerii vechi sunt șterși automat
+let _mapListenerAC = null;
+
 function renderMap() {
   const mapElement = document.getElementById('tripMap');
   if (!mapElement || !window.L) return;
+
+  // Anulăm toți listenerii atașați anterior
+  if (_mapListenerAC) _mapListenerAC.abort();
+  _mapListenerAC = new AbortController();
+  const sig = { signal: _mapListenerAC.signal };
 
   if (state.mapRouteLayers && state.mapRouteLayers.length) {
     state.mapRouteLayers.forEach(l => {
@@ -1273,20 +1387,28 @@ function renderMap() {
   document.getElementById('toggleMapFullscreenBtn')?.addEventListener('click', event => {
     event.preventDefault();
     toggleMapFullscreen();
-  });
+  }, sig);
 
   document.getElementById('mapFloatFullscreenBtn')?.addEventListener('click', event => {
     event.preventDefault();
     toggleMapFullscreen();
-  });
+  }, sig);
 
   document.getElementById('toggleMapRouteModeBtn')?.addEventListener('click', event => {
     event.preventDefault();
     state.mapRouteType = state.mapRouteType === 'direct' ? 'streets' : 'direct';
     savePrefs({ mapRouteType: state.mapRouteType });
-    renderMain();
+    // Actualizăm doar vizual butonul, fără renderMain() complet
+    const btn = document.getElementById('toggleMapRouteModeBtn');
+    if (btn) {
+      const isStreets = state.mapRouteType === 'streets';
+      btn.title = isStreets ? 'Comută la linii directe clasice' : 'Comută la traseu pe străzi (varianta nouă)';
+      btn.classList.toggle('is-active', isStreets);
+    }
+    // Redesenăm doar layerele hărții (markeri + linii)
+    refreshMapLayers();
     toast(state.mapRouteType === 'direct' ? 'Linii directe clasice activate.' : 'Traseu pe străzi activat (varianta nouă).', 'info');
-  }, { once: true });
+  }, sig);
 
   const isFs = isMapFullscreenActive();
   if (isFs) {
@@ -1305,28 +1427,35 @@ function renderMap() {
     savePrefs({ mapDay: state.mapDay });
     updateMapDayUrl(state.mapDay);
     state.mapOptimized = false;
-    renderMain();
-  }, { once: true });
+    // Redesenăm numai layerele — mai rapid decât renderMain(), nu distruge DOM-ul
+    refreshMapLayers();
+    // Actualizăm textul butonului de optimizare
+    const optBtn = document.getElementById('optimizeMapBtn');
+    if (optBtn) {
+      optBtn.querySelector('.map-btn-txt-full').textContent = 'Arată ordinea';
+      optBtn.querySelector('.map-btn-txt-compact').textContent = 'Ordine';
+    }
+  }, sig);
 
   document.getElementById('optimizeMapBtn')?.addEventListener('click', event => {
     event.preventDefault();
     event.stopPropagation();
     state.mapOptimized = !state.mapOptimized;
-    renderMain();
+    const btn = document.getElementById('optimizeMapBtn');
+    if (btn) btn.classList.toggle('is-active', state.mapOptimized);
+    // Redesenăm doar layerele hărții
+    refreshMapLayers();
     const activeLocations = getFilteredLocations().filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
     const dayLocations = state.mapDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === state.mapDay);
     const mappedCount = dayLocations.filter(loc => hasValidCoordinates(loc.coordinates)).length;
     toast(state.mapOptimized ? `Traseu optimizat pentru ${mappedCount} locații.` : 'Ordine ore restabilită.', 'success');
-  }, { once: true });
+  }, sig);
 
-  document.getElementById('switchToRouteBtn')?.addEventListener('click', () => {
+  document.getElementById('switchToRouteBtn')?.addEventListener('click', (e) => {
+    e?.preventDefault();
     exitMapFullscreen();
-    state.view = 'route';
-    savePrefs({ view: 'route' });
-    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'route'));
-    document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'route'));
-    renderMain();
-  });
+    switchView('route', true, true);
+  }, sig);
 
   document.getElementById('geocodeMissingBtn')?.addEventListener('click', async event => {
     const button = event.currentTarget;
@@ -1347,7 +1476,7 @@ function renderMap() {
       button.textContent = 'Găsește coordonate';
       toast('Geocodare eșuată: ' + error.message, 'error');
     }
-  }, { once: true });
+  }, sig);
 
   state.map = L.map(mapElement, { scrollWheelZoom: true });
   state.userGpsMarker = null;
@@ -1403,6 +1532,73 @@ function renderMap() {
   else state.map.setView([48, 10], 5);
   setTimeout(() => state.map?.invalidateSize(), 0);
 }
+
+// Redesenează NUMAI markerii și liniile pe harta existentă (fără a distruge instanța Leaflet)
+function refreshMapLayers() {
+  if (!state.map || !window.L) return;
+
+  // Scoatem layerele vechi (markeri + linii de traseu), păstrăm tile layer și GPS marker
+  state.map.eachLayer(layer => {
+    if (layer instanceof L.Marker && layer !== state.userGpsMarker) {
+      try { state.map.removeLayer(layer); } catch (e) { }
+    }
+  });
+  if (state.mapRouteLayers && state.mapRouteLayers.length) {
+    state.mapRouteLayers.forEach(l => {
+      try { state.map.removeLayer(l); } catch (e) { }
+    });
+    state.mapRouteLayers = [];
+  }
+
+  // Re-desenăm cu starea curentă (mapRouteType, mapOptimized, mapDay)
+  const allLocations = getFilteredLocations();
+  const activeLocations = allLocations.filter(loc => !loc.visited && !loc.excluded && !state.mapExcluded.has(loc.id) && loc.enabled !== false);
+  const locations = state.mapDay === 'all' ? activeLocations : activeLocations.filter(loc => loc.visit_date === state.mapDay);
+
+  const routeGroups = {};
+  locations.forEach(loc => {
+    if (hasValidCoordinates(loc.coordinates)) {
+      const dayKey = loc.visit_date || '__none__';
+      (routeGroups[dayKey] ||= []).push(loc);
+    }
+  });
+  const routeOrder = new Map();
+  Object.values(routeGroups).forEach((dayLocs, groupIndex) => {
+    const orderedLocations = optimizeDayRoute(dayLocs);
+    orderedLocations.forEach((location, index) => routeOrder.set(location.id, index + 1));
+    if (orderedLocations.length > 1) {
+      renderStreetRouteForDay(orderedLocations, groupIndex, state.map);
+    }
+  });
+
+  const bounds = [];
+  locations.forEach(loc => {
+    const coordinates = loc.coordinates;
+    if (!hasValidCoordinates(coordinates)) return;
+    const longitude = Number(coordinates[0]);
+    const latitude = Number(coordinates[1]);
+    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return;
+    bounds.push([latitude, longitude]);
+    const color = getCategoryColor(loc.category);
+    const fixedTime = loc.visit_time ? `<b class="map-time-badge">${esc(loc.visit_time)}</b>` : '';
+    const routeNumber = state.mapOptimized ? `<b class="map-route-number">${routeOrder.get(loc.id) || ''}</b>` : '';
+    const icon = L.divIcon({ className: `trip-map-marker${loc.visit_time ? ' trip-map-marker-fixed' : ''}`, html: `${fixedTime}${routeNumber}<span style="background:${color}"></span>`, iconSize: [18, 18], iconAnchor: [9, 9] });
+    const marker = L.marker([latitude, longitude], { icon }).addTo(state.map);
+    if (loc.name) marker.bindTooltip(loc.name, { direction: 'top', offset: [0, -10] });
+    marker.on('click', () => { openLocationModal(loc.id); });
+  });
+
+  if (bounds.length === 1) {
+    state.map.setView(bounds[0], 13);
+  } else if (bounds.length > 1) {
+    state.map.fitBounds(bounds, { padding: [28, 28] });
+  }
+
+  // Actualizăm badge-ul cu numărul de locații
+  const chip = document.getElementById('mapFloatCountChip');
+  if (chip) chip.textContent = `📍 ${locations.filter(l => hasValidCoordinates(l.coordinates)).length}`;
+}
+
 
 function initRouteView() {
   if (state.map) {
@@ -1806,14 +2002,7 @@ function navigateToCountry(country) {
 
   // Switch to Countries mode
   if (state.view !== 'country') {
-    exitMapFullscreen();
-    state.view = 'country';
-    savePrefs({ view: 'country' });
-    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'country'));
-    document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'country'));
-    renderMain();
-    updateControlsBarHeight();
-    updateDaysToggleLabel();
+    switchView('country', true, true);
   }
 
   // Automatically navigate/scroll to the corresponding country
@@ -2281,48 +2470,71 @@ function renderCardSubcardHTML(loc) {
     const withNames = [...new Set((conflict.conflictingWith || []).map(c => (c.name || '').trim()).filter(Boolean))];
     const withStr = withNames.join(', ');
     const chipText = withStr
-      ? `⚠️ Conflict (${conflict.overlapMinutes}m cu ${withStr})`
-      : `⚠️ Conflict (${conflict.overlapMinutes}m)`;
+      ? `Conflict (${conflict.overlapMinutes}m cu ${withStr})`
+      : `Conflict (${conflict.overlapMinutes}m)`;
     const titleText = withStr
       ? `Schedule conflict: overlaps by ${conflict.overlapMinutes} min with ${withStr}`
       : `Schedule conflict (${conflict.overlapMinutes} min overlap)`;
-    conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}">${esc(chipText)}</span>`;
+    conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}"><span class="chip-icon">⚠️</span><span class="chip-label">${esc(chipText)}</span></span>`;
   }
 
   const notesBlock = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
   const hasChips = !!(confirmationLink || attachmentChip || conflictChip);
   const chipsBlock = hasChips ? `<div class="card-info-strip">${confirmationLink}${attachmentChip}${conflictChip}</div>` : '';
 
-  if (!notesBlock && !chipsBlock) return '';
-
-  return `
-    <div class="card-subcard">
-      ${notesBlock}
-      ${chipsBlock}
-    </div>`;
+  return `${notesBlock}${chipsBlock}`;
 }
 
 function updateCardSubcard(card, loc) {
   if (!card) return;
   const existingSubcard = card.querySelector('.card-subcard');
-  const newSubcardHTML = renderCardSubcardHTML(loc);
-  if (!newSubcardHTML) {
-    existingSubcard?.remove();
-    return;
-  }
-  if (existingSubcard) {
-    const temp = document.createElement('div');
-    temp.innerHTML = newSubcardHTML;
-    const newEl = temp.firstElementChild;
-    existingSubcard.replaceWith(newEl);
-  } else {
-    const actions = card.querySelector('.card-actions');
-    if (actions) {
-      const temp = document.createElement('div');
-      temp.innerHTML = newSubcardHTML;
-      const newEl = temp.firstElementChild;
-      actions.parentNode.insertBefore(newEl, actions);
+  if (existingSubcard) existingSubcard.remove();
+
+  const notes = (loc.notes || '').trim();
+  let notesRow = card.querySelector('.card-notes-row');
+  const actions = card.querySelector('.card-actions');
+
+  if (notes) {
+    const newNotesHTML = `<span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span>`;
+    if (notesRow) {
+      notesRow.innerHTML = newNotesHTML;
+      notesRow.title = notes;
+    } else {
+      notesRow = document.createElement('div');
+      notesRow.className = 'card-notes-row';
+      notesRow.title = notes;
+      notesRow.innerHTML = newNotesHTML;
+      if (actions) actions.parentNode.insertBefore(notesRow, actions);
     }
+  } else if (notesRow) {
+    notesRow.remove();
+    notesRow = null;
+  }
+
+  const confirmationLink = renderConfirmationLinkHTML(loc.confirmation_url, loc.confirmation_label);
+  const attachmentChip = renderAttachmentChipHTML(loc);
+  const conflict = checkTimeConflict(loc, state.trip?.locations || []);
+  let conflictChip = '';
+  if (conflict) {
+    const withNames = [...new Set((conflict.conflictingWith || []).map(c => (c.name || '').trim()).filter(Boolean))];
+    const withStr = withNames.join(', ');
+    const chipText = withStr ? `Conflict (${conflict.overlapMinutes}m cu ${withStr})` : `Conflict (${conflict.overlapMinutes}m)`;
+    const titleText = withStr ? `Schedule conflict: overlaps by ${conflict.overlapMinutes} min with ${withStr}` : `Schedule conflict (${conflict.overlapMinutes} min overlap)`;
+    conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}"><span class="chip-icon">⚠️</span><span class="chip-label">${esc(chipText)}</span></span>`;
+  }
+  const chipsHTML = `${confirmationLink}${attachmentChip}${conflictChip}`;
+  let infoStrip = card.querySelector('.card-info-strip');
+  if (chipsHTML) {
+    if (infoStrip) {
+      infoStrip.innerHTML = chipsHTML;
+    } else {
+      infoStrip = document.createElement('div');
+      infoStrip.className = 'card-info-strip';
+      infoStrip.innerHTML = chipsHTML;
+      if (actions) actions.parentNode.insertBefore(infoStrip, actions);
+    }
+  } else if (infoStrip) {
+    infoStrip.remove();
   }
 }
 
@@ -2576,15 +2788,17 @@ function renderTableView() {
           <input type="url" class="tbl-input" data-field="google_maps_url" value="${esc(loc.google_maps_url || '')}" placeholder="https://…">
         </td>
         <td class="td-actions td-ctrl">
-          <button type="button" class="card-icon-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)">
-            <svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
-          </button>
-          <button type="button" class="card-icon-btn exclude-route-btn${(loc.excluded || state.mapExcluded.has(loc.id)) ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${(loc.excluded || state.mapExcluded.has(loc.id)) ? 'Include în traseu' : 'Exclude din traseu'}">
-            <svg viewBox="0 0 24 24">${(loc.excluded || state.mapExcluded.has(loc.id)) ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg>
-          </button>
-          <button class="card-icon-btn delete" data-action="delete" title="Remove">
-            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          </button>
+          <div class="tbl-actions-wrap">
+            <button type="button" class="card-icon-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)">
+              <svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+            </button>
+            <button type="button" class="card-icon-btn exclude-route-btn${(loc.excluded || state.mapExcluded.has(loc.id)) ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${(loc.excluded || state.mapExcluded.has(loc.id)) ? 'Include în traseu' : 'Exclude din traseu'}">
+              <svg viewBox="0 0 24 24">${(loc.excluded || state.mapExcluded.has(loc.id)) ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg>
+            </button>
+            <button class="card-icon-btn delete" data-action="delete" title="Remove">
+              <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </button>
+          </div>
         </td>
       </tr>`;
   }).join('');
@@ -2761,7 +2975,7 @@ function updateFilterActiveDot() {
   if (dot) dot.style.display = isFiltered ? 'inline-block' : 'none';
 }
 
-// Narrow mobile nav Views toggle cycle
+// Narrow mobile nav Views toggle cycle (Days and Countries only)
 const NARROW_DAYS_CYCLE = [
   {
     view: 'day',
@@ -2772,11 +2986,6 @@ const NARROW_DAYS_CYCLE = [
     view: 'country',
     label: 'Countries',
     svg: '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />'
-  },
-  {
-    view: 'table',
-    label: 'Table',
-    svg: '<path d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4-8h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />'
   }
 ];
 
@@ -2794,9 +3003,10 @@ function updateDaysToggleLabel() {
     btn.classList.toggle('active', btn.dataset.view === state.view);
   });
   const activeBtn = nav.querySelector(`.mnav-btn[data-view="${state.view}"]`);
-  if (activeBtn) {
+  if (activeBtn && nav.scrollWidth > nav.clientWidth) {
     try {
-      activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      const targetLeft = activeBtn.offsetLeft - (nav.clientWidth / 2) + (activeBtn.clientWidth / 2);
+      nav.scrollTo({ left: Math.max(0, targetLeft), behavior: 'smooth' });
     } catch (_) { }
   }
 }
@@ -2811,7 +3021,8 @@ function updateAddBtnText() {
 }
 
 function updateNarrowMobileNav() {
-  if (state.view === 'list' && isNarrowScreen()) {
+  const isMobile = window.innerWidth <= 980 || isNarrowScreen();
+  if ((state.view === 'list' || state.view === 'table') && isMobile) {
     state.view = 'day';
     savePrefs({ view: 'day' });
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
@@ -3180,11 +3391,12 @@ function bindEvents() {
   window.addEventListener('orientationchange', updateNarrowMobileNav);
 
   // View tabs (both desktop tabs and mobile nav)
-  document.querySelectorAll('[data-view]').forEach(btn => {
+  document.querySelectorAll('.view-tab, .mnav-btn[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {
       let v = btn.dataset.view;
       if (!v) return;
-      if (v === 'list' && isNarrowScreen()) {
+      const isMobile = window.innerWidth <= 980 || isNarrowScreen();
+      if ((v === 'list' || v === 'table') && isMobile) {
         v = 'day';
       }
       if (v !== 'map') {
@@ -3200,12 +3412,34 @@ function bindEvents() {
     });
   });
 
-  // Search (debounced)
+  // Search (debounced) + clear button
   let searchTimer;
-  document.getElementById('searchInput')?.addEventListener('input', e => {
+  const _searchInput = document.getElementById('searchInput');
+  const _searchClearBtn = document.getElementById('searchClearBtn');
+  const _searchWrap = _searchInput?.closest('.search-wrap');
+
+  function _updateSearchClear() {
+    if (!_searchWrap) return;
+    _searchWrap.classList.toggle('has-text', !!_searchInput?.value);
+  }
+
+  _searchInput?.addEventListener('input', e => {
     clearTimeout(searchTimer);
+    _updateSearchClear();
     searchTimer = setTimeout(() => { state.filter.search = e.target.value; renderMain(); }, 220);
   });
+
+  _searchClearBtn?.addEventListener('click', () => {
+    if (!_searchInput) return;
+    _searchInput.value = '';
+    state.filter.search = '';
+    _updateSearchClear();
+    renderMain();
+    _searchInput.focus();
+  });
+
+  // Inițializare stare la load
+  _updateSearchClear();
 
 
   // Filters (Desktop)
@@ -3393,9 +3627,11 @@ function bindEvents() {
   let resizeTimer = null;
   window.addEventListener('resize', () => {
     applyCardsPerRowMode();
+    updateControlsBarHeight();
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       scheduleEqualizeCardHeights();
+      updateControlsBarHeight();
     }, 60);
   });
 
@@ -3680,6 +3916,8 @@ function bindEvents() {
     docViewer.imgPanX = 0;
     docViewer.imgPanY = 0;
     document.getElementById('pdfViewerModal')?.classList.remove('open');
+    document.body.classList.remove('doc-viewer-open');
+    document.documentElement.classList.remove('doc-viewer-open');
   };
   document.getElementById('closePdfViewer')?.addEventListener('click', closePdfViewer);
   document.getElementById('pdfViewerModal')?.addEventListener('click', e => {
@@ -4053,71 +4291,6 @@ function bindEvents() {
     }
   });
 
-  const openDocShareModal = (filename, locationName, shareUrl) => {
-    const modal = document.getElementById('docShareModal');
-    if (!modal) return;
-
-    const fnEl = document.getElementById('docShareFilename');
-    if (fnEl) fnEl.textContent = filename;
-    const locEl = document.getElementById('docShareLocation');
-    if (locEl) locEl.textContent = locationName || 'EuroTrip';
-
-    const ext = filename.split('.').pop().toLowerCase();
-    const iconEl = document.getElementById('docShareIcon');
-    if (iconEl) {
-      if (ext === 'pdf') iconEl.textContent = '📕';
-      else if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg'].includes(ext)) iconEl.textContent = '🖼️';
-      else iconEl.textContent = '📄';
-    }
-
-    const waBtn = document.getElementById('docShareOptWhatsApp');
-    if (waBtn) waBtn.href = `https://api.whatsapp.com/send?text=${encodeURIComponent('EuroTrip - ' + filename + ':\n' + shareUrl)}`;
-
-    const tgBtn = document.getElementById('docShareOptTelegram');
-    if (tgBtn) tgBtn.href = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(filename)}`;
-
-    const emBtn = document.getElementById('docShareOptEmail');
-    if (emBtn) emBtn.href = `mailto:?subject=${encodeURIComponent('Document: ' + filename)}&body=${encodeURIComponent('Vezi documentul atașat aici:\n' + shareUrl)}`;
-
-    modal.style.display = 'flex';
-  };
-
-  const closeDocShareModal = () => {
-    const modal = document.getElementById('docShareModal');
-    if (modal) modal.style.display = 'none';
-  };
-
-  document.getElementById('closeDocShareModal')?.addEventListener('click', closeDocShareModal);
-  document.getElementById('docShareModalBackdrop')?.addEventListener('click', closeDocShareModal);
-
-  document.getElementById('docShareOptCopy')?.addEventListener('click', async () => {
-    if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) return;
-    const filename = docViewer.files[docViewer.currentIndex].name;
-    const locId = docViewer.locationId;
-    const shareUrl = new URL(`/doc-viewer/${encodeURIComponent(locId)}/${encodeURIComponent(filename)}`, window.location.origin).href;
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-      } else {
-        const input = document.createElement('input');
-        input.value = shareUrl;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-      }
-      toast('Link copiat în clipboard!', 'success');
-      closeDocShareModal();
-    } catch (_) {
-      toast('Nu s-a putut copia linkul.', 'error');
-    }
-  });
-
-  document.getElementById('docShareOptDownload')?.addEventListener('click', (e) => {
-    closeDocShareModal();
-    handleAttachmentDownloadClick(e);
-  });
-
   const shareCurrentDocument = async () => {
     if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) {
       toast('Niciun document selectat.', 'error');
@@ -4129,51 +4302,73 @@ function bindEvents() {
     const shareBtn = document.getElementById('docShareBtn');
     if (shareBtn) shareBtn.style.opacity = '0.5';
 
-    const loc = state.trip?.locations?.find(l => l.id === locId);
-    const locationName = loc ? loc.name : '';
-    const shareUrl = new URL(`/doc-viewer/${encodeURIComponent(locId)}/${encodeURIComponent(filename)}`, window.location.origin).href;
-
-    const canNativeShare = typeof navigator.share === 'function';
-    if (canNativeShare) {
-      if (docViewer.cachedShareFile && navigator.canShare && navigator.canShare({ files: [docViewer.cachedShareFile] })) {
-        try {
-          await navigator.share({
-            files: [docViewer.cachedShareFile],
-            title: filename,
-          });
-          toast('Document partajat!', 'success');
-          if (shareBtn) shareBtn.style.opacity = '';
-          return;
-        } catch (err) {
-          if (err?.name === 'AbortError') {
-            if (shareBtn) shareBtn.style.opacity = '';
-            return;
-          }
-          console.warn('Native file share failed, trying URL share:', err);
-        }
-      }
-
+    // 1. Ensure file is ready
+    let shareFile = docViewer.cachedShareFile;
+    if (!shareFile && docViewer.shareFilePromise) {
       try {
-        await navigator.share({
-          title: filename,
-          url: shareUrl,
-        });
-        if (shareBtn) shareBtn.style.opacity = '';
-        return;
-      } catch (err) {
-        if (err?.name === 'AbortError') {
-          if (shareBtn) shareBtn.style.opacity = '';
-          return;
+        shareFile = await docViewer.shareFilePromise;
+      } catch (_) {}
+    }
+
+    if (!shareFile) {
+      try {
+        const fileUrl = `/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}`;
+        const res = await fetch(fileUrl, { credentials: 'same-origin' });
+        if (res.ok) {
+          const blob = await res.blob();
+          const ext = filename.split('.').pop().toLowerCase();
+          let mimeType = blob.type;
+          if (!mimeType || mimeType === 'application/octet-stream') {
+            if (ext === 'pdf') mimeType = 'application/pdf';
+            else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
+            else if (ext === 'png') mimeType = 'image/png';
+            else if (ext === 'webp') mimeType = 'image/webp';
+            else if (ext === 'gif') mimeType = 'image/gif';
+          }
+          shareFile = new File([blob], filename, { type: mimeType });
+          docViewer.cachedShareFile = shareFile;
         }
-        console.warn('Native URL share failed:', err);
+      } catch (err) {
+        console.warn('Eroare la descărcarea fișierului pentru partajare:', err);
       }
     }
 
     if (shareBtn) shareBtn.style.opacity = '';
 
-    // If native share is unavailable (e.g. over HTTP on mobile LAN) or fails:
-    // Open the custom Share Sheet with WhatsApp, Telegram, Email, Copy Link, Download!
-    openDocShareModal(filename, locationName, shareUrl);
+    // 2. Share the actual file via native phone share sheet
+    const canNativeShare = typeof navigator.share === 'function';
+    if (canNativeShare && shareFile) {
+      let canShareFiles = false;
+      try {
+        canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [shareFile] }));
+      } catch (_) {}
+
+      if (canShareFiles || typeof navigator.canShare === 'undefined') {
+        try {
+          await navigator.share({
+            files: [shareFile],
+            title: filename,
+          });
+          toast('Fișier partajat cu succes!', 'success');
+          return;
+        } catch (err) {
+          if (err?.name === 'AbortError') {
+            return;
+          }
+          console.warn('Eșec la partajarea nativă:', err);
+        }
+      }
+    }
+
+    // 3. Fallback when native share is unavailable (e.g. desktop browser, insecure HTTP origin)
+    if (!canNativeShare) {
+      toast('Partajarea nativă necesită conexiune securizată (HTTPS) pe telefon.', 'warning');
+      const downloadLink = document.getElementById('pdfDownloadLink');
+      if (downloadLink) downloadLink.click();
+      return;
+    }
+
+    toast('Dispozitivul nu permite trimiterea directă a acestui fișier prin meniul nativ.', 'error');
   };
 
   const handleAttachmentDownloadClick = async (e) => {
@@ -4413,6 +4608,7 @@ function bindEvents() {
 
   // Galaxy Z Fold 6 fold/unfold screen transition & fullscreen map sync
   window.addEventListener('resize', () => {
+    syncSearchInputPlacement();
     if (state.map) {
       state.map.invalidateSize({ pan: false });
     }
@@ -4561,6 +4757,8 @@ function handleCardClick(e) {
   }
 
   if (actionEl.dataset.action === 'edit') {
+    e.preventDefault();
+    e.stopPropagation();
     const card = actionEl.closest('[data-id]');
     if (card) {
       const isEditing = card.classList.toggle('editing');
@@ -4576,10 +4774,13 @@ function handleCardClick(e) {
         const loc = state.trip?.locations.find(l => l.id === id);
         if (loc) updateCardSubcard(card, loc);
       }
+      scheduleEqualizeCardHeights();
     }
     return;
   }
   if (actionEl.dataset.action === 'markVisited') {
+    e.preventDefault();
+    e.stopPropagation();
     const loc = state.trip?.locations.find(l => l.id === id);
     if (loc) {
       const newVisited = !loc.visited;
@@ -4616,7 +4817,12 @@ function handleCardClick(e) {
     }
     return;
   }
-  if (actionEl.dataset.action === 'duplicate') duplicateLocation(id);
+  if (actionEl.dataset.action === 'duplicate') {
+    e.preventDefault();
+    e.stopPropagation();
+    duplicateLocation(id);
+    return;
+  }
   if (actionEl.dataset.action === 'setDuration') {
     const dur = parseInt(actionEl.dataset.dur, 10);
     const card = actionEl.closest('[data-id]');
@@ -4734,7 +4940,10 @@ function handleCardClick(e) {
     return;
   }
   if (actionEl.dataset.action === 'delete') {
+    e.preventDefault();
+    e.stopPropagation();
     openDeleteLocationModal(id);
+    return;
   }
 }
 
@@ -4845,6 +5054,8 @@ async function performDeleteViewerAttachment(locationId, filename) {
       loadViewerAttachment(docViewer.currentIndex);
     } else {
       document.getElementById('pdfViewerModal')?.classList.remove('open');
+      document.body.classList.remove('doc-viewer-open');
+      document.documentElement.classList.remove('doc-viewer-open');
     }
     toast('Attachment removed.', 'success');
   } catch (err) {
@@ -4885,6 +5096,8 @@ function openDocumentViewer(locationId, initialFileName = null) {
   const modal = document.getElementById('pdfViewerModal');
   if (modal) {
     modal.classList.add('open');
+    document.body.classList.add('doc-viewer-open');
+    document.documentElement.classList.add('doc-viewer-open');
     document.getElementById('pdfViewerTitle').textContent = location.name ? `${location.name} · Documents` : 'Document Viewer';
     if (docViewer.files.length > 0) {
       loadViewerAttachment(docViewer.currentIndex);
@@ -5476,10 +5689,10 @@ async function loadViewerAttachment(index) {
   docViewer.imgPanY = 0;
 
   docViewer.cachedShareFile = null;
-  (async () => {
+  docViewer.shareFilePromise = (async () => {
     try {
       const res = await fetch(fileUrl, { credentials: 'same-origin' });
-      if (!res.ok) return;
+      if (!res.ok) return null;
       const blob = await res.blob();
       const ext = file.name.split('.').pop().toLowerCase();
       let mimeType = blob.type;
@@ -5488,9 +5701,14 @@ async function loadViewerAttachment(index) {
         else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
         else if (ext === 'png') mimeType = 'image/png';
         else if (ext === 'webp') mimeType = 'image/webp';
+        else if (ext === 'gif') mimeType = 'image/gif';
       }
-      docViewer.cachedShareFile = new File([blob], file.name, { type: mimeType });
-    } catch (_) { }
+      const sf = new File([blob], file.name, { type: mimeType });
+      docViewer.cachedShareFile = sf;
+      return sf;
+    } catch (_) {
+      return null;
+    }
   })();
 
   if (meta.isImage) {

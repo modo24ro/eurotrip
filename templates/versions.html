@@ -3,52 +3,91 @@
 {% block body %}
 <div class="security-page">
   <header class="security-header">
-    <div><a class="security-back" href="/admin">← Back to trip planner</a><h1>Trip history</h1><p>Versions are stored per trip with timestamp, action, role and location count.</p></div>
-    <button class="btn-primary" id="refreshVersions" type="button">Refresh</button>
-  </header>
-  <section class="security-table-wrap"><table class="security-table"><thead><tr><th>Created</th><th>Action</th><th>Role</th><th>Locations</th><th>Changes</th><th></th></tr></thead><tbody id="versionsBody"></tbody></table></section>
+    <h1>Trip history</h1>
+    <p>Versions are stored per trip with timestamp, action, role and location count.</p>
 </div>
-<div class="modal-overlay" id="restoreVersionModal" role="dialog" aria-modal="true" aria-labelledby="restoreVersionTitle">
+<button class="btn-primary" id="refreshVersions" type="button">Refresh</button>
+</header>
+<section class="security-table-wrap">
+  <table class="security-table">
+    <thead>
+      <tr>
+        <th>Created</th>
+        <th>Action</th>
+        <th>Role</th>
+        <th>Locations</th>
+        <th>Changes</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="versionsBody"></tbody>
+  </table>
+</section>
+</div>
+<div class="modal-overlay" id="restoreVersionModal" role="dialog" aria-modal="true"
+  aria-labelledby="restoreVersionTitle">
   <div class="modal-box version-restore-modal-box">
-    <div class="modal-header"><h2 id="restoreVersionTitle">Restore version</h2><button class="modal-close" id="closeRestoreVersion" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
-    <div class="modal-body backup-delete-body"><p>The current trip will be saved as a new version first.</p><strong id="restoreVersionName"></strong><div class="backup-delete-actions"><button class="btn-secondary" id="cancelRestoreVersion" type="button">Cancel</button><button class="btn-primary" id="confirmRestoreVersion" type="button">Restore version</button></div></div>
+    <div class="modal-header">
+      <h2 id="restoreVersionTitle">Restore version</h2><button class="modal-close" id="closeRestoreVersion"
+        aria-label="Close"><svg viewBox="0 0 24 24">
+          <path
+            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg></button>
+    </div>
+    <div class="modal-body backup-delete-body">
+      <p>The current trip will be saved as a new version first.</p><strong id="restoreVersionName"></strong>
+      <div class="backup-delete-actions"><button class="btn-secondary" id="cancelRestoreVersion"
+          type="button">Cancel</button><button class="btn-primary" id="confirmRestoreVersion" type="button">Restore
+          version</button></div>
+    </div>
   </div>
 </div>
-<div class="modal-overlay" id="versionRestoredModal" role="dialog" aria-modal="true" aria-labelledby="versionRestoredTitle">
+<div class="modal-overlay" id="versionRestoredModal" role="dialog" aria-modal="true"
+  aria-labelledby="versionRestoredTitle">
   <div class="modal-box version-success-modal-box">
-    <div class="modal-header"><h2 id="versionRestoredTitle">Version restored</h2><button class="modal-close" id="closeVersionRestored" aria-label="Close"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button></div>
-    <div class="modal-body version-success-body"><div class="version-success-icon">✓</div><p>The selected version has been restored successfully.</p><button class="btn-primary" id="dismissVersionRestored" type="button">Close</button></div>
+    <div class="modal-header">
+      <h2 id="versionRestoredTitle">Version restored</h2><button class="modal-close" id="closeVersionRestored"
+        aria-label="Close"><svg viewBox="0 0 24 24">
+          <path
+            d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+        </svg></button>
+    </div>
+    <div class="modal-body version-success-body">
+      <div class="version-success-icon">✓</div>
+      <p>The selected version has been restored successfully.</p><button class="btn-primary" id="dismissVersionRestored"
+        type="button">Close</button>
+    </div>
   </div>
 </div>
 <script>
-const body = document.getElementById('versionsBody');
-const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let pendingVersion = '';
-const closeRestoreModal = () => { pendingVersion = ''; document.getElementById('restoreVersionModal').classList.remove('open'); };
-const openRestoreModal = version => { pendingVersion = version; document.getElementById('restoreVersionName').textContent = version; document.getElementById('restoreVersionModal').classList.add('open'); };
-const closeVersionRestored = () => document.getElementById('versionRestoredModal').classList.remove('open');
-async function loadVersions() {
-  const response = await fetch('/api/admin/versions');
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Could not load history');
-  body.innerHTML = data.versions.length ? data.versions.map(v => `<tr><td>${escapeHtml(new Date(v.created).toLocaleString())}</td><td>${escapeHtml(v.action)}</td><td>${escapeHtml(v.role)}</td><td>${v.location_count}</td><td>${(v.changes || []).map(change => `<div>${escapeHtml(change)}</div>`).join('')}</td><td><button class="btn-secondary version-restore" data-version="${escapeHtml(v.version_id)}" type="button">Restore</button></td></tr>`).join('') : '<tr><td colspan="6">No versions yet.</td></tr>';
-  body.querySelectorAll('[data-version]').forEach(button => button.addEventListener('click', () => openRestoreModal(button.dataset.version)));
-}
-async function confirmRestore() {
-  if (!pendingVersion) return;
-  const result = await fetch(`/api/admin/versions/${encodeURIComponent(pendingVersion)}/restore`, { method: 'POST' });
+  const body = document.getElementById('versionsBody');
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  let pendingVersion = '';
+  const closeRestoreModal = () => { pendingVersion = ''; document.getElementById('restoreVersionModal').classList.remove('open'); };
+  const openRestoreModal = version => { pendingVersion = version; document.getElementById('restoreVersionName').textContent = version; document.getElementById('restoreVersionModal').classList.add('open'); };
+  const closeVersionRestored = () => document.getElementById('versionRestoredModal').classList.remove('open');
+  async function loadVersions() {
+    const response = await fetch('/api/admin/versions');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not load history');
+    body.innerHTML = data.versions.length ? data.versions.map(v => `<tr><td>${escapeHtml(new Date(v.created).toLocaleString())}</td><td>${escapeHtml(v.action)}</td><td>${escapeHtml(v.role)}</td><td>${v.location_count}</td><td>${(v.changes || []).map(change => `<div>${escapeHtml(change)}</div>`).join('')}</td><td><button class="btn-secondary version-restore" data-version="${escapeHtml(v.version_id)}" type="button">Restore</button></td></tr>`).join('') : '<tr><td colspan="6">No versions yet.</td></tr>';
+    body.querySelectorAll('[data-version]').forEach(button => button.addEventListener('click', () => openRestoreModal(button.dataset.version)));
+  }
+  async function confirmRestore() {
+    if (!pendingVersion) return;
+    const result = await fetch(`/api/admin/versions/${encodeURIComponent(pendingVersion)}/restore`, { method: 'POST' });
     const resultData = await result.json();
     if (!result.ok) { closeRestoreModal(); alert(resultData.error || 'Restore failed'); return; }
     closeRestoreModal(); document.getElementById('versionRestoredModal').classList.add('open'); loadVersions();
-}
-document.getElementById('refreshVersions').addEventListener('click', loadVersions);
-document.getElementById('closeRestoreVersion').addEventListener('click', closeRestoreModal);
-document.getElementById('cancelRestoreVersion').addEventListener('click', closeRestoreModal);
-document.getElementById('confirmRestoreVersion').addEventListener('click', confirmRestore);
-document.getElementById('restoreVersionModal').addEventListener('click', event => { if (event.target.id === 'restoreVersionModal') closeRestoreModal(); });
-document.getElementById('closeVersionRestored').addEventListener('click', closeVersionRestored);
-document.getElementById('dismissVersionRestored').addEventListener('click', closeVersionRestored);
-document.getElementById('versionRestoredModal').addEventListener('click', event => { if (event.target.id === 'versionRestoredModal') closeVersionRestored(); });
+  }
+  document.getElementById('refreshVersions').addEventListener('click', loadVersions);
+  document.getElementById('closeRestoreVersion').addEventListener('click', closeRestoreModal);
+  document.getElementById('cancelRestoreVersion').addEventListener('click', closeRestoreModal);
+  document.getElementById('confirmRestoreVersion').addEventListener('click', confirmRestore);
+  document.getElementById('restoreVersionModal').addEventListener('click', event => { if (event.target.id === 'restoreVersionModal') closeRestoreModal(); });
+  document.getElementById('closeVersionRestored').addEventListener('click', closeVersionRestored);
+  document.getElementById('dismissVersionRestored').addEventListener('click', closeVersionRestored);
+  document.getElementById('versionRestoredModal').addEventListener('click', event => { if (event.target.id === 'versionRestoredModal') closeVersionRestored(); });
   loadVersions().catch(error => { body.innerHTML = `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`; });
 </script>
 {% endblock %}

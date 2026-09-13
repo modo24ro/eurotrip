@@ -4,7 +4,6 @@
 <div class="security-page">
   <header class="security-header">
     <div>
-      <a class="security-back" href="/admin">← Back to trip planner</a>
       <h1>API Security Audit</h1>
       <p>Authorization metadata for every API route. Destructive routes are inspected, not executed.</p>
     </div>
@@ -13,7 +12,15 @@
   <section class="security-summary" id="securitySummary">Loading audit…</section>
   <section class="security-table-wrap">
     <table class="security-table">
-      <thead><tr><th>Route</th><th>Method</th><th>Required access</th><th>Action</th><th>Status</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Route</th>
+          <th>Method</th>
+          <th>Required access</th>
+          <th>Action</th>
+          <th>Status</th>
+        </tr>
+      </thead>
       <tbody id="securityRoutes"></tbody>
     </table>
   </section>
@@ -21,7 +28,7 @@
 <script>
   const summary = document.getElementById('securitySummary');
   const routesBody = document.getElementById('securityRoutes');
-  const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
   async function runAudit() {
     summary.textContent = 'Running audit…';
     routesBody.innerHTML = '';

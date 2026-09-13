@@ -6,12 +6,6 @@
   <!-- Settings Header -->
   <header class="settings-header">
     <div class="settings-header-left">
-      <a class="settings-back-btn" href="/admin" title="Return to trip planner">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-          <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
-        </svg>
-        <span>Back to Trip Planner</span>
-      </a>
       <h1 class="settings-title">Settings &amp; Administration</h1>
       <p class="settings-subtitle">Manage backups, security audit, version history, and data import.</p>
     </div>
@@ -19,29 +13,43 @@
 
   <!-- Tabs Navigation Bar -->
   <nav class="settings-nav-bar" role="tablist" aria-label="Settings sections">
-    <button class="settings-tab-btn active" data-tab="backup" role="tab" aria-selected="true" aria-controls="paneBackup" id="tabBackup">
+    <button class="settings-tab-btn active" data-tab="backup" role="tab" aria-selected="true" aria-controls="paneBackup"
+      id="tabBackup">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z"/>
+        <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z" />
       </svg>
       <span>Backup</span>
     </button>
-    <button class="settings-tab-btn" data-tab="security" role="tab" aria-selected="false" aria-controls="paneSecurity" id="tabSecurity">
+    <button class="settings-tab-btn" data-tab="security" role="tab" aria-selected="false" aria-controls="paneSecurity"
+      id="tabSecurity">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+        <path
+          d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
       </svg>
       <span>Security</span>
     </button>
-    <button class="settings-tab-btn" data-tab="history" role="tab" aria-selected="false" aria-controls="paneHistory" id="tabHistory">
+    <button class="settings-tab-btn" data-tab="history" role="tab" aria-selected="false" aria-controls="paneHistory"
+      id="tabHistory">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+        <path
+          d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z" />
       </svg>
       <span>History</span>
     </button>
-    <button class="settings-tab-btn" data-tab="upload" role="tab" aria-selected="false" aria-controls="paneUpload" id="tabUpload">
+    <button class="settings-tab-btn" data-tab="upload" role="tab" aria-selected="false" aria-controls="paneUpload"
+      id="tabUpload">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+        <path
+          d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
       </svg>
       <span>Upload &amp; Import</span>
+    </button>
+    <button class="settings-tab-btn settings-tab-danger" data-tab="danger" role="tab" aria-selected="false" aria-controls="paneDanger"
+      id="tabDanger">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+      </svg>
+      <span>Danger Zone</span>
     </button>
   </nav>
 
@@ -51,15 +59,21 @@
       <div class="settings-card-header">
         <div>
           <h2>Trip Backups</h2>
-          <p class="settings-card-desc">Backups are stored as ZIP archives and JSON snapshots per trip, ensuring your data is safe.</p>
+          <p class="settings-card-desc">Backups are stored as ZIP archives and JSON snapshots per trip, ensuring your
+            data is safe.</p>
         </div>
         <div class="settings-card-actions">
           <button class="btn-primary" id="createBackupBtn" type="button">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+            </svg>
             <span>Create Backup Now</span>
           </button>
           <button class="btn-secondary" id="restoreFileBtn" type="button">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 9h-4v4h-2v-4H7l4-4 4 4zm-1-5V3.5L18.5 9H14z"/></svg>
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 9h-4v4h-2v-4H7l4-4 4 4zm-1-5V3.5L18.5 9H14z" />
+            </svg>
             <span>Restore JSON File</span>
           </button>
         </div>
@@ -70,40 +84,35 @@
           <input type="checkbox" id="selectAllBackups">
           <span>Select all backups</span>
         </label>
-        <button class="btn-danger backup-bulk-delete" id="deleteSelectedBackups" type="button" disabled>Delete selected</button>
+        <button class="btn-danger backup-bulk-delete" id="deleteSelectedBackups" type="button" disabled>Delete
+          selected</button>
       </div>
 
       <div id="backupList" class="backup-list">
-        <div class="loading-state"><div class="loading-spinner"></div><p>Loading backups…</p></div>
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Loading backups…</p>
+        </div>
       </div>
       <input type="file" id="restoreFileInput" accept=".json" style="display:none" aria-hidden="true">
-    </div>
-
-    <!-- Danger Zone Card -->
-    <div class="settings-card danger-zone-card">
-      <div class="settings-card-header">
-        <div>
-          <h2 class="danger-title">Danger Zone</h2>
-          <p class="settings-card-desc">Irreversible actions for the active trip. A safety backup is always created automatically beforehand.</p>
-        </div>
-        <button class="btn-danger" id="clearAllBtn" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-          <span>Clear All Locations</span>
-        </button>
-      </div>
     </div>
   </section>
 
   <!-- ==================== TAB 2: SECURITY ==================== -->
-  <section class="settings-tab-pane" id="paneSecurity" role="tabpanel" aria-labelledby="tabSecurity" style="display:none;">
+  <section class="settings-tab-pane" id="paneSecurity" role="tabpanel" aria-labelledby="tabSecurity"
+    style="display:none;">
     <div class="settings-card">
       <div class="settings-card-header">
         <div>
           <h2>API Security Audit</h2>
-          <p class="settings-card-desc">Live inspection of all backend API endpoints, required roles, HTTP methods, and destructive actions.</p>
+          <p class="settings-card-desc">Live inspection of all backend API endpoints, required roles, HTTP methods, and
+            destructive actions.</p>
         </div>
         <button class="btn-primary" id="runSecurityAudit" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path
+              d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+          </svg>
           <span>Run Security Audit</span>
         </button>
       </div>
@@ -122,7 +131,9 @@
             </tr>
           </thead>
           <tbody id="securityRoutes">
-            <tr><td colspan="5" style="text-align:center;padding:24px;">Click "Run Security Audit" to inspect routes.</td></tr>
+            <tr>
+              <td colspan="5" style="text-align:center;padding:24px;">Click "Run Security Audit" to inspect routes.</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -130,15 +141,20 @@
   </section>
 
   <!-- ==================== TAB 3: HISTORY ==================== -->
-  <section class="settings-tab-pane" id="paneHistory" role="tabpanel" aria-labelledby="tabHistory" style="display:none;">
+  <section class="settings-tab-pane" id="paneHistory" role="tabpanel" aria-labelledby="tabHistory"
+    style="display:none;">
     <div class="settings-card">
       <div class="settings-card-header">
         <div>
           <h2>Trip Version History</h2>
-          <p class="settings-card-desc">Every save, import, or status toggle creates a snapshot version. You can inspect changes and roll back at any time.</p>
+          <p class="settings-card-desc">Every save, import, or status toggle creates a snapshot version. You can inspect
+            changes and roll back at any time.</p>
         </div>
         <button class="btn-primary" id="refreshVersions" type="button">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path
+              d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
+          </svg>
           <span>Refresh History</span>
         </button>
       </div>
@@ -156,7 +172,9 @@
             </tr>
           </thead>
           <tbody id="versionsBody">
-            <tr><td colspan="6" style="text-align:center;padding:24px;">Loading version history…</td></tr>
+            <tr>
+              <td colspan="6" style="text-align:center;padding:24px;">Loading version history…</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -169,7 +187,8 @@
       <div class="settings-card-header">
         <div>
           <h2>Import &amp; Upload Locations</h2>
-          <p class="settings-card-desc">Import locations from Google Maps Takeout (Saved Places JSON) or external cloud storage links.</p>
+          <p class="settings-card-desc">Import locations from Google Maps Takeout (Saved Places JSON) or external cloud
+            storage links.</p>
         </div>
       </div>
 
@@ -181,9 +200,13 @@
 
       <!-- FILE SUB-TAB -->
       <div class="modal-tab-pane active" id="paneFile">
-        <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="Drop JSON file here or click to browse">
+        <div class="dropzone" id="dropzone" role="button" tabindex="0"
+          aria-label="Drop JSON file here or click to browse">
           <div class="dz-icon">
-            <svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z" />
+            </svg>
           </div>
           <p class="dz-title">Drag &amp; drop a GeoJSON or Trip JSON file</p>
           <p class="dz-subtitle">Supports Google Maps Takeout format (Saved Places.json)</p>
@@ -195,9 +218,11 @@
       <!-- URL SUB-TAB -->
       <div class="modal-tab-pane" id="paneUrl" style="display:none;">
         <div class="url-import-area">
-          <p class="url-hint">Paste a share link from Google Drive, Dropbox, OneDrive, GitHub, or any public JSON/GeoJSON URL.</p>
+          <p class="url-hint">Paste a share link from Google Drive, Dropbox, OneDrive, GitHub, or any public
+            JSON/GeoJSON URL.</p>
           <div class="url-input-row">
-            <input type="url" id="urlInput" class="url-input" placeholder="https://drive.google.com/file/d/…/view" autocomplete="off" spellcheck="false">
+            <input type="url" id="urlInput" class="url-input" placeholder="https://drive.google.com/file/d/…/view"
+              autocomplete="off" spellcheck="false">
             <button class="btn-primary" id="fetchUrlBtn" type="button">Fetch</button>
           </div>
           <div class="url-providers">
@@ -212,7 +237,10 @@
         <!-- Google Maps guide (shown when Maps URL detected) -->
         <div class="gmaps-guide" id="gmapsGuide" style="display:none;margin-top:16px;">
           <div class="gmaps-guide-header">
-            <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg>
+            <svg viewBox="0 0 24 24">
+              <path
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+            </svg>
             <strong>Google Maps list detected</strong>
           </div>
           <p>Google Maps custom lists cannot be exported via direct web links. Follow these quick steps:</p>
@@ -223,7 +251,8 @@
             <li>Locate <code>Saved Places.json</code></li>
             <li>Upload it in the <strong>📁 Upload File</strong> tab above</li>
           </ol>
-          <a href="https://takeout.google.com" target="_blank" rel="noopener" class="btn-primary" style="display:inline-flex;margin-top:8px;">Open Google Takeout →</a>
+          <a href="https://takeout.google.com" target="_blank" rel="noopener" class="btn-primary"
+            style="display:inline-flex;margin-top:8px;">Open Google Takeout →</a>
         </div>
       </div>
 
@@ -247,11 +276,40 @@
       </div>
     </div>
   </section>
+
+  <!-- ==================== TAB 5: DANGER ZONE ==================== -->
+  <section class="settings-tab-pane" id="paneDanger" role="tabpanel" aria-labelledby="tabDanger" style="display:none;">
+    <div class="settings-card danger-zone-card">
+      <div class="settings-card-header">
+        <div>
+          <h2 class="danger-title">⚠️ Danger Zone</h2>
+          <p class="settings-card-desc">Acțiuni ireversibile pentru trip-ul activ. Un backup de siguranță este creat automat înainte de execuție.</p>
+        </div>
+      </div>
+
+      <div class="danger-actions-list">
+        <!-- Clear All Locations -->
+        <div class="danger-action-row">
+          <div class="danger-action-info">
+            <strong>Clear All Locations</strong>
+            <p>Șterge toate locațiile din trip-ul curent. Un backup automat e creat înainte.</p>
+          </div>
+          <button class="btn-danger" id="clearAllBtn" type="button">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+            </svg>
+            Clear All Locations
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 
 <!-- ==================== MODALS ==================== -->
 <!-- Delete Single Backup Modal -->
-<div class="modal-overlay" id="deleteBackupModal" role="dialog" aria-modal="true" aria-labelledby="deleteBackupModalTitle">
+<div class="modal-overlay" id="deleteBackupModal" role="dialog" aria-modal="true"
+  aria-labelledby="deleteBackupModalTitle">
   <div class="modal-box backup-delete-modal-box">
     <div class="modal-header">
       <h2 id="deleteBackupModalTitle">Delete backup</h2>
@@ -269,7 +327,8 @@
 </div>
 
 <!-- Restore Single Backup Modal -->
-<div class="modal-overlay" id="restoreBackupModal" role="dialog" aria-modal="true" aria-labelledby="restoreBackupModalTitle">
+<div class="modal-overlay" id="restoreBackupModal" role="dialog" aria-modal="true"
+  aria-labelledby="restoreBackupModalTitle">
   <div class="modal-box backup-restore-modal-box">
     <div class="modal-header">
       <h2 id="restoreBackupModalTitle">Restore backup</h2>
@@ -287,7 +346,8 @@
 </div>
 
 <!-- Restore Version Modal (History) -->
-<div class="modal-overlay" id="restoreVersionModal" role="dialog" aria-modal="true" aria-labelledby="restoreVersionTitle">
+<div class="modal-overlay" id="restoreVersionModal" role="dialog" aria-modal="true"
+  aria-labelledby="restoreVersionTitle">
   <div class="modal-box version-restore-modal-box">
     <div class="modal-header">
       <h2 id="restoreVersionTitle">Restore Trip Version</h2>
@@ -305,7 +365,8 @@
 </div>
 
 <!-- Version Restored Success Modal -->
-<div class="modal-overlay" id="versionRestoredModal" role="dialog" aria-modal="true" aria-labelledby="versionRestoredTitle">
+<div class="modal-overlay" id="versionRestoredModal" role="dialog" aria-modal="true"
+  aria-labelledby="versionRestoredTitle">
   <div class="modal-box version-success-modal-box">
     <div class="modal-header">
       <h2 id="versionRestoredTitle">Version Restored</h2>
@@ -319,19 +380,27 @@
   </div>
 </div>
 
-<!-- Clear All Records Modal -->
-<div class="modal-overlay" id="clearAllModal" role="dialog" aria-modal="true" aria-labelledby="clearAllModalTitle">
-  <div class="modal-box clear-all-modal-box">
+<!-- Admin Password Confirmation Modal (Danger Zone) -->
+<div class="modal-overlay" id="dangerAuthModal" role="dialog" aria-modal="true" aria-labelledby="dangerAuthTitle">
+  <div class="modal-box danger-auth-modal-box">
     <div class="modal-header">
-      <h2 id="clearAllModalTitle">Clear all locations</h2>
-      <button class="modal-close" id="closeClearAllModal" aria-label="Close">✕</button>
+      <h2 id="dangerAuthTitle">⚠️ Confirmare Admin</h2>
+      <button class="modal-close" id="closeDangerAuthModal" aria-label="Close">✕</button>
     </div>
-    <div class="modal-body backup-delete-body">
-      <p>Are you sure you want to clear all locations from this trip?</p>
-      <strong>A safety backup will be created automatically before clearing.</strong>
+    <div class="modal-body">
+      <p id="dangerAuthDesc" style="margin-bottom:14px;">Această acțiune este ireversibilă. Introdu parola de admin pentru a continua.</p>
+      <div style="margin-bottom:6px;font-size:0.82rem;color:var(--text-muted);">Parolă admin</div>
+      <input type="password" id="dangerAuthPassword" class="url-input" placeholder="Parola ta de admin…"
+        autocomplete="current-password" style="margin-bottom:12px;width:100%;">
+      <div id="dangerAuthError" style="color:#f87171;font-size:0.82rem;min-height:18px;margin-bottom:10px;"></div>
       <div class="backup-delete-actions">
-        <button class="btn-secondary" id="cancelClearAll" type="button">Cancel</button>
-        <button class="btn-danger" id="confirmClearAll" type="button">Clear all</button>
+        <button class="btn-secondary" id="cancelDangerAuth" type="button">Anulează</button>
+        <button class="btn-danger" id="confirmDangerAuth" type="button">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" style="margin-right:4px;">
+            <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
+          </svg>
+          Confirmă &amp; Execută
+        </button>
       </div>
     </div>
   </div>
@@ -342,38 +411,27 @@
 
 <!-- ===== MOBILE BOTTOM NAV (SETTINGS) ===== -->
 <nav class="mobile-nav" id="mobileNav" aria-label="Main navigation">
-  <div class="mnav-segmented-control" role="group" aria-label="Views">
-    <a class="mnav-btn" href="/admin?view=day" title="Days">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zM5 8V6h14v2H5z" />
-      </svg>
-      <span>Days</span>
-    </a>
-    <a class="mnav-btn" href="/admin?view=country" title="Countries">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
-      </svg>
-      <span>Countries</span>
-    </a>
-    <a class="mnav-btn" href="/admin?view=table" title="Table">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4-8h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />
-      </svg>
-      <span>Table</span>
-    </a>
-  </div>
-  <div class="mnav-separator" aria-hidden="true"></div>
-  <a class="mnav-btn mnav-timeline-item" href="/admin?view=timeline" title="Timeline">
+  <a class="mnav-btn" href="/admin?view=day" title="Days">
+    <svg viewBox="0 0 24 24">
+      <path
+        d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zM5 8V6h14v2H5z" />
+    </svg>
+    <span>Days</span>
+  </a>
+  <a class="mnav-btn" href="/admin?view=country" title="Countries">
+    <svg viewBox="0 0 24 24">
+      <path
+        d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+    </svg>
+    <span>Countries</span>
+  </a>
+  <a class="mnav-btn" href="/admin?view=timeline" title="Timeline">
     <svg viewBox="0 0 24 24">
       <path
         d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
     </svg>
     <span>Timeline</span>
   </a>
-  <div class="mnav-separator" aria-hidden="true"></div>
   <a class="mnav-btn" href="/admin?view=map" title="Map">
     <svg viewBox="0 0 24 24">
       <path
@@ -390,13 +448,14 @@
   </a>
   <a class="mnav-btn active" id="mobileSettings" href="/admin/settings" title="Settings">
     <svg viewBox="0 0 24 24">
-      <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+      <path
+        d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
     </svg>
     <span>Settings</span>
   </a>
   <a class="mnav-btn" href="/admin" title="Back to Planner">
     <svg viewBox="0 0 24 24">
-      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+      <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
     </svg>
     <span>Back</span>
   </a>
@@ -406,104 +465,105 @@
 
 {% block scripts %}
 <script>
-(() => {
-  // Utility: Escape HTML
-  const escapeHtml = str => String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  (() => {
+    // Utility: Escape HTML
+    const escapeHtml = str => String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // Toast Notification
-  function showToast(msg, type = 'info') {
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = msg;
-    container.appendChild(toast);
-    setTimeout(() => {
-      toast.classList.add('toast-fade');
-      setTimeout(() => toast.remove(), 300);
-    }, 3500);
-  }
+    // Toast Notification
+    function showToast(msg, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = msg;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('toast-fade');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
 
-  // ==========================================
-  // TAB NAVIGATION
-  // ==========================================
-  const tabButtons = document.querySelectorAll('.settings-tab-btn');
-  const tabPanes = {
-    backup: document.getElementById('paneBackup'),
-    security: document.getElementById('paneSecurity'),
-    history: document.getElementById('paneHistory'),
-    upload: document.getElementById('paneUpload')
-  };
+    // ==========================================
+    // TAB NAVIGATION
+    // ==========================================
+    const tabButtons = document.querySelectorAll('.settings-tab-btn');
+    const tabPanes = {
+      backup: document.getElementById('paneBackup'),
+      security: document.getElementById('paneSecurity'),
+      history: document.getElementById('paneHistory'),
+      upload: document.getElementById('paneUpload'),
+      danger: document.getElementById('paneDanger')
+    };
 
-  function switchTab(targetTab) {
-    if (!tabPanes[targetTab]) targetTab = 'backup';
+    function switchTab(targetTab) {
+      if (!tabPanes[targetTab]) targetTab = 'backup';
+
+      tabButtons.forEach(btn => {
+        const isMatch = btn.dataset.tab === targetTab;
+        btn.classList.toggle('active', isMatch);
+        btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+      });
+
+      Object.entries(tabPanes).forEach(([name, pane]) => {
+        if (!pane) return;
+        const isMatch = name === targetTab;
+        pane.classList.toggle('active', isMatch);
+        pane.style.display = isMatch ? 'block' : 'none';
+      });
+
+      // Update URL query string without page refresh
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', targetTab);
+      window.history.replaceState({}, '', url.toString());
+
+      // Lazy load tab contents when opened
+      if (targetTab === 'backup') loadBackups();
+      if (targetTab === 'security') runAudit();
+      if (targetTab === 'history') loadVersions();
+    }
 
     tabButtons.forEach(btn => {
-      const isMatch = btn.dataset.tab === targetTab;
-      btn.classList.toggle('active', isMatch);
-      btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+      btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
-    Object.entries(tabPanes).forEach(([name, pane]) => {
-      if (!pane) return;
-      const isMatch = name === targetTab;
-      pane.classList.toggle('active', isMatch);
-      pane.style.display = isMatch ? 'block' : 'none';
-    });
+    // Initial tab from server template or URL query
+    const initialTab = new URLSearchParams(window.location.search).get('tab') || '{{ active_tab | default("backup") }}';
+    switchTab(initialTab);
 
-    // Update URL query string without page refresh
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', targetTab);
-    window.history.replaceState({}, '', url.toString());
+    // ==========================================
+    // TAB 1: BACKUP MANAGEMENT
+    // ==========================================
+    const backupListEl = document.getElementById('backupList');
+    const selectAllBackupsEl = document.getElementById('selectAllBackups');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBackups');
+    let currentBackups = [];
+    let pendingDeleteBackup = null;
+    let pendingRestoreBackup = null;
 
-    // Lazy load tab contents when opened
-    if (targetTab === 'backup') loadBackups();
-    if (targetTab === 'security') runAudit();
-    if (targetTab === 'history') loadVersions();
-  }
-
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-  });
-
-  // Initial tab from server template or URL query
-  const initialTab = new URLSearchParams(window.location.search).get('tab') || '{{ active_tab | default("backup") }}';
-  switchTab(initialTab);
-
-  // ==========================================
-  // TAB 1: BACKUP MANAGEMENT
-  // ==========================================
-  const backupListEl = document.getElementById('backupList');
-  const selectAllBackupsEl = document.getElementById('selectAllBackups');
-  const deleteSelectedBtn = document.getElementById('deleteSelectedBackups');
-  let currentBackups = [];
-  let pendingDeleteBackup = null;
-  let pendingRestoreBackup = null;
-
-  async function loadBackups() {
-    try {
-      const res = await fetch('/api/admin/backups');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to load backups');
-      currentBackups = data.backups || [];
-      renderBackups();
-    } catch (err) {
-      backupListEl.innerHTML = `<div class="error-msg">Error loading backups: ${escapeHtml(err.message)}</div>`;
-    }
-  }
-
-  function renderBackups() {
-    if (!currentBackups.length) {
-      backupListEl.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--text-muted);">No backups found for this trip.</div>';
-      selectAllBackupsEl.checked = false;
-      deleteSelectedBtn.disabled = true;
-      return;
+    async function loadBackups() {
+      try {
+        const res = await fetch('/api/admin/backups');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to load backups');
+        currentBackups = data.backups || [];
+        renderBackups();
+      } catch (err) {
+        backupListEl.innerHTML = `<div class="error-msg">Error loading backups: ${escapeHtml(err.message)}</div>`;
+      }
     }
 
-    backupListEl.innerHTML = currentBackups.map(b => {
-      const sizeKb = Math.round(b.size / 1024);
-      const isProtected = b.protected;
-      return `
+    function renderBackups() {
+      if (!currentBackups.length) {
+        backupListEl.innerHTML = '<div class="empty-state" style="padding:24px;text-align:center;color:var(--text-muted);">No backups found for this trip.</div>';
+        selectAllBackupsEl.checked = false;
+        deleteSelectedBtn.disabled = true;
+        return;
+      }
+
+      backupListEl.innerHTML = currentBackups.map(b => {
+        const sizeKb = Math.round(b.size / 1024);
+        const isProtected = b.protected;
+        return `
         <div class="backup-item ${isProtected ? 'protected-backup' : ''}" data-file="${escapeHtml(b.file)}">
           <label class="backup-item-check">
             <input type="checkbox" class="backup-row-checkbox" data-file="${escapeHtml(b.file)}" ${isProtected ? 'disabled title="Protected backup cannot be bulk deleted"' : ''}>
@@ -533,184 +593,242 @@
           </div>
         </div>
       `;
-    }).join('');
+      }).join('');
 
-    // Attach row events
-    backupListEl.querySelectorAll('.backup-row-checkbox').forEach(chk => {
-      chk.addEventListener('change', updateBulkDeleteState);
-    });
-
-    backupListEl.querySelectorAll('.restore-single-backup').forEach(btn => {
-      btn.addEventListener('click', () => openRestoreBackupModal(btn.dataset.file));
-    });
-
-    backupListEl.querySelectorAll('.delete-single-backup').forEach(btn => {
-      btn.addEventListener('click', () => openDeleteBackupModal(btn.dataset.file));
-    });
-
-    updateBulkDeleteState();
-  }
-
-  function updateBulkDeleteState() {
-    const checked = backupListEl.querySelectorAll('.backup-row-checkbox:checked');
-    deleteSelectedBtn.disabled = checked.length === 0;
-    deleteSelectedBtn.textContent = checked.length > 0 ? `Delete selected (${checked.length})` : 'Delete selected';
-  }
-
-  selectAllBackupsEl.addEventListener('change', () => {
-    const checkBoxes = backupListEl.querySelectorAll('.backup-row-checkbox:not(:disabled)');
-    checkBoxes.forEach(cb => cb.checked = selectAllBackupsEl.checked);
-    updateBulkDeleteState();
-  });
-
-  // Create Backup
-  document.getElementById('createBackupBtn')?.addEventListener('click', async () => {
-    try {
-      const res = await fetch('/api/admin/backup', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not create backup');
-      showToast(`Backup created: ${data.file}`, 'success');
-      loadBackups();
-    } catch (err) {
-      showToast(err.message, 'danger');
-    }
-  });
-
-  // Restore File Upload
-  const restoreFileBtn = document.getElementById('restoreFileBtn');
-  const restoreFileInput = document.getElementById('restoreFileInput');
-  restoreFileBtn?.addEventListener('click', () => restoreFileInput.click());
-  restoreFileInput?.addEventListener('change', async () => {
-    const file = restoreFileInput.files?.[0];
-    if (!file) return;
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await fetch('/api/admin/restore', {
-        method: 'POST',
-        body: fd
+      // Attach row events
+      backupListEl.querySelectorAll('.backup-row-checkbox').forEach(chk => {
+        chk.addEventListener('change', updateBulkDeleteState);
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Restore failed');
-      showToast('Trip data restored successfully from file!', 'success');
-      loadBackups();
-    } catch (err) {
-      showToast('Error restoring file: ' + err.message, 'danger');
-    } finally {
-      restoreFileInput.value = '';
-    }
-  });
 
-  // Delete Single Backup Modal
-  const deleteBackupModal = document.getElementById('deleteBackupModal');
-  function openDeleteBackupModal(filename) {
-    pendingDeleteBackup = filename;
-    document.getElementById('deleteBackupFilename').textContent = filename;
-    deleteBackupModal.classList.add('open');
-  }
-  function closeDeleteBackupModal() {
-    pendingDeleteBackup = null;
-    deleteBackupModal.classList.remove('open');
-  }
-  document.getElementById('closeDeleteBackupModal')?.addEventListener('click', closeDeleteBackupModal);
-  document.getElementById('cancelDeleteBackup')?.addEventListener('click', closeDeleteBackupModal);
-  document.getElementById('confirmDeleteBackup')?.addEventListener('click', async () => {
-    if (!pendingDeleteBackup) return;
-    try {
-      const res = await fetch(`/api/admin/backups/${encodeURIComponent(pendingDeleteBackup)}`, { method: 'DELETE' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to delete backup');
-      showToast('Backup deleted', 'success');
-      closeDeleteBackupModal();
-      loadBackups();
-    } catch (err) {
-      showToast(err.message, 'danger');
-    }
-  });
-
-  // Restore Backup Modal
-  const restoreBackupModal = document.getElementById('restoreBackupModal');
-  function openRestoreBackupModal(filename) {
-    pendingRestoreBackup = filename;
-    document.getElementById('restoreBackupFilename').textContent = filename;
-    restoreBackupModal.classList.add('open');
-  }
-  function closeRestoreBackupModal() {
-    pendingRestoreBackup = null;
-    restoreBackupModal.classList.remove('open');
-  }
-  document.getElementById('closeRestoreBackupModal')?.addEventListener('click', closeRestoreBackupModal);
-  document.getElementById('cancelRestoreBackup')?.addEventListener('click', closeRestoreBackupModal);
-  document.getElementById('confirmRestoreBackup')?.addEventListener('click', async () => {
-    if (!pendingRestoreBackup) return;
-    try {
-      const res = await fetch(`/api/admin/backups/${encodeURIComponent(pendingRestoreBackup)}/restore`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Restore failed');
-      showToast('Backup restored successfully!', 'success');
-      closeRestoreBackupModal();
-      loadBackups();
-    } catch (err) {
-      showToast(err.message, 'danger');
-    }
-  });
-
-  // Bulk Delete Backups
-  deleteSelectedBtn?.addEventListener('click', async () => {
-    const checked = Array.from(backupListEl.querySelectorAll('.backup-row-checkbox:checked')).map(cb => cb.dataset.file);
-    if (!checked.length) return;
-    if (!confirm(`Delete ${checked.length} selected backup(s)?`)) return;
-    try {
-      const res = await fetch('/api/admin/backups/bulk-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filenames: checked })
+      backupListEl.querySelectorAll('.restore-single-backup').forEach(btn => {
+        btn.addEventListener('click', () => openRestoreBackupModal(btn.dataset.file));
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
-      showToast(`${data.deleted_count || checked.length} backup(s) deleted`, 'success');
-      loadBackups();
-    } catch (err) {
-      showToast(err.message, 'danger');
+
+      backupListEl.querySelectorAll('.delete-single-backup').forEach(btn => {
+        btn.addEventListener('click', () => openDeleteBackupModal(btn.dataset.file));
+      });
+
+      updateBulkDeleteState();
     }
-  });
 
-  // Clear All Locations Modal
-  const clearAllModal = document.getElementById('clearAllModal');
-  document.getElementById('clearAllBtn')?.addEventListener('click', () => clearAllModal.classList.add('open'));
-  document.getElementById('closeClearAllModal')?.addEventListener('click', () => clearAllModal.classList.remove('open'));
-  document.getElementById('cancelClearAll')?.addEventListener('click', () => clearAllModal.classList.remove('open'));
-  document.getElementById('confirmClearAll')?.addEventListener('click', async () => {
-    try {
-      const res = await fetch('/api/admin/delete-all', { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not clear locations');
-      showToast('All locations cleared (safety backup created)', 'success');
-      clearAllModal.classList.remove('open');
-      loadBackups();
-    } catch (err) {
-      showToast(err.message, 'danger');
+    function updateBulkDeleteState() {
+      const checked = backupListEl.querySelectorAll('.backup-row-checkbox:checked');
+      deleteSelectedBtn.disabled = checked.length === 0;
+      deleteSelectedBtn.textContent = checked.length > 0 ? `Delete selected (${checked.length})` : 'Delete selected';
     }
-  });
 
-  // ==========================================
-  // TAB 2: SECURITY AUDIT
-  // ==========================================
-  const securitySummary = document.getElementById('securitySummary');
-  const securityRoutesBody = document.getElementById('securityRoutes');
+    selectAllBackupsEl.addEventListener('change', () => {
+      const checkBoxes = backupListEl.querySelectorAll('.backup-row-checkbox:not(:disabled)');
+      checkBoxes.forEach(cb => cb.checked = selectAllBackupsEl.checked);
+      updateBulkDeleteState();
+    });
 
-  async function runAudit() {
-    securitySummary.textContent = 'Running security audit…';
-    securityRoutesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;">Inspecting routes…</td></tr>';
-    try {
-      const res = await fetch('/api/admin/security-audit');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Audit failed');
-      const protectedCount = data.routes.filter(r => r.protected).length;
-      securitySummary.className = `security-summary ${data.all_protected ? 'security-ok' : 'security-warning'}`;
-      securitySummary.textContent = `${protectedCount}/${data.routes.length} API routes protected${data.all_protected ? ' · All checks passed' : ' · Review required'}`;
+    // Create Backup
+    document.getElementById('createBackupBtn')?.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/api/admin/backup', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not create backup');
+        showToast(`Backup created: ${data.file}`, 'success');
+        loadBackups();
+      } catch (err) {
+        showToast(err.message, 'danger');
+      }
+    });
 
-      securityRoutesBody.innerHTML = data.routes.map(r => `
+    // Restore File Upload
+    const restoreFileBtn = document.getElementById('restoreFileBtn');
+    const restoreFileInput = document.getElementById('restoreFileInput');
+    restoreFileBtn?.addEventListener('click', () => restoreFileInput.click());
+    restoreFileInput?.addEventListener('change', async () => {
+      const file = restoreFileInput.files?.[0];
+      if (!file) return;
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/admin/restore', {
+          method: 'POST',
+          body: fd
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Restore failed');
+        showToast('Trip data restored successfully from file!', 'success');
+        loadBackups();
+      } catch (err) {
+        showToast('Error restoring file: ' + err.message, 'danger');
+      } finally {
+        restoreFileInput.value = '';
+      }
+    });
+
+    // Delete Single Backup Modal
+    const deleteBackupModal = document.getElementById('deleteBackupModal');
+    function openDeleteBackupModal(filename) {
+      pendingDeleteBackup = filename;
+      document.getElementById('deleteBackupFilename').textContent = filename;
+      deleteBackupModal.classList.add('open');
+    }
+    function closeDeleteBackupModal() {
+      pendingDeleteBackup = null;
+      deleteBackupModal.classList.remove('open');
+    }
+    document.getElementById('closeDeleteBackupModal')?.addEventListener('click', closeDeleteBackupModal);
+    document.getElementById('cancelDeleteBackup')?.addEventListener('click', closeDeleteBackupModal);
+    document.getElementById('confirmDeleteBackup')?.addEventListener('click', async () => {
+      if (!pendingDeleteBackup) return;
+      try {
+        const res = await fetch(`/api/admin/backups/${encodeURIComponent(pendingDeleteBackup)}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete backup');
+        showToast('Backup deleted', 'success');
+        closeDeleteBackupModal();
+        loadBackups();
+      } catch (err) {
+        showToast(err.message, 'danger');
+      }
+    });
+
+    // Restore Backup Modal
+    const restoreBackupModal = document.getElementById('restoreBackupModal');
+    function openRestoreBackupModal(filename) {
+      pendingRestoreBackup = filename;
+      document.getElementById('restoreBackupFilename').textContent = filename;
+      restoreBackupModal.classList.add('open');
+    }
+    function closeRestoreBackupModal() {
+      pendingRestoreBackup = null;
+      restoreBackupModal.classList.remove('open');
+    }
+    document.getElementById('closeRestoreBackupModal')?.addEventListener('click', closeRestoreBackupModal);
+    document.getElementById('cancelRestoreBackup')?.addEventListener('click', closeRestoreBackupModal);
+    document.getElementById('confirmRestoreBackup')?.addEventListener('click', async () => {
+      if (!pendingRestoreBackup) return;
+      try {
+        const res = await fetch(`/api/admin/backups/${encodeURIComponent(pendingRestoreBackup)}/restore`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Restore failed');
+        showToast('Backup restored successfully!', 'success');
+        closeRestoreBackupModal();
+        loadBackups();
+      } catch (err) {
+        showToast(err.message, 'danger');
+      }
+    });
+
+    // Bulk Delete Backups
+    deleteSelectedBtn?.addEventListener('click', async () => {
+      const checked = Array.from(backupListEl.querySelectorAll('.backup-row-checkbox:checked')).map(cb => cb.dataset.file);
+      if (!checked.length) return;
+      if (!confirm(`Delete ${checked.length} selected backup(s)?`)) return;
+      try {
+        const res = await fetch('/api/admin/backups/bulk-delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filenames: checked })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
+        showToast(`${data.deleted_count || checked.length} backup(s) deleted`, 'success');
+        loadBackups();
+      } catch (err) {
+        showToast(err.message, 'danger');
+      }
+    });
+
+    // ==========================================
+    // DANGER ZONE — Admin password confirmation
+    // ==========================================
+    const dangerAuthModal = document.getElementById('dangerAuthModal');
+    const dangerAuthPassword = document.getElementById('dangerAuthPassword');
+    const dangerAuthError = document.getElementById('dangerAuthError');
+    let _dangerCallback = null;
+
+    function openDangerAuth(description, callback) {
+      _dangerCallback = callback;
+      document.getElementById('dangerAuthDesc').textContent = description;
+      dangerAuthPassword.value = '';
+      dangerAuthError.textContent = '';
+      dangerAuthModal.classList.add('open');
+      setTimeout(() => dangerAuthPassword.focus(), 80);
+    }
+    function closeDangerAuth() {
+      _dangerCallback = null;
+      dangerAuthModal.classList.remove('open');
+      dangerAuthPassword.value = '';
+      dangerAuthError.textContent = '';
+    }
+
+    document.getElementById('closeDangerAuthModal')?.addEventListener('click', closeDangerAuth);
+    document.getElementById('cancelDangerAuth')?.addEventListener('click', closeDangerAuth);
+
+    document.getElementById('confirmDangerAuth')?.addEventListener('click', async () => {
+      const pwd = dangerAuthPassword.value.trim();
+      if (!pwd) { dangerAuthError.textContent = 'Introdu parola.'; return; }
+      const btn = document.getElementById('confirmDangerAuth');
+      btn.disabled = true;
+      btn.textContent = 'Se verifică…';
+      dangerAuthError.textContent = '';
+      try {
+        const res = await fetch('/api/admin/verify-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) {
+          dangerAuthError.textContent = data.error || 'Parolă greșită.';
+          dangerAuthPassword.value = '';
+          dangerAuthPassword.focus();
+          return;
+        }
+        // Password verified — run the pending action
+        closeDangerAuth();
+        if (_dangerCallback) await _dangerCallback();
+      } catch (err) {
+        dangerAuthError.textContent = 'Eroare de rețea: ' + err.message;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Confirmă & Execută';
+      }
+    });
+
+    // Enter key submits the modal
+    dangerAuthPassword?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('confirmDangerAuth')?.click();
+    });
+
+    // Clear All Locations — now requires admin password
+    document.getElementById('clearAllBtn')?.addEventListener('click', () => {
+      openDangerAuth(
+        'Ești sigur că vrei să ștergi TOATE locațiile din trip-ul curent? Un backup automat va fi creat înainte.',
+        async () => {
+          const res = await fetch('/api/admin/delete-all', { method: 'POST' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Could not clear locations');
+          showToast('Toate locațiile au fost șterse. Backup creat automat.', 'success');
+          if (document.getElementById('paneBackup')?.classList.contains('active')) loadBackups();
+        }
+      );
+    });
+
+    // ==========================================
+    // TAB 2: SECURITY AUDIT
+    // ==========================================
+    const securitySummary = document.getElementById('securitySummary');
+    const securityRoutesBody = document.getElementById('securityRoutes');
+
+    async function runAudit() {
+      securitySummary.textContent = 'Running security audit…';
+      securityRoutesBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;">Inspecting routes…</td></tr>';
+      try {
+        const res = await fetch('/api/admin/security-audit');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Audit failed');
+        const protectedCount = data.routes.filter(r => r.protected).length;
+        securitySummary.className = `security-summary ${data.all_protected ? 'security-ok' : 'security-warning'}`;
+        securitySummary.textContent = `${protectedCount}/${data.routes.length} API routes protected${data.all_protected ? ' · All checks passed' : ' · Review required'}`;
+
+        securityRoutesBody.innerHTML = data.routes.map(r => `
         <tr>
           <td><code>${escapeHtml(r.path)}</code></td>
           <td>${r.methods.map(m => `<span class="method method-${m.toLowerCase()}">${escapeHtml(m)}</span>`).join(' ')}</td>
@@ -719,35 +837,35 @@
           <td><span class="route-status ${r.protected ? 'status-ok' : 'status-bad'}">${r.protected ? 'PROTECTED' : 'REVIEW'}</span></td>
         </tr>
       `).join('');
-    } catch (err) {
-      securitySummary.className = 'security-summary security-warning';
-      securitySummary.textContent = err.message;
-      securityRoutesBody.innerHTML = `<tr><td colspan="5" class="error-msg">${escapeHtml(err.message)}</td></tr>`;
-    }
-  }
-
-  document.getElementById('runSecurityAudit')?.addEventListener('click', runAudit);
-
-  // ==========================================
-  // TAB 3: VERSION HISTORY
-  // ==========================================
-  const versionsBody = document.getElementById('versionsBody');
-  const restoreVersionModal = document.getElementById('restoreVersionModal');
-  const versionRestoredModal = document.getElementById('versionRestoredModal');
-  let pendingVersionId = null;
-
-  async function loadVersions() {
-    versionsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;">Loading version history…</td></tr>';
-    try {
-      const res = await fetch('/api/admin/versions');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not load versions');
-      const versions = data.versions || [];
-      if (!versions.length) {
-        versionsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">No history snapshots recorded yet.</td></tr>';
-        return;
+      } catch (err) {
+        securitySummary.className = 'security-summary security-warning';
+        securitySummary.textContent = err.message;
+        securityRoutesBody.innerHTML = `<tr><td colspan="5" class="error-msg">${escapeHtml(err.message)}</td></tr>`;
       }
-      versionsBody.innerHTML = versions.map(v => `
+    }
+
+    document.getElementById('runSecurityAudit')?.addEventListener('click', runAudit);
+
+    // ==========================================
+    // TAB 3: VERSION HISTORY
+    // ==========================================
+    const versionsBody = document.getElementById('versionsBody');
+    const restoreVersionModal = document.getElementById('restoreVersionModal');
+    const versionRestoredModal = document.getElementById('versionRestoredModal');
+    let pendingVersionId = null;
+
+    async function loadVersions() {
+      versionsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;">Loading version history…</td></tr>';
+      try {
+        const res = await fetch('/api/admin/versions');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not load versions');
+        const versions = data.versions || [];
+        if (!versions.length) {
+          versionsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">No history snapshots recorded yet.</td></tr>';
+          return;
+        }
+        versionsBody.innerHTML = versions.map(v => `
         <tr>
           <td>${escapeHtml(new Date(v.created).toLocaleString())}</td>
           <td><span class="backup-pill">${escapeHtml(v.action)}</span></td>
@@ -762,199 +880,199 @@
         </tr>
       `).join('');
 
-      versionsBody.querySelectorAll('.restore-version-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          pendingVersionId = btn.dataset.version;
-          document.getElementById('restoreVersionName').textContent = pendingVersionId;
-          restoreVersionModal.classList.add('open');
+        versionsBody.querySelectorAll('.restore-version-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            pendingVersionId = btn.dataset.version;
+            document.getElementById('restoreVersionName').textContent = pendingVersionId;
+            restoreVersionModal.classList.add('open');
+          });
         });
-      });
-    } catch (err) {
-      versionsBody.innerHTML = `<tr><td colspan="6" class="error-msg">${escapeHtml(err.message)}</td></tr>`;
-    }
-  }
-
-  document.getElementById('refreshVersions')?.addEventListener('click', loadVersions);
-  const closeVersionRestore = () => { pendingVersionId = null; restoreVersionModal.classList.remove('open'); };
-  document.getElementById('closeRestoreVersion')?.addEventListener('click', closeVersionRestore);
-  document.getElementById('cancelRestoreVersion')?.addEventListener('click', closeVersionRestore);
-  document.getElementById('confirmRestoreVersion')?.addEventListener('click', async () => {
-    if (!pendingVersionId) return;
-    try {
-      const res = await fetch(`/api/admin/versions/${encodeURIComponent(pendingVersionId)}/restore`, { method: 'POST' });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Restore failed');
-      closeVersionRestore();
-      versionRestoredModal.classList.add('open');
-      loadVersions();
-    } catch (err) {
-      closeVersionRestore();
-      showToast(err.message, 'danger');
-    }
-  });
-
-  const closeVersionRestored = () => versionRestoredModal.classList.remove('open');
-  document.getElementById('closeVersionRestored')?.addEventListener('click', closeVersionRestored);
-  document.getElementById('dismissVersionRestored')?.addEventListener('click', closeVersionRestored);
-
-  // ==========================================
-  // TAB 4: UPLOAD & IMPORT
-  // ==========================================
-  const subtabFile = document.getElementById('subtabFile');
-  const subtabUrl = document.getElementById('subtabUrl');
-  const paneFile = document.getElementById('paneFile');
-  const paneUrl = document.getElementById('paneUrl');
-  const dropzone = document.getElementById('dropzone');
-  const fileInput = document.getElementById('fileInput');
-  const browseBtn = document.getElementById('browseBtn');
-  const urlInput = document.getElementById('urlInput');
-  const fetchUrlBtn = document.getElementById('fetchUrlBtn');
-  const gmapsGuide = document.getElementById('gmapsGuide');
-  const uploadPreview = document.getElementById('uploadPreview');
-  const previewInfo = document.getElementById('previewInfo');
-  const confirmUploadBtn = document.getElementById('confirmUploadBtn');
-  const cancelUploadBtn = document.getElementById('cancelUploadBtn');
-  let pendingLocations = [];
-
-  function switchUploadSubtab(tab) {
-    subtabFile.classList.toggle('active', tab === 'file');
-    subtabUrl.classList.toggle('active', tab === 'url');
-    paneFile.style.display = tab === 'file' ? 'block' : 'none';
-    paneUrl.style.display = tab === 'url' ? 'block' : 'none';
-  }
-
-  subtabFile?.addEventListener('click', () => switchUploadSubtab('file'));
-  subtabUrl?.addEventListener('click', () => switchUploadSubtab('url'));
-
-  browseBtn?.addEventListener('click', () => fileInput.click());
-  dropzone?.addEventListener('click', (e) => {
-    if (e.target !== browseBtn) fileInput.click();
-  });
-
-  dropzone?.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
-  dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
-  dropzone?.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.classList.remove('drag-over');
-    const f = e.dataTransfer?.files?.[0];
-    if (f) processUploadFile(f);
-  });
-
-  fileInput?.addEventListener('change', () => {
-    const f = fileInput.files?.[0];
-    if (f) processUploadFile(f);
-  });
-
-  async function processUploadFile(file) {
-    try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      let locs = [];
-      let listTitle = file.name;
-
-      if (Array.isArray(parsed)) {
-        locs = parsed;
-      } else if (parsed.locations && Array.isArray(parsed.locations)) {
-        locs = parsed.locations;
-        if (parsed.trip_name) listTitle = parsed.trip_name;
-      } else if (parsed.features && Array.isArray(parsed.features)) {
-        // GeoJSON Takeout
-        locs = parsed.features.map(f => {
-          const p = f.properties || {};
-          const loc = p.location || {};
-          const geom = f.geometry || {};
-          return {
-            id: 'loc_' + Math.random().toString(36).substr(2, 9),
-            name: loc.name || p.name || 'Unnamed place',
-            address: loc.address || p.address || '',
-            coordinates: geom.coordinates || [null, null],
-            google_maps_url: p.google_maps_url || '',
-            notes: p.comment || ''
-          };
-        });
+      } catch (err) {
+        versionsBody.innerHTML = `<tr><td colspan="6" class="error-msg">${escapeHtml(err.message)}</td></tr>`;
       }
-
-      if (!locs.length) throw new Error('No valid locations found in this JSON file.');
-      pendingLocations = locs;
-      showUploadPreview(locs.length, listTitle);
-    } catch (err) {
-      showToast('JSON Parse error: ' + err.message, 'danger');
     }
-  }
 
-  urlInput?.addEventListener('input', () => {
-    const val = urlInput.value.trim().toLowerCase();
-    const isGmaps = val.includes('maps.google.') || val.includes('goo.gl/maps') || val.includes('google.com/maps');
-    gmapsGuide.style.display = isGmaps ? 'block' : 'none';
-  });
+    document.getElementById('refreshVersions')?.addEventListener('click', loadVersions);
+    const closeVersionRestore = () => { pendingVersionId = null; restoreVersionModal.classList.remove('open'); };
+    document.getElementById('closeRestoreVersion')?.addEventListener('click', closeVersionRestore);
+    document.getElementById('cancelRestoreVersion')?.addEventListener('click', closeVersionRestore);
+    document.getElementById('confirmRestoreVersion')?.addEventListener('click', async () => {
+      if (!pendingVersionId) return;
+      try {
+        const res = await fetch(`/api/admin/versions/${encodeURIComponent(pendingVersionId)}/restore`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Restore failed');
+        closeVersionRestore();
+        versionRestoredModal.classList.add('open');
+        loadVersions();
+      } catch (err) {
+        closeVersionRestore();
+        showToast(err.message, 'danger');
+      }
+    });
 
-  fetchUrlBtn?.addEventListener('click', async () => {
-    const url = urlInput.value.trim();
-    if (!url) return;
-    fetchUrlBtn.disabled = true;
-    fetchUrlBtn.textContent = 'Fetching…';
-    try {
-      const res = await fetch('/api/fetch-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Fetch failed');
-      const locs = data.locations || [];
-      if (!locs.length) throw new Error('No locations could be extracted from this URL');
-      pendingLocations = locs;
-      showUploadPreview(locs.length, data.title || url);
-    } catch (err) {
-      showToast(err.message, 'danger');
-    } finally {
-      fetchUrlBtn.disabled = false;
-      fetchUrlBtn.textContent = 'Fetch';
+    const closeVersionRestored = () => versionRestoredModal.classList.remove('open');
+    document.getElementById('closeVersionRestored')?.addEventListener('click', closeVersionRestored);
+    document.getElementById('dismissVersionRestored')?.addEventListener('click', closeVersionRestored);
+
+    // ==========================================
+    // TAB 4: UPLOAD & IMPORT
+    // ==========================================
+    const subtabFile = document.getElementById('subtabFile');
+    const subtabUrl = document.getElementById('subtabUrl');
+    const paneFile = document.getElementById('paneFile');
+    const paneUrl = document.getElementById('paneUrl');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const browseBtn = document.getElementById('browseBtn');
+    const urlInput = document.getElementById('urlInput');
+    const fetchUrlBtn = document.getElementById('fetchUrlBtn');
+    const gmapsGuide = document.getElementById('gmapsGuide');
+    const uploadPreview = document.getElementById('uploadPreview');
+    const previewInfo = document.getElementById('previewInfo');
+    const confirmUploadBtn = document.getElementById('confirmUploadBtn');
+    const cancelUploadBtn = document.getElementById('cancelUploadBtn');
+    let pendingLocations = [];
+
+    function switchUploadSubtab(tab) {
+      subtabFile.classList.toggle('active', tab === 'file');
+      subtabUrl.classList.toggle('active', tab === 'url');
+      paneFile.style.display = tab === 'file' ? 'block' : 'none';
+      paneUrl.style.display = tab === 'url' ? 'block' : 'none';
     }
-  });
 
-  function showUploadPreview(count, title) {
-    previewInfo.innerHTML = `
+    subtabFile?.addEventListener('click', () => switchUploadSubtab('file'));
+    subtabUrl?.addEventListener('click', () => switchUploadSubtab('url'));
+
+    browseBtn?.addEventListener('click', () => fileInput.click());
+    dropzone?.addEventListener('click', (e) => {
+      if (e.target !== browseBtn) fileInput.click();
+    });
+
+    dropzone?.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+    dropzone?.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone?.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      const f = e.dataTransfer?.files?.[0];
+      if (f) processUploadFile(f);
+    });
+
+    fileInput?.addEventListener('change', () => {
+      const f = fileInput.files?.[0];
+      if (f) processUploadFile(f);
+    });
+
+    async function processUploadFile(file) {
+      try {
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        let locs = [];
+        let listTitle = file.name;
+
+        if (Array.isArray(parsed)) {
+          locs = parsed;
+        } else if (parsed.locations && Array.isArray(parsed.locations)) {
+          locs = parsed.locations;
+          if (parsed.trip_name) listTitle = parsed.trip_name;
+        } else if (parsed.features && Array.isArray(parsed.features)) {
+          // GeoJSON Takeout
+          locs = parsed.features.map(f => {
+            const p = f.properties || {};
+            const loc = p.location || {};
+            const geom = f.geometry || {};
+            return {
+              id: 'loc_' + Math.random().toString(36).substr(2, 9),
+              name: loc.name || p.name || 'Unnamed place',
+              address: loc.address || p.address || '',
+              coordinates: geom.coordinates || [null, null],
+              google_maps_url: p.google_maps_url || '',
+              notes: p.comment || ''
+            };
+          });
+        }
+
+        if (!locs.length) throw new Error('No valid locations found in this JSON file.');
+        pendingLocations = locs;
+        showUploadPreview(locs.length, listTitle);
+      } catch (err) {
+        showToast('JSON Parse error: ' + err.message, 'danger');
+      }
+    }
+
+    urlInput?.addEventListener('input', () => {
+      const val = urlInput.value.trim().toLowerCase();
+      const isGmaps = val.includes('maps.google.') || val.includes('goo.gl/maps') || val.includes('google.com/maps');
+      gmapsGuide.style.display = isGmaps ? 'block' : 'none';
+    });
+
+    fetchUrlBtn?.addEventListener('click', async () => {
+      const url = urlInput.value.trim();
+      if (!url) return;
+      fetchUrlBtn.disabled = true;
+      fetchUrlBtn.textContent = 'Fetching…';
+      try {
+        const res = await fetch('/api/fetch-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Fetch failed');
+        const locs = data.locations || [];
+        if (!locs.length) throw new Error('No locations could be extracted from this URL');
+        pendingLocations = locs;
+        showUploadPreview(locs.length, data.title || url);
+      } catch (err) {
+        showToast(err.message, 'danger');
+      } finally {
+        fetchUrlBtn.disabled = false;
+        fetchUrlBtn.textContent = 'Fetch';
+      }
+    });
+
+    function showUploadPreview(count, title) {
+      previewInfo.innerHTML = `
       <strong>Ready to import ${count} location(s)</strong>
       <div style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">Source: ${escapeHtml(title)}</div>
     `;
-    uploadPreview.style.display = 'block';
-  }
+      uploadPreview.style.display = 'block';
+    }
 
-  cancelUploadBtn?.addEventListener('click', () => {
-    uploadPreview.style.display = 'none';
-    pendingLocations = [];
-    fileInput.value = '';
-    urlInput.value = '';
-    gmapsGuide.style.display = 'none';
-  });
-
-  confirmUploadBtn?.addEventListener('click', async () => {
-    if (!pendingLocations.length) return;
-    const mergeMode = document.querySelector('input[name="mergeMode"]:checked')?.value || 'merge';
-    confirmUploadBtn.disabled = true;
-    confirmUploadBtn.textContent = 'Importing…';
-    try {
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locations: pendingLocations, mode: mergeMode })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Import failed');
-      showToast(`Successfully imported ${data.added || pendingLocations.length} locations!`, 'success');
+    cancelUploadBtn?.addEventListener('click', () => {
       uploadPreview.style.display = 'none';
       pendingLocations = [];
       fileInput.value = '';
       urlInput.value = '';
-    } catch (err) {
-      showToast(err.message, 'danger');
-    } finally {
-      confirmUploadBtn.disabled = false;
-      confirmUploadBtn.textContent = 'Import Locations';
-    }
-  });
+      gmapsGuide.style.display = 'none';
+    });
 
-})();
+    confirmUploadBtn?.addEventListener('click', async () => {
+      if (!pendingLocations.length) return;
+      const mergeMode = document.querySelector('input[name="mergeMode"]:checked')?.value || 'merge';
+      confirmUploadBtn.disabled = true;
+      confirmUploadBtn.textContent = 'Importing…';
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ locations: pendingLocations, mode: mergeMode })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Import failed');
+        showToast(`Successfully imported ${data.added || pendingLocations.length} locations!`, 'success');
+        uploadPreview.style.display = 'none';
+        pendingLocations = [];
+        fileInput.value = '';
+        urlInput.value = '';
+      } catch (err) {
+        showToast(err.message, 'danger');
+      } finally {
+        confirmUploadBtn.disabled = false;
+        confirmUploadBtn.textContent = 'Import Locations';
+      }
+    });
+
+  })();
 </script>
 {% endblock %}

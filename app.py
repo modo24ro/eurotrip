@@ -9,6 +9,8 @@ import urllib.request
 import urllib.parse
 import unicodedata
 import logging
+import hmac
+import time
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, make_response
@@ -754,8 +756,6 @@ def is_api_request():
         return True
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         return True
-    if request.headers.get('X-Capacitor-Http') or request.headers.get('X-Native-Fetch'):
-        return True
     if request.args.get('format') == 'json' or request.form.get('format') == 'json':
         return True
     accept = request.headers.get('Accept', '').lower()
@@ -764,7 +764,16 @@ def is_api_request():
     sec_dest = request.headers.get('Sec-Fetch-Dest', '').lower()
     if sec_dest in ('document', 'iframe'):
         return False
-    if 'text/html' not in accept:
+    sec_mode = request.headers.get('Sec-Fetch-Mode', '').lower()
+    if sec_mode == 'navigate':
+        return False
+    if 'text/html' in accept:
+        return False
+    if request.headers.get('X-Capacitor-Http') or request.headers.get('X-Native-Fetch'):
+        return True
+    if request.headers.get('Origin') and ('*/*' in accept or not accept):
+        return True
+    if accept and accept != '*/*' and 'text/html' not in accept:
         return True
     return False
 
@@ -1570,10 +1579,35 @@ def admin_restore():
     return jsonify({'status': 'ok', 'trip': data, 'automatic_backup': automatic_backup})
 
 
+@app.route('/api/admin/verify-password', methods=['POST'])
+@require_auth
+@require_role('admin')
+def admin_verify_password():
+    data = request.get_json(silent=True) or {}
+    password = (data.get('password') or request.form.get('password') or '').strip()
+    expected = load_config().get('admin_password', 'admin123')
+    if password and hmac.compare_digest(password, expected):
+        session['danger_auth_verified_at'] = time.time()
+        return jsonify({'ok': True, 'status': 'ok'})
+    return jsonify({'ok': False, 'error': 'Parola de administrator este incorectă.'}), 403
+
+
 @app.route('/api/admin/delete-all', methods=['POST'])
 @require_auth
 @require_role('admin')
 def admin_delete_all():
+    data = request.get_json(silent=True) or {}
+    password = (data.get('password') or request.form.get('password') or request.headers.get('X-Admin-Password') or '').strip()
+    expected = load_config().get('admin_password', 'admin123')
+    verified_at = session.get('danger_auth_verified_at')
+    is_session_verified = verified_at and (time.time() - verified_at < 120)
+    is_password_valid = password and hmac.compare_digest(password, expected)
+
+    if not (is_session_verified or is_password_valid):
+        return jsonify({'error': 'Confirmarea parolei de administrator este necesară.'}), 403
+
+    session.pop('danger_auth_verified_at', None)
+
     automatic_backup = create_backup()
     empty_trip = {
         'trip_name': 'Euro Trip 2026',
