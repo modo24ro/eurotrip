@@ -19,10 +19,12 @@ import email.utils
 from functools import wraps
 from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, make_response, g, has_request_context
 from werkzeug.utils import secure_filename
+from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.http import parse_etags, parse_date
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
 logger = app.logger
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'eurotrip-secret-change-me')
 app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
@@ -546,8 +548,12 @@ def active_versions_dir():
 
 
 def create_trip_version(action, data=None):
-    old_data = load_trip_data() if data is not None else None
-    data = data if data is not None else (old_data or {})
+    current = load_trip_data()
+    if data is None:
+        old_data = None
+        data = current or {}
+    else:
+        old_data = current
     os.makedirs(active_versions_dir(), exist_ok=True)
     now_dt = get_current_datetime()
     timestamp = now_dt.strftime('%Y%m%d-%H%M%S-%f')
@@ -1682,9 +1688,10 @@ def list_versions():
 @require_auth
 @require_role('admin')
 def restore_version(version_id):
-    safe_id = secure_filename(version_id)
-    path = os.path.join(active_versions_dir(), safe_id + '.json')
-    if safe_id != version_id or not os.path.isfile(path):
+    clean_id = version_id[:-5] if version_id.endswith('.json') else version_id
+    base_dir = os.path.abspath(active_versions_dir())
+    path = os.path.abspath(os.path.join(base_dir, f"{clean_id}.json"))
+    if not path.startswith(base_dir + os.sep) or not os.path.isfile(path):
         return jsonify({'error': 'Version not found'}), 404
     try:
         with open(path, 'r', encoding='utf-8') as f:
@@ -1694,9 +1701,12 @@ def restore_version(version_id):
             return jsonify({'error': 'Invalid version'}), 400
     except (OSError, json.JSONDecodeError):
         return jsonify({'error': 'Invalid version file'}), 400
-    create_trip_version('before-version-restore')
+
+    current_trip = load_trip_data()
+    create_trip_version('before-restore', current_trip)
     write_trip_data_atomic(data)
-    return jsonify({'status': 'ok', 'trip': data})
+    create_trip_version(f'restore-{clean_id}', data)
+    return jsonify({'status': 'ok', 'trip': data, 'restored_version': clean_id})
 
 
 @app.route('/api/trips/<path:trip_id>', methods=['DELETE'])
@@ -2114,10 +2124,13 @@ def get_attachment_view_token(location_id, filename):
 @app.route('/doc-viewer/<path:location_id>/<path:filename>', methods=['GET'])
 def standalone_doc_viewer(location_id, filename):
     safe_name = secure_filename(filename)
-    token = request.args.get('token')
+    token = request.args.get('token') or request.headers.get('X-Attachment-Token')
+    if not token and request.headers.get('Authorization', '').startswith('Bearer '):
+        token = request.headers.get('Authorization')[7:].strip()
+
     authenticated = session.get('authenticated')
     if not authenticated and token:
-        authenticated = verify_attachment_token(token, location_id, safe_name)
+        authenticated = verify_attachment_token(token, location_id, safe_name) or verify_attachment_token(token, location_id, filename)
     if not authenticated:
         return redirect(f'/login?next={urllib.parse.quote(request.full_path)}')
 
@@ -2126,7 +2139,12 @@ def standalone_doc_viewer(location_id, filename):
         return "Location not found", 404
     file_path = os.path.join(active_attachments_dir(location_id), safe_name)
     if not os.path.isfile(file_path):
-        return "Attachment file not found", 404
+        raw_path = os.path.join(active_attachments_dir(location_id), filename)
+        if os.path.isfile(raw_path):
+            safe_name = filename
+            file_path = raw_path
+        else:
+            return "Attachment file not found", 404
 
     ext = os.path.splitext(safe_name)[1].lower()
     is_pdf = ext == '.pdf'
@@ -2134,20 +2152,40 @@ def standalone_doc_viewer(location_id, filename):
     file_size = os.path.getsize(file_path)
     view_token = token or generate_attachment_token(location_id, safe_name)
 
-    download_url = f'/api/locations/{urllib.parse.quote(location_id)}/attachments/{urllib.parse.quote(safe_name)}?download=1&token={urllib.parse.quote(view_token)}'
-    raw_url = f'/api/locations/{urllib.parse.quote(location_id)}/attachments/{urllib.parse.quote(safe_name)}?token={urllib.parse.quote(view_token)}'
+    # If HTML viewer explicitly requested, render standalone viewer
+    if request.args.get('viewer') == 'html' or request.args.get('view') == 'html':
+        download_url = f'/api/locations/{urllib.parse.quote(location_id)}/attachments/{urllib.parse.quote(safe_name)}?download=1&token={urllib.parse.quote(view_token)}'
+        raw_url = f'/api/locations/{urllib.parse.quote(location_id)}/attachments/{urllib.parse.quote(safe_name)}?token={urllib.parse.quote(view_token)}'
+        return render_template(
+            'doc_viewer_standalone.html',
+            location=location,
+            filename=safe_name,
+            file_size=file_size,
+            download_url=download_url,
+            raw_url=raw_url,
+            is_pdf=is_pdf,
+            is_image=is_image,
+            ext=ext,
+        )
 
-    return render_template(
-        'doc_viewer_standalone.html',
-        location=location,
-        filename=safe_name,
-        file_size=file_size,
-        download_url=download_url,
-        raw_url=raw_url,
-        is_pdf=is_pdf,
-        is_image=is_image,
-        ext=ext,
+    previewable_mimes = {
+        '.pdf': 'application/pdf',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+    }
+    mimetype = previewable_mimes.get(ext, 'application/octet-stream')
+    response = send_from_directory(
+        active_attachments_dir(location_id), safe_name,
+        as_attachment=False,
+        mimetype=mimetype,
+        download_name=safe_name,
     )
+    response.headers['Content-Disposition'] = f'inline; filename="{safe_name}"'
+    return response
 
 
 @app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['GET', 'HEAD', 'OPTIONS'])
@@ -2187,11 +2225,17 @@ def download_location_attachment(location_id, filename):
     }
     is_previewable = ext in previewable_mimes
     force_download = request.args.get('download') in ('1', 'true', 'yes')
-    return send_from_directory(
+    response = send_from_directory(
         active_attachments_dir(location_id), safe_name,
         as_attachment=force_download or not is_previewable,
-        mimetype=previewable_mimes.get(ext),
+        mimetype=previewable_mimes.get(ext, 'application/octet-stream'),
+        download_name=safe_name,
     )
+    if force_download:
+        response.headers['Content-Disposition'] = f'attachment; filename="{safe_name}"'
+    elif is_previewable:
+        response.headers['Content-Disposition'] = f'inline; filename="{safe_name}"'
+    return response
 
 
 @app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['DELETE', 'OPTIONS'])

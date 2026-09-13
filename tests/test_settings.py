@@ -439,6 +439,34 @@ class TestSettingsPage(unittest.TestCase):
         self.assertEqual(save_log.get('version_id'), latest_version.get('version_id'))
         self.assertEqual(save_log.get('id'), latest_version.get('request_id'))
 
+    def test_restore_version_api(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        # Get latest versions
+        res_versions = self.client.get('/api/admin/versions')
+        versions = res_versions.get_json().get('versions', [])
+        self.assertGreater(len(versions), 0)
+
+        target_version = versions[0]['version_id']
+        # Call restore
+        res_restore = self.client.post(f'/api/admin/versions/{target_version}/restore')
+        self.assertEqual(res_restore.status_code, 200)
+        data = res_restore.get_json()
+        self.assertEqual(data.get('status'), 'ok')
+        self.assertIn('trip', data)
+        self.assertGreater(len(data['trip'].get('locations', [])), 0)
+
+        # Test with .json suffix
+        res_restore_json = self.client.post(f'/api/admin/versions/{target_version}.json/restore')
+        self.assertEqual(res_restore_json.status_code, 200)
+
+        # Test non-existent version
+        res_404 = self.client.post('/api/admin/versions/non_existent_version/restore')
+        self.assertEqual(res_404.status_code, 404)
+
 
 if __name__ == '__main__':
     unittest.main()

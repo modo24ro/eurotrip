@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#080c14">
+  <meta name="theme-color" content="#5c73f2">
   <meta name="description" content="Plan and manage your European trip locations">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,18 +16,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260913_2205">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260913_1942">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-  <script>
-    // iOS Standalone (Add to Home Screen / PWA) Detection
-    (function() {
-      var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      var isStandalone = window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
-      if (isIOS && isStandalone) {
-        document.documentElement.classList.add('is-ios-standalone');
-      }
-    })();
-  </script>
   <script>
     // Safeguard against upstream Chromium/DevTools web-vitals soft-navigation bug (issues #792, #793)
     window.addEventListener('error', function(e) {
@@ -44,7 +34,7 @@
 <body>
   {% block body %}{% endblock %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="{{ url_for('static', filename='js/app.js') }}?v=20260913_1942" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=20260914_01" defer></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
   {% block scripts %}{% endblock %}
 </body>

@@ -203,13 +203,13 @@ class TestAttachmentViewer(unittest.TestCase):
         # 2. View standalone page using session auth
         res_page = self.client.get(f"/doc-viewer/{loc_id}/{file_name}")
         self.assertEqual(res_page.status_code, 200)
-        self.assertIn(file_name.encode('utf-8'), res_page.data)
+        self.assertIn(file_name, res_page.headers.get('Content-Disposition', ''))
 
         # 3. View standalone page without session using token (simulates external browser on Android)
         unauth_client = self.app.test_client()
         res_token_page = unauth_client.get(f"/doc-viewer/{loc_id}/{file_name}?token={token}")
         self.assertEqual(res_token_page.status_code, 200)
-        self.assertIn(file_name.encode('utf-8'), res_token_page.data)
+        self.assertIn(file_name, res_token_page.headers.get('Content-Disposition', ''))
 
         # 4. Download file without session using token
         res_token_dl = unauth_client.get(f"/api/locations/{loc_id}/attachments/{file_name}?token={token}")

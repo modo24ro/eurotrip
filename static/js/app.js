@@ -141,6 +141,7 @@ const state = {
   routeTimes: null,
   notifications: [],
 };
+window.state = state;
 
 const CATEGORY_ICONS = {
   hotel: '🏨', transport: '✈️', restaurant: '🍽️',
@@ -149,6 +150,90 @@ const CATEGORY_ICONS = {
 };
 
 const VALID_CATEGORIES = Object.keys(CATEGORY_ICONS);
+
+function getDocumentBaseUrl() {
+  const isCapacitor = !!(window.Capacitor && window.Capacitor.Plugins);
+  const locOrigin = (window.location && window.location.origin) ? window.location.origin : '';
+  const locHost = (window.location && window.location.hostname) ? window.location.hostname : '';
+  const locProto = (window.location && window.location.protocol) ? window.location.protocol : '';
+
+  // 1. Native Capacitor / Android WebView wrapper:
+  // In native Android wrapper, origin is typically "https://localhost" or "capacitor://localhost".
+  // Because localhost is unreachable outside the app (e.g. Chrome, PDF viewers, share intents),
+  // derive the remote server URL from configuration or fallback to official production origin.
+  if (isCapacitor || locOrigin === 'https://localhost' || locOrigin === 'http://localhost' || locProto === 'capacitor:') {
+    let sUrl = '';
+    try {
+      const saved = localStorage.getItem('eurotrip_mobile_config');
+      if (saved) {
+        const cfg = JSON.parse(saved);
+        if (cfg && cfg.serverUrl) sUrl = cfg.serverUrl.trim();
+      }
+    } catch (_) {}
+    if (!sUrl && typeof window.getRemoteServerUrl === 'function') {
+      sUrl = window.getRemoteServerUrl() || '';
+    }
+    // Prevent using localhost inside native app for external actions
+    if (!sUrl || sUrl.includes('localhost') || sUrl.includes('127.0.0.1')) {
+      sUrl = 'https://trip.modo24.ro';
+    }
+    sUrl = sUrl.replace(/\/+$/, '');
+    if (!sUrl.startsWith('http://') && !sUrl.startsWith('https://')) {
+      sUrl = 'https://' + sUrl;
+    }
+    return sUrl;
+  }
+
+  // 2. Production / Public Application:
+  // When loaded in a browser/PWA over HTTPS or on a public domain,
+  // document URLs MUST ALWAYS resolve against the current HTTPS origin.
+  // Never resolve against localhost or HTTP when running in production.
+  if (locProto === 'https:' || (!['localhost', '127.0.0.1', '0.0.0.0', ''].includes(locHost))) {
+    return locOrigin.replace(/\/+$/, '');
+  }
+
+  // 3. Local development:
+  // When running locally on http://localhost:... or http://127.0.0.1:...,
+  // preserve the local origin so development continues to work normally.
+  return locOrigin.replace(/\/+$/, '');
+}
+
+function getRemoteApiBaseUrl() {
+  return getDocumentBaseUrl();
+}
+
+function buildAttachmentDownloadUrl(locationId, filename, token = '') {
+  const base = getDocumentBaseUrl();
+  let url = `${base}/api/locations/${encodeURIComponent(locationId)}/attachments/${encodeURIComponent(filename)}?download=1`;
+  if (token) {
+    url += `&token=${encodeURIComponent(token)}`;
+  }
+  return url;
+}
+
+function buildAttachmentRawUrl(locationId, filename, token = '') {
+  const base = getDocumentBaseUrl();
+  let url = `${base}/api/locations/${encodeURIComponent(locationId)}/attachments/${encodeURIComponent(filename)}`;
+  if (token) {
+    url += `?token=${encodeURIComponent(token)}`;
+  }
+  return url;
+}
+
+function buildDocViewerUrl(locationId, filename, token = '') {
+  const base = getDocumentBaseUrl();
+  let url = `${base}/doc-viewer/${encodeURIComponent(locationId)}/${encodeURIComponent(filename)}`;
+  if (token) {
+    url += `?token=${encodeURIComponent(token)}`;
+  }
+  return url;
+}
+
+window.getDocumentBaseUrl = getDocumentBaseUrl;
+window.getRemoteApiBaseUrl = getRemoteApiBaseUrl;
+window.buildAttachmentDownloadUrl = buildAttachmentDownloadUrl;
+window.buildAttachmentRawUrl = buildAttachmentRawUrl;
+window.buildDocViewerUrl = buildDocViewerUrl;
 
 function getFileMeta(filename) {
   const ext = (filename || '').split('.').pop().toLowerCase();
@@ -2082,7 +2167,7 @@ function extractPackageIdFromUrl(rawUrl) {
   return null;
 }
 
-function launchConfirmationUrl(rawUrl, explicitPackageId = null) {
+function launchConfirmationUrl(rawUrl) {
   const url = cleanUrlString(rawUrl);
   if (!url) {
     if (typeof toast === 'function') {
@@ -2098,28 +2183,7 @@ function launchConfirmationUrl(rawUrl, explicitPackageId = null) {
     finalUrl = 'https://' + finalUrl;
   }
 
-  const packageId = explicitPackageId || extractPackageIdFromUrl(finalUrl);
-  const platform = detectPlatform();
-
-  if (platform === 'android' && packageId) {
-    // Attempt native app open via Android Intent URL before falling back to the web browser
-    const encodedFallback = encodeURIComponent(finalUrl);
-    const intentUrl = `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${packageId};S.browser_fallback_url=${encodedFallback};end`;
-    try {
-      window.location.href = intentUrl;
-    } catch (_) {
-      const a = document.createElement('a');
-      a.href = finalUrl;
-      a.target = '_blank';
-      a.rel = 'noopener noreferrer';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-    }
-    return;
-  }
-
-  // Normal link or on desktop/iOS: ALWAYS open in a new browser window/tab!
+  // Open URL in a new browser window/tab or system app handler
   try {
     const win = window.open(finalUrl, '_blank', 'noopener,noreferrer');
     if (win && !win.closed && typeof win.closed !== 'undefined') {
@@ -2145,7 +2209,7 @@ function handleAppDeepLink(event, packageId, customScheme, webUrl) {
   }
 
   if (!webUrl) return;
-  launchConfirmationUrl(webUrl, packageId);
+  launchConfirmationUrl(webUrl);
 }
 
 if (typeof window !== 'undefined') {
@@ -2162,12 +2226,10 @@ function renderConfirmationLinkHTML(rawUrl, rawLabel, options = {}) {
   const label = (rawLabel || '').trim();
   const displayTitle = esc(label || 'Document link');
   const safeUrl = esc(url);
-  const packageId = extractPackageIdFromUrl(url);
 
   const extraClasses = options.extraClasses ? ` ${options.extraClasses}` : '';
-  const pkgAttr = packageId ? ` data-package-id="${esc(packageId)}"` : '';
 
-  return `<a class="strip-chip strip-confirmation confirmation-link${extraClasses}" href="${safeUrl}" target="_blank" rel="noopener noreferrer" data-action="openConfirmationDoc" data-canonical-url="${safeUrl}"${pkgAttr} title="${displayTitle}" aria-label="${displayTitle}"><span class="chip-icon">📑</span>${label ? `<span class="chip-label">${esc(label)}</span>` : ''}</a>`;
+  return `<a class="strip-chip strip-confirmation confirmation-link${extraClasses}" href="${safeUrl}" target="_blank" rel="noopener noreferrer" data-action="openConfirmationDoc" data-canonical-url="${safeUrl}" title="${displayTitle}" aria-label="${displayTitle}"><span class="chip-icon">📑</span>${label ? `<span class="chip-label">${esc(label)}</span>` : ''}</a>`;
 }
 
 function renderAttachmentChipHTML(loc) {
@@ -3055,11 +3117,35 @@ function bindEvents() {
     }
   }
 
-  document.getElementById('logoutBtn')?.addEventListener('click', () => {
-    window.location.href = '/logout';
-  });
-  document.getElementById('mobileLogout')?.addEventListener('click', () => {
-    window.location.href = '/logout';
+  // Exit App Handler (Web & Native Mobile Capacitor)
+  const handleExitApp = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    // 1. Native mobile exit if running in Capacitor
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App) {
+      try {
+        window.Capacitor.Plugins.App.exitApp();
+        return;
+      } catch (err) {
+        console.warn('Capacitor exitApp failed', err);
+      }
+    }
+
+    // 2. Try window.close() (browser tab/window)
+    try {
+      window.close();
+    } catch (err) {}
+
+    // 3. Web browser / server session logout & exit
+    if (window.location.protocol.startsWith('http')) {
+      window.location.href = '/logout';
+    }
+  };
+
+  document.querySelectorAll('.exit-app-btn, #logoutBtn, #exitAppBtn, #exitAppMenuBtn, #mobileLogout, #mobileExit').forEach(el => {
+    el.addEventListener('click', handleExitApp);
   });
 
   // Admin Login Modal (under /user in hamburger menu)
@@ -4238,46 +4324,26 @@ function bindEvents() {
     e.target.value = '';
     openDocumentViewer(locationId, newFileName);
   });
-  document.getElementById('docOpenNewTabLink')?.addEventListener('click', async (e) => {
-    e.preventDefault();
-    if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) return;
-    const file = docViewer.files[docViewer.currentIndex];
-    const locId = docViewer.locationId;
 
-    let token = '';
-    try {
-      const res = await fetch(`/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(file.name)}/view-token`);
-      if (res.ok) {
-        const d = await res.json();
-        token = d.token || '';
+  // Open in New Tab: Native anchor navigation with target="_blank"
+  // For standard browsers/PWA, do not preventDefault! Only intercept in native Capacitor wrapper.
+  document.getElementById('docOpenNewTabLink')?.addEventListener('click', (e) => {
+    const isCapacitor = !!(window.Capacitor && window.Capacitor.Plugins);
+    if (isCapacitor) {
+      e.preventDefault();
+      const linkEl = document.getElementById('docOpenNewTabLink');
+      const fullViewerUrl = linkEl?.href || (docViewer.locationId && docViewer.files[docViewer.currentIndex] ? buildDocViewerUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken) : '');
+      if (!fullViewerUrl) return;
+      if (window.Capacitor.Plugins.Browser && window.Capacitor.Plugins.Browser.open) {
+        window.Capacitor.Plugins.Browser.open({ url: fullViewerUrl });
+      } else {
+        window.open(fullViewerUrl, '_system');
       }
-    } catch (_) { }
-
-    const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
-    const viewerUrl = `/doc-viewer/${encodeURIComponent(locId)}/${encodeURIComponent(file.name)}${tokenParam}`;
-    const fullViewerUrl = new URL(viewerUrl, window.location.origin).href;
-
-    const isAndroid = /android/i.test(navigator.userAgent);
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-    if (isAndroid && isStandalone) {
-      // In Android Standalone PWA, launch external system browser via Android Intent
-      const hostPath = fullViewerUrl.replace(/^https?:\/\//, '');
-      const scheme = window.location.protocol.replace(':', '');
-      const intentUrl = `intent://${hostPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;end;`;
-      try {
-        window.location.href = intentUrl;
-        return;
-      } catch (_) { }
-    }
-
-    const win = window.open(fullViewerUrl, '_blank');
-    if (!win || win.closed || typeof win.closed === 'undefined') {
-      window.location.href = fullViewerUrl;
     }
   });
 
-  const shareCurrentDocument = async () => {
+  // Share Current Document: Synchronous Web Share API call within user gesture
+  const shareCurrentDocument = () => {
     if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) {
       toast('Niciun document selectat.', 'error');
       return;
@@ -4285,136 +4351,91 @@ function bindEvents() {
     const file = docViewer.files[docViewer.currentIndex];
     const locId = docViewer.locationId;
     const filename = file.name;
-    const shareBtn = document.getElementById('docShareBtn');
-    if (shareBtn) shareBtn.style.opacity = '0.5';
+    const fullViewerUrl = buildDocViewerUrl(locId, filename, docViewer.cachedViewToken || '');
 
-    // 1. Ensure file is ready
-    let shareFile = docViewer.cachedShareFile;
-    if (!shareFile && docViewer.shareFilePromise) {
-      try {
-        shareFile = await docViewer.shareFilePromise;
-      } catch (_) {}
-    }
-
-    if (!shareFile) {
-      try {
-        const fileUrl = `/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}`;
-        const res = await fetch(fileUrl, { credentials: 'same-origin' });
-        if (res.ok) {
-          const blob = await res.blob();
-          const ext = filename.split('.').pop().toLowerCase();
-          let mimeType = blob.type;
-          if (!mimeType || mimeType === 'application/octet-stream') {
-            if (ext === 'pdf') mimeType = 'application/pdf';
-            else if (ext === 'jpg' || ext === 'jpeg') mimeType = 'image/jpeg';
-            else if (ext === 'png') mimeType = 'image/png';
-            else if (ext === 'webp') mimeType = 'image/webp';
-            else if (ext === 'gif') mimeType = 'image/gif';
-          }
-          shareFile = new File([blob], filename, { type: mimeType });
-          docViewer.cachedShareFile = shareFile;
-        }
-      } catch (err) {
-        console.warn('Eroare la descărcarea fișierului pentru partajare:', err);
+    const fallbackShareUrl = (url, name, err) => {
+      if (err) console.warn('[EuroTrip Share] Native share failed:', err);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+          toast('Link-ul securizat al documentului a fost copiat în clipboard!', 'success');
+        }).catch(() => {
+          window.prompt('Copiază link-ul documentului:', url);
+        });
+      } else {
+        window.prompt('Copiază link-ul documentului:', url);
       }
-    }
+    };
 
-    if (shareBtn) shareBtn.style.opacity = '';
-
-    // 2. Share the actual file via native phone share sheet
-    const canNativeShare = typeof navigator.share === 'function';
-    if (canNativeShare && shareFile) {
-      let canShareFiles = false;
-      try {
-        canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [shareFile] }));
-      } catch (_) {}
-
-      if (canShareFiles || typeof navigator.canShare === 'undefined') {
+    // 1. Try native Web Share API synchronously inside user gesture
+    if (typeof navigator.share === 'function') {
+      const shareFile = docViewer.cachedShareFile;
+      let canShareFile = false;
+      if (shareFile && typeof navigator.canShare === 'function') {
         try {
-          await navigator.share({
-            files: [shareFile],
-            title: filename,
-          });
-          toast('Fișier partajat cu succes!', 'success');
-          return;
-        } catch (err) {
-          if (err?.name === 'AbortError') {
-            return;
-          }
-          console.warn('Eșec la partajarea nativă:', err);
-        }
+          canShareFile = navigator.canShare({ files: [shareFile] });
+        } catch (_) {}
       }
-    }
 
-    // 3. Fallback when native share is unavailable (e.g. desktop browser, insecure HTTP origin)
-    if (!canNativeShare) {
-      toast('Partajarea nativă necesită conexiune securizată (HTTPS) pe telefon.', 'warning');
-      const downloadLink = document.getElementById('pdfDownloadLink');
-      if (downloadLink) downloadLink.click();
+      if (canShareFile && shareFile) {
+        navigator.share({
+          title: filename,
+          text: filename,
+          files: [shareFile]
+        }).then(() => {
+          toast('Document partajat cu succes!', 'success');
+        }).catch(err => {
+          if (err && err.name === 'AbortError') return;
+          console.warn('[EuroTrip Share] File share failed, fallback to URL:', err);
+          navigator.share({
+            title: filename,
+            text: filename,
+            url: fullViewerUrl
+          }).then(() => {
+            toast('Link document partajat cu succes!', 'success');
+          }).catch(err2 => {
+            if (err2 && err2.name === 'AbortError') return;
+            fallbackShareUrl(fullViewerUrl, filename, err2);
+          });
+        });
+        return;
+      }
+
+      // Share HTTPS URL directly
+      navigator.share({
+        title: filename,
+        text: filename,
+        url: fullViewerUrl
+      }).then(() => {
+        toast('Link document partajat cu succes!', 'success');
+      }).catch(err => {
+        if (err && err.name === 'AbortError') return;
+        fallbackShareUrl(fullViewerUrl, filename, err);
+      });
       return;
     }
 
-    toast('Dispozitivul nu permite trimiterea directă a acestui fișier prin meniul nativ.', 'error');
+    // 2. Fallback when Web Share is unsupported (e.g. desktop Windows Chrome)
+    fallbackShareUrl(fullViewerUrl, filename);
   };
 
-  const handleAttachmentDownloadClick = async (e) => {
-    e.preventDefault();
-    if (!docViewer.locationId || !docViewer.files[docViewer.currentIndex]) return;
-    const file = docViewer.files[docViewer.currentIndex];
-    const locId = docViewer.locationId;
-    const filename = file.name;
-
-    const isAndroid = /android/i.test(navigator.userAgent);
-
-    toast('Se pregătește descărcarea…', 'info');
-
-    // 1. Android Standalone PWA intent fallback
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-    if (isAndroid && isStandalone) {
-      try {
-        let token = '';
-        try {
-          const tokRes = await fetch(`/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}/view-token`);
-          if (tokRes.ok) {
-            const d = await tokRes.json();
-            token = d.token || '';
-          }
-        } catch (_) { }
-        const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
-        const dlUrl = new URL(`/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}?download=1${tokenParam}`, window.location.origin).href;
-        const hostPath = dlUrl.replace(/^https?:\/\//, '');
-        const scheme = window.location.protocol.replace(':', '');
-        const intentUrl = `intent://${hostPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;end;`;
-        window.location.href = intentUrl;
-        toast('Descărcare inițiată în browser…', 'success');
-        return;
-      } catch (intentErr) {
-        console.warn('Intent download failed:', intentErr);
+  // Download Attachment: Native anchor download with Content-Disposition
+  // For standard browsers/PWA, do not preventDefault! Only intercept in native Capacitor wrapper.
+  const handleAttachmentDownloadClick = (e) => {
+    const isCapacitor = !!(window.Capacitor && window.Capacitor.Plugins);
+    if (isCapacitor) {
+      e.preventDefault();
+      const linkEl = e.currentTarget;
+      const fullDlUrl = linkEl?.href || (docViewer.locationId && docViewer.files[docViewer.currentIndex] ? buildAttachmentDownloadUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken) : '');
+      if (!fullDlUrl) return;
+      if (window.Capacitor.Plugins.Browser && window.Capacitor.Plugins.Browser.open) {
+        window.Capacitor.Plugins.Browser.open({ url: fullDlUrl });
+      } else {
+        window.open(fullDlUrl, '_system');
       }
+      toast('Descărcare inițiată…', 'info');
+      return;
     }
-
-    // 2. Standard browser / Desktop / Mobile browser:
-    try {
-      const fileUrl = `/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}`;
-      const res = await fetch(fileUrl, { credentials: 'same-origin' });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const tempLink = document.createElement('a');
-      tempLink.style.display = 'none';
-      tempLink.href = blobUrl;
-      tempLink.download = filename;
-      document.body.appendChild(tempLink);
-      tempLink.click();
-      setTimeout(() => {
-        document.body.removeChild(tempLink);
-        URL.revokeObjectURL(blobUrl);
-      }, 2000);
-      toast('Fișier descărcat cu succes.', 'success');
-    } catch (err) {
-      // Fallback: direct navigation
-      window.location.href = `/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}?download=1`;
-    }
+    toast('Descărcare fișier…', 'info');
   };
 
   document.getElementById('docShareBtn')?.addEventListener('click', (e) => {
@@ -4668,17 +4689,6 @@ function handleCardClick(e) {
 
   if (actionEl.dataset.action === 'openConfirmationDoc' || actionEl.classList.contains('confirmation-link')) {
     const webUrl = actionEl.dataset.canonicalUrl || actionEl.getAttribute('href');
-    const pkgId = actionEl.dataset.packageId || extractPackageIdFromUrl(webUrl);
-    const platform = detectPlatform();
-
-    if (platform === 'android' && pkgId) {
-      e.preventDefault();
-      e.stopPropagation();
-      launchConfirmationUrl(webUrl, pkgId);
-      return;
-    }
-
-    // Normal link (not an app package link): open in new browser window/tab
     e.stopPropagation();
     if (actionEl.tagName && actionEl.tagName.toLowerCase() === 'a') {
       actionEl.setAttribute('target', '_blank');
@@ -5623,20 +5633,54 @@ async function loadViewerAttachment(index) {
 
   // Download, Share & Open in New Tab links
   const downloadLink = document.getElementById('pdfDownloadLink');
+  const openNewTabLink = document.getElementById('docOpenNewTabLink');
+  const shareBtn = document.getElementById('docShareBtn');
+  const genBtn = document.getElementById('genericDocDownloadBtn');
+
   if (downloadLink) {
     downloadLink.style.display = 'inline-flex';
-    downloadLink.href = `${fileUrl}?download=1`;
+    downloadLink.href = buildAttachmentDownloadUrl(locationId, file.name);
     downloadLink.download = file.name;
+    downloadLink.target = '_blank';
+    downloadLink.onclick = null;
   }
-  const shareBtn = document.getElementById('docShareBtn');
   if (shareBtn) {
     shareBtn.style.display = 'inline-flex';
   }
-  const openNewTabLink = document.getElementById('docOpenNewTabLink');
   if (openNewTabLink) {
     openNewTabLink.style.display = 'inline-flex';
-    openNewTabLink.href = `/doc-viewer/${encodeURIComponent(locationId)}/${encodeURIComponent(file.name)}`;
+    openNewTabLink.href = buildDocViewerUrl(locationId, file.name);
+    openNewTabLink.target = '_blank';
+    openNewTabLink.rel = 'noopener noreferrer';
   }
+  if (genBtn) {
+    genBtn.href = buildAttachmentDownloadUrl(locationId, file.name);
+    genBtn.download = file.name;
+    genBtn.target = '_blank';
+  }
+
+  docViewer.cachedViewToken = '';
+  docViewer.viewTokenPromise = (async () => {
+    try {
+      const tokRes = await fetch(`/api/locations/${encodeURIComponent(locationId)}/attachments/${encodeURIComponent(file.name)}/view-token`);
+      if (tokRes.ok) {
+        const d = await tokRes.json();
+        const tok = d.token || '';
+        docViewer.cachedViewToken = tok;
+        if (downloadLink) {
+          downloadLink.href = buildAttachmentDownloadUrl(locationId, file.name, tok);
+        }
+        if (openNewTabLink) {
+          openNewTabLink.href = buildDocViewerUrl(locationId, file.name, tok);
+        }
+        if (genBtn) {
+          genBtn.href = buildAttachmentDownloadUrl(locationId, file.name, tok);
+        }
+        return tok;
+      }
+    } catch (_) {}
+    return '';
+  })();
 
   const emptyAddBtn = document.getElementById('genericDocEmptyAddBtn');
   if (emptyAddBtn) emptyAddBtn.style.display = 'none';
@@ -5710,7 +5754,19 @@ async function loadViewerAttachment(index) {
         if (loadingEl) loadingEl.style.display = 'flex';
         img.onload = () => { if (loadingEl) loadingEl.style.display = 'none'; };
         img.onerror = () => { if (loadingEl) loadingEl.style.display = 'none'; };
-        img.src = fileUrl;
+        (async () => {
+          try {
+            const imgRes = await fetch(fileUrl);
+            if (imgRes.ok) {
+              const blob = await imgRes.blob();
+              img.src = URL.createObjectURL(blob);
+            } else {
+              img.src = fileUrl;
+            }
+          } catch(e) {
+            img.src = fileUrl;
+          }
+        })();
         img.style.transform = `translate(0px, 0px) scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
       }
     }
@@ -5721,9 +5777,15 @@ async function loadViewerAttachment(index) {
 
     if (window.pdfjsLib) {
       try {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const fileRes = await fetch(fileUrl, { credentials: 'same-origin' });
+        if (!fileRes.ok) throw new Error(`HTTP error ${fileRes.status}`);
+        const pdfArrayBuffer = await fileRes.arrayBuffer();
+
+        const workerPath = (window.Capacitor || (window.location.protocol === 'https:' && window.location.hostname === 'localhost')) ? 'js/vendor/pdf.worker.min.js' : 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
+
         const loadingTask = window.pdfjsLib.getDocument({
-          url: fileUrl,
+          data: pdfArrayBuffer,
           cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
           cMapPacked: true,
         });
@@ -5740,7 +5802,17 @@ async function loadViewerAttachment(index) {
         if (zoomControls) zoomControls.style.display = 'none';
         if (fallbackFrame) {
           fallbackFrame.style.display = 'block';
-          fallbackFrame.src = fileUrl;
+          try {
+            const fallbackRes = await fetch(fileUrl);
+            if (fallbackRes.ok) {
+              const fallbackBlob = await fallbackRes.blob();
+              fallbackFrame.src = URL.createObjectURL(fallbackBlob);
+            } else {
+              fallbackFrame.src = fileUrl;
+            }
+          } catch(e) {
+            fallbackFrame.src = fileUrl;
+          }
         }
       } finally {
         if (loadingEl) loadingEl.style.display = 'none';
@@ -5751,7 +5823,17 @@ async function loadViewerAttachment(index) {
       if (zoomControls) zoomControls.style.display = 'none';
       if (fallbackFrame) {
         fallbackFrame.style.display = 'block';
-        fallbackFrame.src = fileUrl;
+        try {
+          const fallbackRes = await fetch(fileUrl);
+          if (fallbackRes.ok) {
+            const fallbackBlob = await fallbackRes.blob();
+            fallbackFrame.src = URL.createObjectURL(fallbackBlob);
+          } else {
+            fallbackFrame.src = fileUrl;
+          }
+        } catch(e) {
+          fallbackFrame.src = fileUrl;
+        }
       }
     }
   } else {
@@ -6693,8 +6775,35 @@ async function init() {
     return;
   }
   try {
-    const trip = await api.getTrip();
+    let trip = null;
+    try {
+      trip = await api.getTrip();
+    } catch (err) {
+      console.warn('Could not fetch trip from API, using fallback:', err);
+    }
+    if (!trip || !trip.locations || trip.locations.length === 0) {
+      try {
+        const localSaved = JSON.parse(localStorage.getItem('eurotrip_current_trip') || 'null');
+        if (localSaved && Array.isArray(localSaved.locations) && localSaved.locations.length > 0) {
+          trip = localSaved;
+        }
+      } catch (e) {}
+    }
+    if (!trip) {
+      trip = { id: 'my_trip', trip_name: 'Euro Trip', currency: 'EUR', locations: [] };
+    }
     state.trip = trip;
+    window.state = state;
+    window.setActiveTrip = setActiveTrip;
+    window.render = render;
+    window.renderMain = renderMain;
+    window.renderSummary = renderSummary;
+    window.renderCountryFilter = renderCountryFilter;
+    window.renderStats = renderStats;
+    window.refreshTripSelector = refreshTripSelector;
+    window.updateNotifications = updateNotifications;
+    window.updateDocumentTitle = updateDocumentTitle;
+    window.toast = toast;
     const serverExcluded = (trip.locations || []).filter(l => l.excluded).map(l => l.id);
     const localExcluded = _prefs.mapExcluded || [];
     state.mapExcluded = new Set([...serverExcluded, ...localExcluded]);

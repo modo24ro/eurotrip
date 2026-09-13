@@ -796,7 +796,10 @@
     <div class="modal-body version-success-body">
       <div class="version-success-icon">✓</div>
       <p>The selected trip version has been restored successfully.</p>
-      <button class="btn-primary" id="dismissVersionRestored" type="button">Close</button>
+      <div style="display:flex; justify-content:center; gap:10px; margin-top:14px; flex-wrap:wrap;">
+        <button class="btn-secondary" id="dismissVersionRestored" type="button">Close</button>
+        <a class="btn-primary" href="/admin" style="text-decoration:none; display:inline-flex; align-items:center;">Go to Planner</a>
+      </div>
     </div>
   </div>
 </div>
@@ -1728,27 +1731,51 @@
     });
 
     document.getElementById('refreshVersions')?.addEventListener('click', loadVersions);
-    const closeVersionRestore = () => { pendingVersionId = null; restoreVersionModal.classList.remove('open'); };
+    const closeVersionRestore = () => { pendingVersionId = null; restoreVersionModal?.classList.remove('open'); };
     document.getElementById('closeRestoreVersion')?.addEventListener('click', closeVersionRestore);
     document.getElementById('cancelRestoreVersion')?.addEventListener('click', closeVersionRestore);
+    document.getElementById('restoreVersionModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'restoreVersionModal' || e.target.classList.contains('modal-overlay')) closeVersionRestore();
+    });
+
     document.getElementById('confirmRestoreVersion')?.addEventListener('click', async () => {
       if (!pendingVersionId) return;
+      const btn = document.getElementById('confirmRestoreVersion');
+      const originalText = btn ? btn.textContent : '';
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Restoring…';
+      }
       try {
         const res = await fetch(`/api/admin/versions/${encodeURIComponent(pendingVersionId)}/restore`, { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Restore failed');
         closeVersionRestore();
-        versionRestoredModal.classList.add('open');
+        versionRestoredModal?.classList.add('open');
+        if (data.trip && data.trip.trip_name) {
+          document.querySelectorAll('.trip-name-display').forEach(el => {
+            el.textContent = data.trip.trip_name;
+          });
+        }
+        showToast('Trip version restored successfully!', 'success');
         loadVersions();
       } catch (err) {
         closeVersionRestore();
         showToast(err.message, 'danger');
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
       }
     });
 
-    const closeVersionRestored = () => versionRestoredModal.classList.remove('open');
+    const closeVersionRestored = () => versionRestoredModal?.classList.remove('open');
     document.getElementById('closeVersionRestored')?.addEventListener('click', closeVersionRestored);
     document.getElementById('dismissVersionRestored')?.addEventListener('click', closeVersionRestored);
+    document.getElementById('versionRestoredModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'versionRestoredModal' || e.target.classList.contains('modal-overlay')) closeVersionRestored();
+    });
 
     // ==========================================
     // TAB 4: UPLOAD & IMPORT

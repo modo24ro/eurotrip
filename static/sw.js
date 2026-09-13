@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurotrip-v32';
+const CACHE_NAME = 'eurotrip-v35';
 const STATIC_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',
@@ -37,6 +37,12 @@ self.addEventListener('fetch', event => {
   // Skip non-http(s) schemes (chrome-extension://, data:, etc.)
   if (!url.protocol.startsWith('http')) return;
   if (request.method !== 'GET') return;
+
+  // Documents, attachments and direct downloads must bypass SW cache and pass through
+  // directly to the native browser network pipeline for streaming, byte-range requests and downloads.
+  if (url.pathname.startsWith('/doc-viewer/') || url.pathname.includes('/attachments/') || url.searchParams.has('download')) {
+    return;
+  }
 
   // HTML pages and API calls must always use the network
   if (request.mode === 'navigate' || url.pathname.startsWith('/api/')) {
