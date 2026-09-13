@@ -14,11 +14,26 @@ function savePrefs(patch) {
 
 const _prefs = loadPrefs();
 
+function isNarrowScreen() {
+  return typeof window !== 'undefined' && window.innerWidth <= 768;
+}
+
 function getInitialView() {
   if (typeof window !== 'undefined') {
+    const isMobile = window.innerWidth <= 980;
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get('view');
-    if (fromUrl) return fromUrl;
+    if (isMobile) {
+      // On mobile, Days is ALWAYS the default initial navigation mode.
+      // Do not restore another previously selected mobile navigation mode as the default.
+      if (fromUrl && fromUrl !== 'list') {
+        return fromUrl;
+      }
+      return 'day';
+    }
+    if (fromUrl) {
+      return fromUrl;
+    }
   }
   return _prefs.view || 'list';
 }
@@ -82,6 +97,7 @@ const state = {
   filter: { search: '', category: 'all', country: 'all', showDisabled: true },
   sortBy: _prefs.sortBy || 'added',
   hideVisited: !!_prefs.hideVisited,
+  cardsPerRow: _prefs.cardsPerRow ? parseInt(_prefs.cardsPerRow, 10) : (_prefs.singleCol ? 1 : undefined),
   singleCol: _prefs.singleCol !== undefined ? !!_prefs.singleCol : (typeof window !== 'undefined' && window.innerWidth >= 600 && window.innerWidth <= 960),
   unsaved: false,
   uploadPreviewData: null,
@@ -344,6 +360,12 @@ function addBlankLocation() {
   setTimeout(() => {
     const newCard = document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`);
     if (newCard) {
+      newCard.classList.add('editing');
+      const editBtn = newCard.querySelector('[data-action="edit"]');
+      if (editBtn) {
+        editBtn.classList.add('active');
+        editBtn.title = 'Close edit';
+      }
       newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
       const nameField = newCard.querySelector('[data-field="name"]');
       if (nameField) { nameField.focus(); nameField.select(); }
@@ -431,36 +453,70 @@ function renderSummary() {
   const firstDay = days[0] ? fmtDate(days[0], { day: 'numeric', month: 'short' }) : '—';
   const lastDay = days[days.length - 1] ? fmtDate(days[days.length - 1], { day: 'numeric', month: 'short' }) : '—';
 
+  const isFullyScheduled = enabled.length > 0 && scheduled === enabled.length;
+  const schedClass = isFullyScheduled ? ' is-scheduled' : '';
+  const schedTitle = isFullyScheduled
+    ? `All ${enabled.length} active locations are scheduled`
+    : `${scheduled} of ${enabled.length} active locations scheduled`;
+
   const el = document.getElementById('summaryBanner');
-  if (!el) return;
-  el.innerHTML = `
-    <div class="banner-metrics">
-      <div class="banner-item"><div class="banner-value">${enabled.length}</div><div class="banner-label">Active</div></div>
-      <div class="banner-item"><div class="banner-value">${days.length}</div><div class="banner-label">Days</div></div>
-      <div class="banner-item"><div class="banner-value">${formatCurrency(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
-      <div class="banner-item"><div class="banner-value">${scheduled}/${enabled.length}</div><div class="banner-label">Scheduled</div></div>
-    </div>
-    ${(days.length > 0 || countries.length > 0) ? `
-      <div class="banner-secondary">
-        ${days.length > 0 ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
-        ${countries.length > 0 ? `<div class="banner-countries">${countries.map(c => `<span class="country-badge" title="${esc(c)}">${flagHTML(c)}<span class="country-badge-name">${esc(c)}</span></span>`).join('')}</div>` : ''}
+  if (el) {
+    el.innerHTML = `
+      <div class="banner-metrics">
+        <div class="banner-item${schedClass}" title="${schedTitle}"><div class="banner-value">${scheduled}/${enabled.length}</div><div class="banner-label">Scheduled</div></div>
+        <div class="banner-item"><div class="banner-value">${days.length}</div><div class="banner-label">Days</div></div>
+        <div class="banner-item"><div class="banner-value">${formatCurrency(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
       </div>
-    ` : ''}
-  `;
+      ${(days.length > 0 || countries.length > 0) ? `
+        <div class="banner-secondary">
+          ${days.length > 0 ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
+          ${countries.length > 0 ? `<div class="banner-countries">${countries.map(c => `<button type="button" class="country-badge" data-action="goToCountry" data-country="${esc(c)}" title="View ${esc(c)} in Countries">${flagHTML(c)}<span class="country-badge-name">${esc(c)}</span></button>`).join('')}</div>` : ''}
+        </div>
+      ` : ''}
+    `;
+  }
+
+  let headerDatesEl = document.getElementById('tripHeaderDates');
+  if (!headerDatesEl) {
+    const brandDetails = document.querySelector('.trip-brand-details');
+    if (brandDetails) {
+      headerDatesEl = document.createElement('div');
+      headerDatesEl.id = 'tripHeaderDates';
+      headerDatesEl.className = 'trip-header-dates';
+      brandDetails.appendChild(headerDatesEl);
+    }
+  }
+  if (headerDatesEl) {
+    if (days.length > 0 && firstDay !== '—') {
+      headerDatesEl.innerHTML = `<span class="banner-value banner-dates-val trip-header-dates-val">${firstDay} → ${lastDay}</span>`;
+      headerDatesEl.style.display = '';
+    } else {
+      headerDatesEl.innerHTML = '';
+      headerDatesEl.style.display = 'none';
+    }
+  }
 }
 
 function renderCountryFilter() {
   const countries = [...new Set((state.trip?.locations ?? []).map(l => l.country).filter(Boolean))].sort();
-  const sel = document.getElementById('countryFilter');
-  if (!sel) return;
   const cur = state.filter.country;
-  sel.innerHTML = `<option value="all">All Countries</option>` +
+  const optionsHtml = `<option value="all">All Countries</option>` +
     countries.map(c => `<option value="${esc(c)}"${c === cur ? ' selected' : ''}>${flagText(c)} ${esc(c)}</option>`).join('');
+  const sel = document.getElementById('countryFilter');
+  if (sel) sel.innerHTML = optionsHtml;
+  const selMobile = document.getElementById('countryFilterMobile');
+  if (selMobile) selMobile.innerHTML = optionsHtml;
 }
 
 function renderMain() {
   const el = document.getElementById('mainContent');
   if (!el) return;
+  if (state.view === 'list' && isNarrowScreen()) {
+    state.view = 'day';
+    savePrefs({ view: 'day' });
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
+    document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
+  }
   if (state.view !== 'map') {
     exitMapFullscreen();
   }
@@ -473,8 +529,13 @@ function renderMain() {
     case 'map': el.innerHTML = renderMapView(); break;
     case 'route': el.innerHTML = renderRouteView(); break;
   }
+  if (state.view === 'list' || state.view === 'day' || state.view === 'country') {
+    scheduleEqualizeCardHeights();
+  }
   if (state.view === 'map') requestAnimationFrame(renderMap);
   if (state.view === 'route') requestAnimationFrame(initRouteView);
+  updateControlsBarHeight();
+  updateDaysToggleLabel();
 }
 
 function renderMapView() {
@@ -868,7 +929,7 @@ async function openDirectNavigation(destinationLocation) {
   const dayLocations = getRouteLocations();
   const nextTarget = getNextByDayLocation(state.routeDay);
   const target = destinationLocation || nextTarget || dayLocations.find(l => !l.visited) || dayLocations[0];
-  if (!target || !hasValidCoordinates(target.coordinates)) {
+  if (!target) {
     toast('Selectează o destinație validă.', 'warning');
     return;
   }
@@ -884,7 +945,25 @@ async function openDirectNavigation(destinationLocation) {
     // Default to device native GPS location when origin is omitted in Google Maps
   }
 
-  const mapsUrl = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${target.coordinates[1]},${target.coordinates[0]}&travelmode=${mode}`;
+  let destParam = '';
+  if (hasValidCoordinates(target.coordinates)) {
+    destParam = `${target.coordinates[1]},${target.coordinates[0]}`;
+  } else if (target.address) {
+    destParam = encodeURIComponent(target.address);
+  } else if (target.name) {
+    destParam = encodeURIComponent(`${target.name} ${target.city || ''} ${target.country || ''}`.trim());
+  }
+
+  if (!destParam) {
+    if (target.google_maps_url) {
+      window.open(safeMapsUrl(target.google_maps_url), '_blank', 'noopener,noreferrer');
+      return;
+    }
+    toast('Locația nu are o adresă sau coordonate valide.', 'warning');
+    return;
+  }
+
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destParam}&travelmode=${mode}`;
   window.open(mapsUrl, '_blank', 'noopener,noreferrer');
 }
 
@@ -1658,14 +1737,20 @@ function renderDayView() {
     const unscheduled = key === '__none__';
     const dayIdx = unscheduled ? -1 : allTripDays.indexOf(key);
     const dayNum = dayIdx >= 0 ? (dayIdx + 1) : 1;
-    const label = unscheduled ? 'Unscheduled' : fmtDate(key, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const labelFull = unscheduled ? 'Unscheduled' : fmtDate(key, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const labelAbbr = unscheduled ? 'Unscheduled' : fmtDate(key, { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' });
+    const labelCompact = unscheduled ? 'Unscheduled' : fmtDate(key, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
     const allDayLocs = (state.trip?.locations || []).filter(l => (l.visit_date || '__none__') === key);
     const dayCost = allDayLocs.filter(l => l.enabled !== false).reduce((s, l) => s + (l.cost || 0), 0);
     return `
       <div class="day-group">
         <div class="day-header">
           <span class="day-badge" style="${unscheduled ? 'background:var(--text-muted)' : ''}">${unscheduled ? '—' : 'Day ' + dayNum}</span>
-          <span class="day-date">${label}</span>
+          <span class="day-date" title="${esc(labelFull)}">
+            <span class="day-date-full">${esc(labelFull)}</span>
+            <span class="day-date-abbr">${esc(labelAbbr)}</span>
+            <span class="day-date-compact">${esc(labelCompact)}</span>
+          </span>
           <span class="day-count">${dayLocs.length} place${dayLocs.length !== 1 ? 's' : ''}</span>
           ${dayCost > 0 ? `<span class="day-total-cost">${formatCurrency(dayCost, state.trip?.currency)}</span>` : ''}
         </div>
@@ -1696,7 +1781,7 @@ function renderCountryView() {
         <div class="locations-grid">${cities[city].map(cardHTML).join('')}</div>
       </div>`).join('');
     return `
-      <div class="country-group">
+      <div class="country-group" data-country="${esc(country)}">
         <div class="country-header">
           <span class="country-flag">${flagHTML(country)}</span>
           <span class="country-name">${esc(country)}</span>
@@ -1705,6 +1790,212 @@ function renderCountryView() {
         ${cityHTML}
       </div>`;
   }).join('');
+}
+
+function navigateToCountry(country) {
+  if (!country) return;
+  // If current filter excludes this country, reset country filter to 'all' so target is visible
+  if (state.filter.country && state.filter.country !== 'all' && state.filter.country !== country) {
+    state.filter.country = 'all';
+    const cf = document.getElementById('countryFilter');
+    if (cf) cf.value = 'all';
+    const cfm = document.getElementById('countryFilterMobile');
+    if (cfm) cfm.value = 'all';
+    updateFilterActiveDot();
+  }
+
+  // Switch to Countries mode
+  if (state.view !== 'country') {
+    exitMapFullscreen();
+    state.view = 'country';
+    savePrefs({ view: 'country' });
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'country'));
+    document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'country'));
+    renderMain();
+    updateControlsBarHeight();
+    updateDaysToggleLabel();
+  }
+
+  // Automatically navigate/scroll to the corresponding country
+  setTimeout(() => {
+    const el = document.querySelector(`.country-group[data-country="${CSS.escape(country)}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, 60);
+}
+
+function isValidHttpUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function detectPlatform() {
+  const ua = (navigator.userAgent || '').toLowerCase();
+  if (/android/.test(ua)) return 'android';
+  if (/iphone|ipad|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'ios';
+  return 'desktop';
+}
+
+function cleanUrlString(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  let str = raw.trim();
+  // Parse markdown link syntax [text](url) or [url](url)
+  const mdMatch = str.match(/\[.*?\]\((https?:\/\/[^\s)]+)\)/i);
+  if (mdMatch) {
+    str = mdMatch[1];
+  }
+  // Strip angle brackets <url>
+  str = str.replace(/^<|>$/g, '').trim();
+  return str;
+}
+
+function isValidAndroidPackage(pkg) {
+  return typeof pkg === 'string' && /^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$/.test(pkg);
+}
+
+function extractPackageIdFromUrl(rawUrl) {
+  if (!rawUrl || typeof rawUrl !== 'string') return null;
+  const str = cleanUrlString(rawUrl);
+  if (!str) return null;
+
+  try {
+    if (/^market:\/\/details\?id=([a-zA-Z0-9._]+)/i.test(str)) {
+      const match = str.match(/^market:\/\/details\?id=([a-zA-Z0-9._]+)/i);
+      if (match && isValidAndroidPackage(match[1])) return match[1];
+    }
+    const parsed = new URL(str);
+    // 1. Google Play Store URL: https://play.google.com/store/apps/details?id=...
+    if (/play\.google\.com$/i.test(parsed.hostname) || /market\.android\.com$/i.test(parsed.hostname)) {
+      const id = parsed.searchParams.get('id');
+      if (id && isValidAndroidPackage(id)) return id;
+    }
+    // 2. Query param ?package= or ?package_id= or ?app_id=
+    const pkgParam = parsed.searchParams.get('package') || parsed.searchParams.get('package_id') || parsed.searchParams.get('app_id');
+    if (pkgParam && isValidAndroidPackage(pkgParam)) return pkgParam;
+
+    // 3. Amazon Appstore: amazon.com/gp/mas/dl/android?p=...
+    if (/amazon\.[a-z.]+/i.test(parsed.hostname) && parsed.searchParams.get('p')) {
+      const p = parsed.searchParams.get('p');
+      if (p && isValidAndroidPackage(p)) return p;
+    }
+  } catch (_) {
+    const match = str.match(/[?&]id=([a-zA-Z0-9._]+)/i);
+    if (match && isValidAndroidPackage(match[1])) return match[1];
+  }
+
+  return null;
+}
+
+function launchConfirmationUrl(rawUrl, explicitPackageId = null) {
+  const url = cleanUrlString(rawUrl);
+  if (!url) {
+    if (typeof toast === 'function') {
+      toast('Introduceți un link mai întâi.', 'warning');
+    }
+    const input = document.querySelector('.doc-link-field-group [data-field="confirmation_url"]') || document.getElementById('docUrlInput');
+    input?.focus();
+    return;
+  }
+
+  let finalUrl = url;
+  if (!/^[a-zA-Z0-9._-]+:\/\//i.test(finalUrl)) {
+    finalUrl = 'https://' + finalUrl;
+  }
+
+  const packageId = explicitPackageId || extractPackageIdFromUrl(finalUrl);
+  const platform = detectPlatform();
+
+  if (platform === 'android' && packageId) {
+    // Attempt native app open via Android Intent URL before falling back to the web browser
+    const encodedFallback = encodeURIComponent(finalUrl);
+    const intentUrl = `intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=${packageId};S.browser_fallback_url=${encodedFallback};end`;
+    try {
+      window.location.href = intentUrl;
+    } catch (_) {
+      const a = document.createElement('a');
+      a.href = finalUrl;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+    return;
+  }
+
+  // Normal link or on desktop/iOS: ALWAYS open in a new browser window/tab!
+  try {
+    const win = window.open(finalUrl, '_blank', 'noopener,noreferrer');
+    if (win && !win.closed && typeof win.closed !== 'undefined') {
+      return;
+    }
+  } catch (_) { }
+
+  const a = document.createElement('a');
+  a.href = finalUrl;
+  a.target = '_blank';
+  a.rel = 'noopener noreferrer';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+function handleAppDeepLink(event, packageId, customScheme, webUrl) {
+  if (event && typeof event.preventDefault === 'function') {
+    event.preventDefault();
+  }
+  if (event && typeof event.stopPropagation === 'function') {
+    event.stopPropagation();
+  }
+
+  if (!webUrl) return;
+  launchConfirmationUrl(webUrl, packageId);
+}
+
+if (typeof window !== 'undefined') {
+  window.cleanUrlString = cleanUrlString;
+  window.extractPackageIdFromUrl = extractPackageIdFromUrl;
+  window.launchConfirmationUrl = launchConfirmationUrl;
+  window.handleAppDeepLink = handleAppDeepLink;
+}
+
+function renderConfirmationLinkHTML(rawUrl, rawLabel, options = {}) {
+  const url = cleanUrlString(rawUrl);
+  if (!url || !isValidHttpUrl(url)) return '';
+
+  const label = (rawLabel || '').trim();
+  const displayTitle = esc(label || 'Document link');
+  const safeUrl = esc(url);
+  const packageId = extractPackageIdFromUrl(url);
+
+  const extraClasses = options.extraClasses ? ` ${options.extraClasses}` : '';
+  const pkgAttr = packageId ? ` data-package-id="${esc(packageId)}"` : '';
+
+  return `<a class="strip-chip strip-confirmation confirmation-link${extraClasses}" href="${safeUrl}" target="_blank" rel="noopener noreferrer" data-action="openConfirmationDoc" data-canonical-url="${safeUrl}"${pkgAttr} title="${displayTitle}" aria-label="${displayTitle}"><span class="chip-icon">📑</span>${label ? `<span class="chip-label">${esc(label)}</span>` : ''}</a>`;
+}
+
+function renderAttachmentChipHTML(loc) {
+  if (!loc) return '';
+  const attCount = loc.attachments?.length || 0;
+  const isAdmin = state.role === 'admin';
+
+  if (attCount > 0) {
+    const label = `${attCount} ${attCount === 1 ? 'Attachment' : 'Attachments'}`;
+    return `<button class="strip-chip strip-attachments attachment-count-btn" data-action="viewAttachments" data-id="${esc(loc.id)}" type="button" title="View attachments"><span class="chip-icon">📎</span><span class="chip-label">${label}</span></button>`;
+  }
+
+  if (isAdmin) {
+    return `<button class="strip-chip strip-attachments attachment-count-btn is-empty" data-action="addAttachment" data-id="${esc(loc.id)}" type="button" title="Add attachment"><span class="chip-icon">📎</span><span class="chip-label">+ Attachment</span></button>`;
+  }
+
+  return '';
 }
 
 function renderTimelineView() {
@@ -1782,7 +2073,8 @@ function renderTimelineView() {
       const conflict = conflicts.get(loc.id);
       const isVisited = !!loc.visited;
       const isExcluded = state.mapExcluded.has(loc.id);
-      const excludeBtn = hasValidCoordinates(loc.coordinates) ? `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg></button>` : '';
+      const excludeBtn = `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg></button>`;
+      const navGpsBtn = `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg> <span class="nav-btn-text">Go To</span></button>`;
       const sym = getCurrencySymbol(state.trip?.currency);
 
       // Gap to next item
@@ -1821,26 +2113,26 @@ function renderTimelineView() {
             <div class="timeline-node-dot" style="--node-color:${color}"></div>
             <div class="timeline-node-line"></div>
           </div>
-          <div class="timeline-card" style="--cat-color:${color}">
-            <div class="timeline-card-header">
+          <div class="timeline-card${safecat === 'transport' ? ' is-transport-card' : ''}" style="--cat-color:${color}">
+            <div class="timeline-card-header${safecat === 'transport' ? ' transport-window-bar' : ''}">
               <div class="timeline-card-title-wrap">
                 <div class="timeline-card-title">${CATEGORY_ICONS[safecat]} ${esc(loc.name)}</div>
                 ${loc.address ? `<div class="timeline-card-address">${esc(loc.address)}</div>` : ''}
               </div>
-              <div class="timeline-card-tags">
-                <span class="tag tag-country">${flagHTML(loc.country, loc.country_code)} ${esc(loc.country || '')}</span>
-                ${loc.city ? `<span class="tag tag-city">${esc(loc.city)}</span>` : ''}
+              <div class="meta-strip-place" title="${esc(loc.city ? `${loc.city}, ${loc.country}` : (loc.country || ''))}">
+                <span class="meta-flag-wrap">${flagHTML(loc.country, loc.country_code)}</span>
+                <span class="meta-place-label">${esc((loc.city && loc.city !== 'Unknown') ? loc.city : (loc.country || ''))}</span>
               </div>
             </div>
             ${loc.place_info ? `<div class="place-info-text">${esc(loc.place_info)}</div>` : ''}
             ${conflict ? `<div class="timeline-conflict-alert">⚠️ Schedule conflict: Overlaps by ${conflict.overlapMinutes} min with ${conflict.conflictingWith.map(c => esc(c.name)).join(', ')}</div>` : ''}
             <div class="timeline-card-footer">
               <div class="timeline-chips">
-                <span class="strip-chip strip-cat cat-${safecat}">${CATEGORY_ICONS[safecat]} ${safecat.charAt(0).toUpperCase() + safecat.slice(1)}</span>
+                ${safecat === 'transport' ? '' : `<span class="strip-chip strip-cat cat-${safecat}">${CATEGORY_ICONS[safecat]} ${safecat.charAt(0).toUpperCase() + safecat.slice(1)}</span>`}
                 ${loc.cost > 0 ? `<span class="strip-chip strip-cost">${sym}${loc.cost}</span>` : ''}
                 ${loc.reservation_status ? `<span class="strip-chip strip-booking">${loc.reservation_status === 'confirmed' ? '✓ Confirmed' : 'Reserved'}</span>` : ''}
-                ${loc.paid ? `<span class="strip-chip strip-paid">Paid</span>` : ''}
-                ${loc.attachments?.length ? `<button type="button" class="strip-chip strip-attachments attachment-count-btn" data-action="viewAttachments" data-id="${esc(loc.id)}">📎 ${loc.attachments.length}</button>` : ''}
+                ${renderAttachmentChipHTML(loc)}
+                ${renderConfirmationLinkHTML(loc.confirmation_url, loc.confirmation_label)}
                 ${loc.notes ? `<span class="strip-chip strip-notes" title="${esc(loc.notes)}">${esc(loc.notes)}</span>` : ''}
               </div>
               <div class="timeline-actions">
@@ -1848,6 +2140,7 @@ function renderTimelineView() {
                   <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                 </button>
                 ${excludeBtn}
+                ${navGpsBtn}
                 <button type="button" class="loc-nav-btn timeline-open-btn" data-open-card-modal="${esc(loc.id)}">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                   <span>Details</span>
@@ -1883,12 +2176,20 @@ function renderTimelineView() {
         </div>
       </div>` : '';
 
+    const timeDateFull = fmtDate(day, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const timeDateAbbr = fmtDate(day, { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
+    const timeDateCompact = fmtDate(day, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
     return `
       <div class="timeline-day-block">
         <div class="timeline-day-header">
           <div class="timeline-day-title-wrap">
             <span class="timeline-day-badge">Day ${dayNum}</span>
-            <h2 class="timeline-day-date">${esc(fmtDate(day, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }))}</h2>
+            <h2 class="timeline-day-date" title="${esc(timeDateFull)}">
+              <span class="day-date-full">${esc(timeDateFull)}</span>
+              <span class="day-date-abbr">${esc(timeDateAbbr)}</span>
+              <span class="day-date-compact">${esc(timeDateCompact)}</span>
+            </h2>
           </div>
           <div class="timeline-day-meta">
             ${earliestStart ? `<span class="tmeta-chip">🌅 ${earliestStart} – ${latestEnd}</span>` : ''}
@@ -1936,24 +2237,109 @@ function renderTimelineView() {
   return `<div class="timeline-container">${dayTabs}${daysContent}${unscheduledContent}</div>`;
 }
 
+function bookingStatusBadgeHTML(status) {
+  if (!status) return '';
+  if (status === 'confirmed') {
+    return `<span class="titlebar-status-badge is-confirmed" title="Rezervare confirmată (Confirmed)" aria-label="Confirmed"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM10.5 15.5l-2.5-2.5 1.41-1.41 1.09 1.09 4.09-4.09 1.41 1.41-5.5 5.5z"/></svg></span>`;
+  }
+  if (status === 'reserved') {
+    return `<span class="titlebar-status-badge is-reserved" title="Rezervat / În așteptare (Reserved)" aria-label="Reserved"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zm-7-9c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zm0 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg></span>`;
+  }
+  return '';
+}
+
+function paidStatusBadgeHTML(paid) {
+  if (!paid) return '';
+  return `<span class="titlebar-status-badge is-paid" title="Plătit (Paid)" aria-label="Paid"><svg viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2zm-6 8.5l-2-2 1.41-1.41L14 15.67l3.59-3.59L19 13.5l-5 5z"/></svg></span>`;
+}
+
+function titlebarMetaHTML(loc, sym) {
+  const bookingBadge = bookingStatusBadgeHTML(loc.reservation_status);
+  const paidBadge = paidStatusBadgeHTML(loc.paid);
+  const hasValidCost = loc.cost != null && loc.cost !== '' && !isNaN(Number(loc.cost)) && Number(loc.cost) > 0;
+  const costVal = hasValidCost ? loc.cost : 0;
+  const costChip = `<span class="strip-cost card-title-cost">${sym}${costVal}</span>`;
+  if (!bookingBadge && !paidBadge && !costChip) return '';
+  return `<div class="card-titlebar-meta">${bookingBadge}${paidBadge}${costChip}</div>`;
+}
+
+function checkTimeConflict(loc, allLocs) {
+  if (!loc || !loc.visit_date) return null;
+  const locList = allLocs || state.trip?.locations || [];
+  const dayLocs = locList.filter(l => l.visit_date === loc.visit_date && l.enabled !== false);
+  const dayConflicts = detectScheduleConflicts(dayLocs);
+  return dayConflicts.get(loc.id) || null;
+}
+
+function renderCardSubcardHTML(loc) {
+  const notes = (loc.notes || '').trim();
+  const confirmationLink = renderConfirmationLinkHTML(loc.confirmation_url, loc.confirmation_label);
+  const attachmentChip = renderAttachmentChipHTML(loc);
+  const conflict = checkTimeConflict(loc, state.trip?.locations || []);
+  let conflictChip = '';
+  if (conflict) {
+    const withNames = [...new Set((conflict.conflictingWith || []).map(c => (c.name || '').trim()).filter(Boolean))];
+    const withStr = withNames.join(', ');
+    const chipText = withStr
+      ? `⚠️ Conflict (${conflict.overlapMinutes}m cu ${withStr})`
+      : `⚠️ Conflict (${conflict.overlapMinutes}m)`;
+    const titleText = withStr
+      ? `Schedule conflict: overlaps by ${conflict.overlapMinutes} min with ${withStr}`
+      : `Schedule conflict (${conflict.overlapMinutes} min overlap)`;
+    conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}">${esc(chipText)}</span>`;
+  }
+
+  const notesBlock = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
+  const hasChips = !!(confirmationLink || attachmentChip || conflictChip);
+  const chipsBlock = hasChips ? `<div class="card-info-strip">${confirmationLink}${attachmentChip}${conflictChip}</div>` : '';
+
+  if (!notesBlock && !chipsBlock) return '';
+
+  return `
+    <div class="card-subcard">
+      ${notesBlock}
+      ${chipsBlock}
+    </div>`;
+}
+
+function updateCardSubcard(card, loc) {
+  if (!card) return;
+  const existingSubcard = card.querySelector('.card-subcard');
+  const newSubcardHTML = renderCardSubcardHTML(loc);
+  if (!newSubcardHTML) {
+    existingSubcard?.remove();
+    return;
+  }
+  if (existingSubcard) {
+    const temp = document.createElement('div');
+    temp.innerHTML = newSubcardHTML;
+    const newEl = temp.firstElementChild;
+    existingSubcard.replaceWith(newEl);
+  } else {
+    const actions = card.querySelector('.card-actions');
+    if (actions) {
+      const temp = document.createElement('div');
+      temp.innerHTML = newSubcardHTML;
+      const newEl = temp.firstElementChild;
+      actions.parentNode.insertBefore(newEl, actions);
+    }
+  }
+}
+
 function cardHTML(loc) {
   const safecat = VALID_CATEGORIES.includes(loc.category) ? loc.category : 'other';
   const icon = CATEGORY_ICONS[safecat];
   const enabled = loc.enabled !== false;
   const isAdmin = state.role === 'admin';
   const schedTimes = getScheduleTimes(loc);
-  const timeStr = schedTimes ? ` @ ${schedTimes.start} – ${schedTimes.end}` : (loc.visit_time ? ` @ ${loc.visit_time}` : '');
-  const durationChip = schedTimes ? `<span class="strip-chip strip-time" title="Duration: ${formatDuration(schedTimes.duration)}">⏱️ ${formatDuration(schedTimes.duration)}</span>` : '';
-  const dateStr = loc.visit_date ? fmtDate(loc.visit_date, { day: 'numeric', month: 'short' }) + timeStr : '';
+  const schedDateStr = loc.visit_date ? fmtDate(loc.visit_date, { day: 'numeric', month: 'short' }) : '';
+  const schedTimeRange = schedTimes ? `${schedTimes.start} – ${schedTimes.end}` : (loc.visit_time || '');
+  const durationChip = schedTimes ? `<span class="meta-sched-dur strip-chip strip-time" title="Duration: ${formatDuration(schedTimes.duration)}">⏱️ ${formatDuration(schedTimes.duration)}</span>` : '';
+  const placeName = (loc.city && loc.city !== 'Unknown') ? loc.city : (loc.country || '');
 
-  const dayLocs = loc.visit_date ? (state.trip?.locations || []).filter(l => l.visit_date === loc.visit_date && l.enabled !== false) : [];
-  const dayConflicts = loc.visit_date ? detectScheduleConflicts(dayLocs) : new Map();
-  const conflict = dayConflicts.get(loc.id);
-  const conflictChip = conflict ? `<span class="strip-chip strip-conflict" title="Schedule conflict: overlaps by ${conflict.overlapMinutes} min">⚠️ Conflict (${conflict.overlapMinutes}m)</span>` : '';
-
-  const nameMarkup = isAdmin
-    ? `<input type="text" class="card-name-field" data-field="name" value="${esc(loc.name)}" placeholder="Location name">`
-    : `<span class="card-name-text">${icon} ${esc(loc.name)}</span>`;
+  const titleMarkup = isAdmin
+    ? `<span class="card-name-text">${esc(loc.name)}</span><input type="text" class="card-name-field" data-field="name" value="${esc(loc.name)}" placeholder="Location name">`
+    : `<span class="card-name-text">${esc(loc.name)}</span>`;
 
   const catOptions = VALID_CATEGORIES.map(c =>
     `<option value="${c}"${c === safecat ? ' selected' : ''}>${CATEGORY_ICONS[c]} ${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
@@ -1964,22 +2350,14 @@ function cardHTML(loc) {
 
   const sym = getCurrencySymbol(state.trip?.currency);
 
-  // Info strip — shown when card is collapsed
-  const costChip = (loc.cost > 0) ? `<span class="strip-chip strip-cost">${sym}${loc.cost}</span>` : '';
-  const notesChip = loc.notes ? `<span class="strip-chip strip-notes" title="${esc(loc.notes)}">${esc(loc.notes)}</span>` : '';
-  const addressLine = loc.address ? `<div class="card-address" title="${esc(loc.address)}">${esc(loc.address)}</div>` : '';
-  const bookingChip = loc.reservation_status ? `<span class="strip-chip strip-booking">${loc.reservation_status === 'confirmed' ? '✓ Confirmed' : 'Reserved'}</span>` : '';
-  const paidChip = loc.paid ? '<span class="strip-chip strip-paid">Paid</span>' : '';
-  const attachmentChip = loc.attachments?.length ? `<button class="strip-chip strip-attachments attachment-count-btn" data-action="viewAttachments" type="button">📎 ${loc.attachments.length}</button>` : '';
-  const confirmationUrl = safeExternalUrl(loc.confirmation_url);
-  const confirmationLink = confirmationUrl ? `<a class="confirmation-link" href="${confirmationUrl}" target="_blank" rel="noopener">Confirmation document</a>` : '';
+  const addressLine = loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '';
 
-  // Nav buttons in card-actions (with text label)
-  const mapsBtn = mapsHref ? `<a href="${mapsHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn" title="Open in Maps"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg> Maps</a>` : '';
-  const wazeBtn = wazeHref ? `<a href="${wazeHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn waze" title="Waze"><svg viewBox="0 0 24 24"><path d="M12 2a9 9 0 0 1 9 9c0 3.5-2 6.6-4.9 8.2L15 21l-3 1-3-1-.1-1.8C6 18.6 4 15.5 4 12a9 9 0 0 1 8-8.94V2zm0 2a7 7 0 1 0 0 14A7 7 0 0 0 12 4zm-1 3h2v5.5l3.2 1.9-1 1.7L11 14V7z"/></svg> Waze</a>` : '';
-  const navGpsBtn = hasValidCoordinates(loc.coordinates) ? `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg> Go To</button>` : '';
+  // Nav buttons in card-actions (dynamic responsive text/icon)
+  const mapsBtn = mapsHref ? `<a href="${mapsHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn maps-btn" title="Open in Maps"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg><span class="nav-btn-text">Maps</span></a>` : '';
+  const wazeBtn = wazeHref ? `<a href="${wazeHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn waze-btn waze" title="Waze"><svg viewBox="0 0 24 24"><path d="M12 2a9 9 0 0 1 9 9c0 3.5-2 6.6-4.9 8.2L15 21l-3 1-3-1-.1-1.8C6 18.6 4 15.5 4 12a9 9 0 0 1 8-8.94V2zm0 2a7 7 0 1 0 0 14A7 7 0 0 0 12 4zm-1 3h2v5.5l3.2 1.9-1 1.7L11 14V7z"/></svg><span class="nav-btn-text">Waze</span></a>` : '';
+  const navGpsBtn = `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg><span class="nav-btn-text">Go To</span></button>`;
   const isExcluded = !!(loc.excluded || state.mapExcluded.has(loc.id));
-  const excludeBtn = hasValidCoordinates(loc.coordinates) ? `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg></button>` : '';
+  const excludeBtn = `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg></button>`;
   const topButtons = isAdmin ? `
     <div class="card-btns-top">
       <button class="card-icon-btn${loc.visited ? ' done-active' : ''}" data-action="markVisited" title="${loc.visited ? 'Marchează ca nefăcut' : 'Marchează ca făcut'}">
@@ -2063,9 +2441,18 @@ function cardHTML(loc) {
         <label class="field-label">Notes</label>
         <textarea class="field-textarea" data-field="notes" placeholder="Add notes, booking refs…">${esc(loc.notes || '')}</textarea>
       </div>
-      <div class="field-group full-width">
-        <label class="field-label">Confirmation / document link</label>
-        <input type="url" class="field-input" data-field="confirmation_url" value="${esc(loc.confirmation_url || '')}" placeholder="https://…">
+      <div class="field-group full-width doc-link-field-group">
+        <div class="doc-link-header-row">
+          <label class="field-label">Confirmation / document link</label>
+          <div class="doc-label-input-wrap">
+            <span class="doc-label-prefix">Label:</span>
+            <input type="text" class="field-input doc-label-input" data-field="confirmation_label" value="${esc(loc.confirmation_label || '')}" placeholder="e.g. Bilete, Voucher…">
+          </div>
+        </div>
+        <div class="doc-link-input-wrapper">
+          <input type="url" id="docUrlInput" class="field-input" data-field="confirmation_url" value="${esc(loc.confirmation_url || '')}" placeholder="https://…">
+          <button type="button" class="btn-secondary" id="openAppBtn" data-action="openDocLink">Deschide</button>
+        </div>
       </div>
       <div class="field-group full-width">
         <label class="field-label">Attachments</label>
@@ -2090,38 +2477,35 @@ function cardHTML(loc) {
     </div>` : '';
 
   return `
-    <div class="location-card${enabled ? '' : ' disabled'}${loc.visited ? ' row-visited' : ''}${isExcluded ? ' card-excluded' : ''}" data-id="${esc(loc.id)}">
-      <div class="card-accent-bar ${safecat}"></div>
+    <div class="location-card${enabled ? '' : ' disabled'}${loc.visited ? ' row-visited' : ''}${isExcluded ? ' card-excluded' : ''}" data-id="${esc(loc.id)}" style="--cat-color: var(--cat-${safecat});">
+      <div class="card-window-titlebar">
+        <span class="window-titlebar-icon">${icon}</span>
+        <div class="card-name window-titlebar-title">${titleMarkup}</div>
+        ${titlebarMetaHTML(loc, sym)}
+      </div>
       <div class="card-body">
-        <div class="card-header-row">
-          <div class="card-name-area">
-            <div class="card-name">${nameMarkup}</div>
-            ${addressLine}
-            <div class="card-meta-row">
-              <div class="card-location">
-                <span class="tag tag-country">${flagHTML(loc.country, loc.country_code)} ${esc(loc.country)}</span>
-                ${loc.city && loc.city !== 'Unknown' ? `<span class="tag tag-city">${esc(loc.city)}</span>` : ''}
-              </div>
-              ${dateStr ? `<span class="tag tag-date">${dateStr}</span>` : ''}
-            </div>
+        <div class="card-meta-strip">
+          <div class="meta-strip-place${loc.address ? ' has-address address-expanded is-open' : ''}"${loc.address ? ' data-action="toggleAddress" role="button" tabindex="0" aria-expanded="true"' : ''} title="${esc(loc.city ? `${loc.city}, ${loc.country}` : (loc.country || ''))}${loc.address ? ' • Apasă pentru a ascunde adresa' : ''}">
+            <span class="meta-flag-wrap">${flagHTML(loc.country, loc.country_code)}</span>
+            <span class="meta-place-label">${esc(placeName)}</span>
+            ${loc.address ? '<span class="meta-address-toggle-icon" title="Apasă pentru a ascunde adresa"></span>' : ''}
           </div>
+          ${(loc.visit_date || durationChip) ? `
+          <div class="meta-strip-schedule">
+            ${loc.visit_date ? `
+            <span class="meta-sched-icon">🗓️</span>
+            <span class="meta-sched-date">${schedDateStr}</span>
+            ${schedTimeRange ? `<span class="meta-sched-divider">·</span><span class="meta-sched-time">${schedTimeRange}</span>` : ''}
+            ` : ''}
+            ${durationChip ? `${loc.visit_date ? '<span class="meta-sched-divider">·</span>' : ''}${durationChip}` : ''}
+          </div>` : ''}
         </div>
+        ${addressLine}
         ${loc.place_info ? `<div class="place-info-text">${esc(loc.place_info)}</div>` : ''}
-        ${confirmationLink}
-        <div class="card-info-strip">
-          <span class="strip-chip strip-cat cat-${safecat}">${icon} ${safecat.charAt(0).toUpperCase() + safecat.slice(1)}</span>
-          ${durationChip}
-          ${costChip}
-          ${bookingChip}
-          ${paidChip}
-          ${attachmentChip}
-          ${notesChip}
-          ${conflictChip}
-          <!-- ${!loc.place_info && mapsHref ? `<button class="strip-chip strip-fetch" data-action="fetchInfo" title="Caută detalii pe Google Maps în română">🔍 Caută detalii</button>` : ''} -->
-        </div>
+        ${renderCardSubcardHTML(loc)}
         <div class="card-actions">
           ${topButtons}
-          ${(mapsBtn || wazeBtn || navGpsBtn || excludeBtn) ? `<div class="card-nav-btns">${mapsBtn}${wazeBtn}${navGpsBtn}${excludeBtn}</div>` : ''}
+          ${(mapsBtn || wazeBtn || navGpsBtn || excludeBtn) ? `<div class="card-nav-btns">${excludeBtn}${mapsBtn}${wazeBtn}${navGpsBtn}</div>` : ''}
         </div>
         ${cardFields}
       </div>
@@ -2192,9 +2576,12 @@ function renderTableView() {
           <input type="url" class="tbl-input" data-field="google_maps_url" value="${esc(loc.google_maps_url || '')}" placeholder="https://…">
         </td>
         <td class="td-actions td-ctrl">
-          ${hasValidCoordinates(loc.coordinates) ? `<button type="button" class="card-icon-btn exclude-route-btn${(loc.excluded || state.mapExcluded.has(loc.id)) ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${(loc.excluded || state.mapExcluded.has(loc.id)) ? 'Include în traseu' : 'Exclude din traseu'}">
+          <button type="button" class="card-icon-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)">
+            <svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg>
+          </button>
+          <button type="button" class="card-icon-btn exclude-route-btn${(loc.excluded || state.mapExcluded.has(loc.id)) ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${(loc.excluded || state.mapExcluded.has(loc.id)) ? 'Include în traseu' : 'Exclude din traseu'}">
             <svg viewBox="0 0 24 24">${(loc.excluded || state.mapExcluded.has(loc.id)) ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg>
-          </button>` : ''}
+          </button>
           <button class="card-icon-btn delete" data-action="delete" title="Remove">
             <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
           </button>
@@ -2234,13 +2621,209 @@ function emptyStateHTML(title, text) {
   </div>`;
 }
 
-function applySingleColMode() {
-  document.body.classList.toggle('single-col-cards', !!state.singleCol);
-  const toggle = document.getElementById('singleColToggle');
-  if (toggle && toggle.checked !== !!state.singleCol) {
-    toggle.checked = !!state.singleCol;
+function isNarrowViewport() {
+  return typeof window !== 'undefined' && window.innerWidth <= 600;
+}
+
+function getMaxCardsPerRow() {
+  if (typeof window === 'undefined') return 4;
+  const width = window.innerWidth;
+  // Dynamic maximum based on resolution:
+  // Phones (< 700px): max 1
+  // Tablets / Fold inner (700px - 1099px): max 2
+  // Laptop / medium desktop (1100px - 1549px): max 3
+  // Full HD 1920x1080 (1550px - 2099px): max 4 (5 is explicitly too many on 1920x1080)
+  // QHD / 4K / Ultrawide (>= 2100px): max 5
+  if (width < 700) return 1;
+  if (width < 1100) return 2;
+  if (width < 1550) return 3;
+  if (width < 2100) return 4;
+  return 5;
+}
+
+function updateCardsPerRowOptions() {
+  const max = getMaxCardsPerRow();
+  const selects = [
+    document.getElementById('cardsPerRowSelect'),
+    document.getElementById('cardsPerRowSelectMobile')
+  ];
+
+  selects.forEach(sel => {
+    if (!sel) return;
+    const currentVal = parseInt(sel.value || state.cardsPerRow || '3', 10);
+
+    let html = '';
+    for (let i = 1; i <= max; i++) {
+      const label = i === 1 ? '1 card / rând' : `${i} carduri / rând`;
+      html += `<option value="${i}">${label}</option>`;
+    }
+    sel.innerHTML = html;
+
+    const clamped = Math.min(Math.max(1, currentVal), max);
+    sel.value = String(clamped);
+  });
+}
+
+function equalizeCardHeights() {
+  if (typeof window === 'undefined') return;
+  const mainContent = document.getElementById('mainContent');
+  if (!mainContent) return;
+
+  const cards = mainContent.querySelectorAll('.location-card:not(.editing)');
+  if (!cards.length || window.innerWidth <= 600) {
+    document.documentElement.style.removeProperty('--card-uniform-height');
+    return;
+  }
+
+  // Temporarily reset property so we can measure natural heights
+  document.documentElement.style.setProperty('--card-uniform-height', 'auto');
+
+  let maxHeight = 0;
+  for (let i = 0; i < cards.length; i++) {
+    const h = cards[i].offsetHeight;
+    if (h > maxHeight) maxHeight = h;
+  }
+
+  if (maxHeight > 0) {
+    const targetHeight = Math.max(maxHeight, 175);
+    document.documentElement.style.setProperty('--card-uniform-height', `${targetHeight}px`);
   }
 }
+
+let _equalizeRaf = null;
+function scheduleEqualizeCardHeights() {
+  if (typeof window === 'undefined') return;
+  cancelAnimationFrame(_equalizeRaf);
+  _equalizeRaf = requestAnimationFrame(() => {
+    equalizeCardHeights();
+  });
+}
+
+function applyCardsPerRowMode() {
+  const isNarrow = isNarrowViewport();
+  const maxAllowed = getMaxCardsPerRow();
+
+  updateCardsPerRowOptions();
+
+  let targetCols = state.cardsPerRow;
+  if (!targetCols || isNaN(targetCols)) {
+    targetCols = isNarrow ? 1 : Math.min(3, maxAllowed);
+    if (state.singleCol) targetCols = 1;
+  }
+
+  const effectiveCols = isNarrow ? 1 : Math.min(Math.max(1, targetCols), maxAllowed);
+  state.singleCol = (effectiveCols === 1);
+
+  document.documentElement.style.setProperty('--cards-per-row', effectiveCols);
+  document.body.setAttribute('data-cards-per-row', effectiveCols);
+
+  const isSingle = isNarrow || (effectiveCols === 1);
+  document.body.classList.toggle('single-col-cards', isSingle);
+
+  const select = document.getElementById('cardsPerRowSelect');
+  if (select && select.value !== String(effectiveCols)) {
+    select.value = String(effectiveCols);
+  }
+  const selectMob = document.getElementById('cardsPerRowSelectMobile');
+  if (selectMob && selectMob.value !== String(effectiveCols)) {
+    selectMob.value = String(effectiveCols);
+  }
+  const toggle = document.getElementById('singleColToggle');
+  if (toggle) toggle.checked = isSingle;
+  const toggleMobile = document.getElementById('singleColToggleMobile');
+  if (toggleMobile) toggleMobile.checked = isSingle;
+
+  const rowMobile = document.getElementById('singleColToggleRowMobile') || toggleMobile?.closest('label');
+  if (rowMobile) {
+    rowMobile.style.display = isNarrow ? 'none' : '';
+  }
+  const modalRow = document.getElementById('cardsPerRowModalGroup');
+  if (modalRow) {
+    modalRow.style.display = isNarrow ? 'none' : '';
+  }
+
+  scheduleEqualizeCardHeights();
+}
+
+function applySingleColMode() {
+  applyCardsPerRowMode();
+}
+
+// Mobile filter active dot indicator
+function updateFilterActiveDot() {
+  const isNarrow = isNarrowViewport();
+  const isFiltered = (state.filter.category && state.filter.category !== 'all') ||
+    (state.filter.country && state.filter.country !== 'all') ||
+    (state.sortBy && state.sortBy !== 'added') ||
+    Boolean(state.hideVisited) ||
+    (!isNarrow && (Boolean(state.singleCol) || (state.cardsPerRow && state.cardsPerRow !== 3)));
+  const dot = document.getElementById('filterActiveDot');
+  if (dot) dot.style.display = isFiltered ? 'inline-block' : 'none';
+}
+
+// Narrow mobile nav Views toggle cycle
+const NARROW_DAYS_CYCLE = [
+  {
+    view: 'day',
+    label: 'Days',
+    svg: '<path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zM5 8V6h14v2H5z" />'
+  },
+  {
+    view: 'country',
+    label: 'Countries',
+    svg: '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />'
+  },
+  {
+    view: 'table',
+    label: 'Table',
+    svg: '<path d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4-8h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />'
+  }
+];
+
+function updateControlsBarHeight() {
+  const cb = document.querySelector('.controls-bar');
+  if (cb && cb.offsetHeight > 0) {
+    document.documentElement.style.setProperty('--controls-bar-h', `${cb.offsetHeight}px`);
+  }
+}
+
+function updateDaysToggleLabel() {
+  const nav = document.getElementById('mobileNav');
+  if (!nav) return;
+  nav.querySelectorAll('.mnav-btn[data-view]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === state.view);
+  });
+  const activeBtn = nav.querySelector(`.mnav-btn[data-view="${state.view}"]`);
+  if (activeBtn) {
+    try {
+      activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    } catch (_) { }
+  }
+}
+
+function updateAddBtnText() {
+  const addBtn = document.getElementById('addBtn');
+  if (!addBtn) return;
+  const textEl = addBtn.querySelector('.menu-btn-text');
+  if (!textEl) return;
+  const isNarrow = window.innerWidth <= 480;
+  textEl.textContent = isNarrow ? '+' : 'Add';
+}
+
+function updateNarrowMobileNav() {
+  if (state.view === 'list' && isNarrowScreen()) {
+    state.view = 'day';
+    savePrefs({ view: 'day' });
+    document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
+    document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
+    renderMain();
+  }
+  updateAddBtnText();
+  updateControlsBarHeight();
+  updateDaysToggleLabel();
+}
+window.updateNarrowMobileNav = updateNarrowMobileNav;
+window.updateAddBtnText = updateAddBtnText;
 
 // ============================================================
 // EVENT HANDLERS
@@ -2254,7 +2837,10 @@ function bindEvents() {
     document.getElementById('saveBtn')?.remove();
     document.getElementById('backupBtn')?.remove();
     document.getElementById('clearAllBtn')?.remove();
-    document.querySelectorAll('.edit-btn, .duplicate-btn, .delete').forEach(el => el.remove());
+    document.getElementById('modalAddAttachmentBtn')?.remove();
+    document.getElementById('modalDeleteAttachmentBtn')?.remove();
+    document.getElementById('genericDocEmptyAddBtn')?.remove();
+    document.querySelectorAll('.edit-btn, .duplicate-btn, .delete, .attachment-add-btn').forEach(el => el.remove());
     const tripNameInput = document.getElementById('tripNameInput');
     if (tripNameInput) {
       tripNameInput.readOnly = true;
@@ -2269,8 +2855,97 @@ function bindEvents() {
     window.location.href = '/logout';
   });
 
+  // Admin Login Modal (under /user in hamburger menu)
+  const adminPasswordModal = document.getElementById('adminPasswordModal');
+  const adminPasswordInput = document.getElementById('adminPasswordInput');
+  const adminPasswordError = document.getElementById('adminPasswordError');
+
+  const openAdminPasswordModal = () => {
+    if (!adminPasswordModal) return;
+    if (adminPasswordInput) adminPasswordInput.value = '';
+    if (adminPasswordError) {
+      adminPasswordError.style.display = 'none';
+      adminPasswordError.textContent = '';
+    }
+    adminPasswordModal.classList.add('open');
+    setTimeout(() => adminPasswordInput?.focus(), 50);
+  };
+
+  const closeAdminPasswordModal = () => {
+    adminPasswordModal?.classList.remove('open');
+    if (adminPasswordInput) adminPasswordInput.value = '';
+    if (adminPasswordError) {
+      adminPasswordError.style.display = 'none';
+      adminPasswordError.textContent = '';
+    }
+  };
+
+  document.getElementById('adminLoginBtn')?.addEventListener('click', () => {
+    closeHamburgerMenu();
+    openAdminPasswordModal();
+  });
+
+  document.getElementById('closeAdminPasswordModal')?.addEventListener('click', closeAdminPasswordModal);
+  document.getElementById('cancelAdminPasswordBtn')?.addEventListener('click', closeAdminPasswordModal);
+  adminPasswordModal?.addEventListener('click', e => {
+    if (e.target === adminPasswordModal) closeAdminPasswordModal();
+  });
+
+  const submitAdminLogin = async () => {
+    const password = (adminPasswordInput?.value || '').trim();
+    if (!password) {
+      if (adminPasswordError) {
+        adminPasswordError.textContent = 'Introduceți parola.';
+        adminPasswordError.style.display = 'block';
+      }
+      return;
+    }
+    const submitBtn = document.getElementById('submitAdminPasswordBtn');
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const res = await fetch('/loginadmin', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ password })
+      });
+      if (res.ok) {
+        window.location.href = '/admin';
+      } else {
+        const data = await res.json().catch(() => ({}));
+        if (adminPasswordError) {
+          adminPasswordError.textContent = data.error || 'Parola este incorectă.';
+          adminPasswordError.style.display = 'block';
+        }
+        if (adminPasswordInput) {
+          adminPasswordInput.value = '';
+          adminPasswordInput.focus();
+        }
+      }
+    } catch (_) {
+      if (adminPasswordError) {
+        adminPasswordError.textContent = 'Eroare de rețea. Încercați din nou.';
+        adminPasswordError.style.display = 'block';
+      }
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  };
+
+  document.getElementById('adminPasswordForm')?.addEventListener('submit', e => {
+    e.preventDefault();
+    submitAdminLogin();
+  });
+
   const mobileMenuButton = document.getElementById('mobileMenuBtn');
   const appHeader = document.querySelector('.app-header');
+  const closeHamburgerMenu = () => {
+    appHeader?.classList.remove('mobile-menu-open');
+    mobileMenuButton?.setAttribute('aria-expanded', 'false');
+    if (mobileMenuButton) mobileMenuButton.textContent = '☰';
+  };
   mobileMenuButton?.addEventListener('click', event => {
     event.stopPropagation();
     const open = appHeader?.classList.toggle('mobile-menu-open');
@@ -2279,9 +2954,12 @@ function bindEvents() {
   });
   document.addEventListener('click', event => {
     if (!appHeader?.classList.contains('mobile-menu-open') || event.target.closest('.app-header')) return;
-    appHeader.classList.remove('mobile-menu-open');
-    mobileMenuButton?.setAttribute('aria-expanded', 'false');
-    if (mobileMenuButton) mobileMenuButton.textContent = '☰';
+    closeHamburgerMenu();
+  });
+  document.querySelectorAll('.header-actions .menu-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeHamburgerMenu();
+    });
   });
 
   const closeNotifications = () => document.getElementById('notificationsModal')?.classList.remove('open');
@@ -2298,13 +2976,48 @@ function bindEvents() {
   const locationModalEl = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
   locationModalEl?.addEventListener('click', event => {
     if (event.target === locationModalEl) closeLocationModal();
-    else if (event.target.closest('[data-action]')) handleCardClick(event);
+    else if (event.target.closest('[data-action], .confirmation-link')) handleCardClick(event);
   });
   const locationModalBodyEl = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
   locationModalBodyEl?.addEventListener('change', handleCardChange);
 
-  // Global delegation for opening location card in modal
+  const handleNameInput = e => {
+    if (e.target.dataset?.field === 'name') {
+      const card = e.target.closest('[data-id]');
+      if (card) {
+        const textEl = card.querySelector('.card-name-text');
+        if (textEl) {
+          textEl.textContent = e.target.value || '';
+        }
+      }
+    }
+  };
+  locationModalBodyEl?.addEventListener('input', handleNameInput);
+
+  // Global delegation for opening location card in modal or launching confirmation links
   document.addEventListener('click', event => {
+    const docBtn = event.target.closest('[data-action="openDocLink"], #openAppBtn');
+    if (docBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const group = docBtn.closest('.doc-link-field-group');
+      const input = group?.querySelector('[data-field="confirmation_url"]') || document.getElementById('docUrlInput');
+      const rawUrl = input ? input.value : '';
+      launchConfirmationUrl(rawUrl);
+      return;
+    }
+    const confLink = event.target.closest('.confirmation-link, [data-action="openConfirmationDoc"]');
+    if (confLink && !confLink.closest('#mainContent') && !confLink.closest('#locationModal') && !confLink.closest('#notificationLocationModal')) {
+      handleCardClick(event);
+      return;
+    }
+    const countryBadge = event.target.closest('[data-action="goToCountry"], .country-badge');
+    if (countryBadge) {
+      event.preventDefault();
+      const country = countryBadge.dataset.country;
+      if (country) navigateToCountry(country);
+      return;
+    }
     const cardBtn = event.target.closest('[data-open-card-modal]');
     if (cardBtn && cardBtn.dataset.openCardModal) {
       event.preventDefault();
@@ -2463,11 +3176,17 @@ function bindEvents() {
     }
   });
 
+  window.addEventListener('resize', updateNarrowMobileNav);
+  window.addEventListener('orientationchange', updateNarrowMobileNav);
+
   // View tabs (both desktop tabs and mobile nav)
   document.querySelectorAll('[data-view]').forEach(btn => {
     btn.addEventListener('click', () => {
-      const v = btn.dataset.view;
+      let v = btn.dataset.view;
       if (!v) return;
+      if (v === 'list' && isNarrowScreen()) {
+        v = 'day';
+      }
       if (v !== 'map') {
         exitMapFullscreen();
       }
@@ -2476,6 +3195,8 @@ function bindEvents() {
       document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === v));
       document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === v));
       renderMain();
+      updateControlsBarHeight();
+      updateDaysToggleLabel();
     });
   });
 
@@ -2486,31 +3207,196 @@ function bindEvents() {
     searchTimer = setTimeout(() => { state.filter.search = e.target.value; renderMain(); }, 220);
   });
 
-  // Filters
-  document.getElementById('categoryFilter')?.addEventListener('change', e => { state.filter.category = e.target.value; renderMain(); });
-  document.getElementById('countryFilter')?.addEventListener('change', e => { state.filter.country = e.target.value; renderMain(); });
-  document.getElementById('sortSelect')?.addEventListener('change', e => { state.sortBy = e.target.value; savePrefs({ sortBy: e.target.value }); renderMain(); });
-  document.getElementById('showDisabled')?.addEventListener('change', e => { state.filter.showDisabled = e.target.checked; renderMain(); });
+
+  // Filters (Desktop)
+  document.getElementById('categoryFilter')?.addEventListener('change', e => {
+    state.filter.category = e.target.value;
+    updateFilterActiveDot();
+    renderMain();
+  });
+  document.getElementById('countryFilter')?.addEventListener('change', e => {
+    state.filter.country = e.target.value;
+    updateFilterActiveDot();
+    renderMain();
+  });
+  document.getElementById('sortSelect')?.addEventListener('change', e => {
+    state.sortBy = e.target.value;
+    savePrefs({ sortBy: e.target.value });
+    updateFilterActiveDot();
+    renderMain();
+  });
+  document.getElementById('showDisabled')?.addEventListener('change', e => {
+    state.filter.showDisabled = e.target.checked;
+    renderMain();
+  });
   document.getElementById('hideVisited')?.addEventListener('change', e => {
     state.hideVisited = e.target.checked;
     savePrefs({ hideVisited: e.target.checked });
+    updateFilterActiveDot();
+    renderMain();
+  });
+  document.getElementById('cardsPerRowSelect')?.addEventListener('change', e => {
+    const val = parseInt(e.target.value, 10);
+    state.cardsPerRow = val;
+    state.singleCol = (val === 1);
+    savePrefs({ cardsPerRow: val, singleCol: state.singleCol });
+    updateFilterActiveDot();
+    applyCardsPerRowMode();
+    renderMain();
+  });
+  document.getElementById('cardsPerRowSelectMobile')?.addEventListener('change', e => {
+    const val = parseInt(e.target.value, 10);
+    state.cardsPerRow = val;
+    state.singleCol = (val === 1);
+    savePrefs({ cardsPerRow: val, singleCol: state.singleCol });
+    updateFilterActiveDot();
+    applyCardsPerRowMode();
     renderMain();
   });
   document.getElementById('singleColToggle')?.addEventListener('change', e => {
     state.singleCol = e.target.checked;
-    savePrefs({ singleCol: e.target.checked });
-    applySingleColMode();
+    state.cardsPerRow = e.target.checked ? 1 : 3;
+    savePrefs({ singleCol: e.target.checked, cardsPerRow: state.cardsPerRow });
+    updateFilterActiveDot();
+    applyCardsPerRowMode();
+    renderMain();
   });
 
-  // Responsive fold/unfold detection for Galaxy Z Fold and foldables (if user hasn't overridden preference)
-  window.addEventListener('resize', () => {
-    if (_prefs.singleCol === undefined && typeof window !== 'undefined') {
-      const isFoldInner = window.innerWidth >= 600 && window.innerWidth <= 960;
-      if (state.singleCol !== isFoldInner) {
-        state.singleCol = isFoldInner;
-        applySingleColMode();
+  // Mobile Filter Modal Logic
+  const filterModal = document.getElementById('filterModal');
+  const openFilterModalBtn = document.getElementById('openFilterModalBtn');
+  const closeFilterModal = document.getElementById('closeFilterModal');
+  const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+  const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+
+  function syncFiltersToMobileModal() {
+    const catMob = document.getElementById('categoryFilterMobile');
+    if (catMob) catMob.value = state.filter.category || 'all';
+    const countryMob = document.getElementById('countryFilterMobile');
+    if (countryMob) countryMob.value = state.filter.country || 'all';
+    const sortMob = document.getElementById('sortSelectMobile');
+    if (sortMob) sortMob.value = state.sortBy || 'added';
+    const hvMob = document.getElementById('hideVisitedMobile');
+    if (hvMob) hvMob.checked = Boolean(state.hideVisited);
+    const isNarrow = isNarrowViewport();
+    const scMob = document.getElementById('singleColToggleMobile');
+    if (scMob) scMob.checked = isNarrow || Boolean(state.singleCol);
+    const scRowMob = document.getElementById('singleColToggleRowMobile') || scMob?.closest('label');
+    if (scRowMob) scRowMob.style.display = isNarrow ? 'none' : '';
+    const cpMob = document.getElementById('cardsPerRowSelectMobile');
+    if (cpMob) {
+      updateCardsPerRowOptions();
+      cpMob.value = String(state.cardsPerRow || (state.singleCol ? 1 : Math.min(2, getMaxCardsPerRow())));
+    }
+    const cpGroup = document.getElementById('cardsPerRowModalGroup');
+    if (cpGroup) cpGroup.style.display = isNarrow ? 'none' : '';
+  }
+
+  const closeFilterModalFn = () => filterModal?.classList.remove('open');
+
+  openFilterModalBtn?.addEventListener('click', () => {
+    syncFiltersToMobileModal();
+    filterModal?.classList.add('open');
+  });
+
+  closeFilterModal?.addEventListener('click', closeFilterModalFn);
+  filterModal?.addEventListener('click', e => {
+    if (e.target.id === 'filterModal') closeFilterModalFn();
+  });
+
+  applyFiltersBtn?.addEventListener('click', () => {
+    const catMob = document.getElementById('categoryFilterMobile');
+    if (catMob) {
+      state.filter.category = catMob.value;
+      const dCat = document.getElementById('categoryFilter');
+      if (dCat) dCat.value = catMob.value;
+    }
+    const countryMob = document.getElementById('countryFilterMobile');
+    if (countryMob) {
+      state.filter.country = countryMob.value;
+      const dCountry = document.getElementById('countryFilter');
+      if (dCountry) dCountry.value = countryMob.value;
+    }
+    const sortMob = document.getElementById('sortSelectMobile');
+    if (sortMob) {
+      state.sortBy = sortMob.value;
+      savePrefs({ sortBy: sortMob.value });
+      const dSort = document.getElementById('sortSelect');
+      if (dSort) dSort.value = sortMob.value;
+    }
+    const hvMob = document.getElementById('hideVisitedMobile');
+    if (hvMob) {
+      state.hideVisited = hvMob.checked;
+      savePrefs({ hideVisited: hvMob.checked });
+      const dHv = document.getElementById('hideVisited');
+      if (dHv) dHv.checked = hvMob.checked;
+    }
+    const scMob = document.getElementById('singleColToggleMobile');
+    if (scMob) {
+      state.singleCol = scMob.checked;
+      if (scMob.checked) state.cardsPerRow = 1;
+      savePrefs({ singleCol: scMob.checked, cardsPerRow: state.cardsPerRow });
+      const dSc = document.getElementById('singleColToggle');
+      if (dSc) dSc.checked = scMob.checked;
+    }
+    const cpMob = document.getElementById('cardsPerRowSelectMobile');
+    if (cpMob) {
+      const val = parseInt(cpMob.value, 10);
+      if (!isNaN(val)) {
+        state.cardsPerRow = val;
+        state.singleCol = (val === 1);
+        savePrefs({ cardsPerRow: val, singleCol: state.singleCol });
+        const dCp = document.getElementById('cardsPerRowSelect');
+        if (dCp) dCp.value = String(val);
       }
     }
+    applyCardsPerRowMode();
+    updateFilterActiveDot();
+    closeFilterModalFn();
+    renderMain();
+  });
+
+  resetFiltersBtn?.addEventListener('click', () => {
+    state.filter.category = 'all';
+    state.filter.country = 'all';
+    state.sortBy = 'added';
+    state.hideVisited = false;
+    state.cardsPerRow = Math.min(3, getMaxCardsPerRow());
+    state.singleCol = false;
+    savePrefs({ sortBy: 'added', hideVisited: false, cardsPerRow: state.cardsPerRow, singleCol: false });
+
+    const catMob = document.getElementById('categoryFilterMobile');
+    if (catMob) catMob.value = 'all';
+    const countryMob = document.getElementById('countryFilterMobile');
+    if (countryMob) countryMob.value = 'all';
+    const sortMob = document.getElementById('sortSelectMobile');
+    if (sortMob) sortMob.value = 'added';
+    const hvMob = document.getElementById('hideVisitedMobile');
+    if (hvMob) hvMob.checked = false;
+
+    const dCat = document.getElementById('categoryFilter');
+    if (dCat) dCat.value = 'all';
+    const dCountry = document.getElementById('countryFilter');
+    if (dCountry) dCountry.value = 'all';
+    const dSort = document.getElementById('sortSelect');
+    if (dSort) dSort.value = 'added';
+    const dHv = document.getElementById('hideVisited');
+    if (dHv) dHv.checked = false;
+
+    applyCardsPerRowMode();
+    updateFilterActiveDot();
+    closeFilterModalFn();
+    renderMain();
+  });
+
+  // Responsive fold/unfold and narrow viewport detection
+  let resizeTimer = null;
+  window.addEventListener('resize', () => {
+    applyCardsPerRowMode();
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      scheduleEqualizeCardHeights();
+    }, 60);
   });
 
   // Trip name
@@ -2925,7 +3811,7 @@ function bindEvents() {
     if (isImgPanning) {
       isImgPanning = false;
       imgViewerContainer?.classList.remove('is-panning');
-      try { imgViewerContainer?.releasePointerCapture(panPointerId); } catch (_) {}
+      try { imgViewerContainer?.releasePointerCapture(panPointerId); } catch (_) { }
       panPointerId = null;
     }
   };
@@ -3040,7 +3926,7 @@ function bindEvents() {
 
     imgViewerContainer.classList.add('is-panning');
     if (imgViewerElement) imgViewerElement.style.transition = 'none';
-    try { imgViewerContainer.setPointerCapture(e.pointerId); } catch (_) {}
+    try { imgViewerContainer.setPointerCapture(e.pointerId); } catch (_) { }
   });
 
   imgViewerContainer?.addEventListener('pointermove', (e) => {
@@ -3062,7 +3948,7 @@ function bindEvents() {
     if (!isImgPanning) return;
     isImgPanning = false;
     imgViewerContainer?.classList.remove('is-panning');
-    try { imgViewerContainer?.releasePointerCapture(panPointerId); } catch (_) {}
+    try { imgViewerContainer?.releasePointerCapture(panPointerId); } catch (_) { }
     panPointerId = null;
   };
   imgViewerContainer?.addEventListener('pointerup', stopImgPan);
@@ -3087,7 +3973,7 @@ function bindEvents() {
       pdfPanStartScrollLeft = pdfViewerCanvasContainer.scrollLeft;
       pdfPanStartScrollTop = pdfViewerCanvasContainer.scrollTop;
       pdfViewerCanvasContainer.style.cursor = 'grabbing';
-      try { pdfViewerCanvasContainer.setPointerCapture(e.pointerId); } catch (_) {}
+      try { pdfViewerCanvasContainer.setPointerCapture(e.pointerId); } catch (_) { }
     }
   });
 
@@ -3104,7 +3990,7 @@ function bindEvents() {
     if (!isPdfPanning) return;
     isPdfPanning = false;
     if (pdfViewerCanvasContainer) pdfViewerCanvasContainer.style.cursor = '';
-    try { pdfViewerCanvasContainer?.releasePointerCapture(pdfPanPointerId); } catch (_) {}
+    try { pdfViewerCanvasContainer?.releasePointerCapture(pdfPanPointerId); } catch (_) { }
     pdfPanPointerId = null;
   };
   pdfViewerCanvasContainer?.addEventListener('pointerup', stopPdfPan);
@@ -3141,7 +4027,7 @@ function bindEvents() {
         const d = await res.json();
         token = d.token || '';
       }
-    } catch (_) {}
+    } catch (_) { }
 
     const tokenParam = token ? `?token=${encodeURIComponent(token)}` : '';
     const viewerUrl = `/doc-viewer/${encodeURIComponent(locId)}/${encodeURIComponent(file.name)}${tokenParam}`;
@@ -3158,7 +4044,7 @@ function bindEvents() {
       try {
         window.location.href = intentUrl;
         return;
-      } catch (_) {}
+      } catch (_) { }
     }
 
     const win = window.open(fullViewerUrl, '_blank');
@@ -3312,7 +4198,7 @@ function bindEvents() {
             const d = await tokRes.json();
             token = d.token || '';
           }
-        } catch (_) {}
+        } catch (_) { }
         const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
         const dlUrl = new URL(`/api/locations/${encodeURIComponent(locId)}/attachments/${encodeURIComponent(filename)}?download=1${tokenParam}`, window.location.origin).href;
         const hostPath = dlUrl.replace(/^https?:\/\//, '');
@@ -3505,6 +4391,13 @@ function bindEvents() {
   const mc = document.getElementById('mainContent');
   mc?.addEventListener('click', handleCardClick);
   mc?.addEventListener('change', handleCardChange);
+  mc?.addEventListener('input', handleNameInput);
+  mc?.addEventListener('keydown', e => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-action="toggleAddress"]')) {
+      e.preventDefault();
+      e.target.click();
+    }
+  });
 
   // PWA install
   document.getElementById('installBtn')?.addEventListener('click', async () => {
@@ -3584,14 +4477,81 @@ function bindEvents() {
 }
 
 function handleCardClick(e) {
-  const actionEl = e.target.closest('[data-action]');
+  const actionEl = e.target.closest('[data-action], .confirmation-link');
   if (!actionEl) return;
+
+  if (actionEl.dataset.action === 'openConfirmationDoc' || actionEl.classList.contains('confirmation-link')) {
+    const webUrl = actionEl.dataset.canonicalUrl || actionEl.getAttribute('href');
+    const pkgId = actionEl.dataset.packageId || extractPackageIdFromUrl(webUrl);
+    const platform = detectPlatform();
+
+    if (platform === 'android' && pkgId) {
+      e.preventDefault();
+      e.stopPropagation();
+      launchConfirmationUrl(webUrl, pkgId);
+      return;
+    }
+
+    // Normal link (not an app package link): open in new browser window/tab
+    e.stopPropagation();
+    if (actionEl.tagName && actionEl.tagName.toLowerCase() === 'a') {
+      actionEl.setAttribute('target', '_blank');
+      actionEl.setAttribute('rel', 'noopener noreferrer');
+      // Do not preventDefault: let the browser naturally open the link in a new window/tab
+    } else {
+      e.preventDefault();
+      launchConfirmationUrl(webUrl);
+    }
+    return;
+  }
+
+  if (actionEl.dataset.action === 'openDocLink' || actionEl.id === 'openAppBtn') {
+    e.preventDefault();
+    e.stopPropagation();
+    const group = actionEl.closest('.doc-link-field-group');
+    const input = group?.querySelector('[data-field="confirmation_url"]') || document.getElementById('docUrlInput');
+    const rawUrl = input ? input.value : '';
+    launchConfirmationUrl(rawUrl);
+    return;
+  }
+
+  if (actionEl.dataset.action === 'goToCountry' || actionEl.classList.contains('country-badge')) {
+    e.preventDefault();
+    e.stopPropagation();
+    const country = actionEl.dataset.country;
+    if (country) navigateToCountry(country);
+    return;
+  }
+
   if (state.role !== 'admin' && ['edit', 'duplicate', 'delete'].includes(actionEl.dataset.action)) {
     return;
   }
   const card = actionEl.closest('[data-id]');
   if (!card) return;
   const id = card.dataset.id;
+
+  if (actionEl.dataset.action === 'toggleAddress') {
+    e.stopPropagation();
+    const addrRow = card.querySelector('.card-address-row');
+    if (addrRow) {
+      const isCurrentlyOpen = !addrRow.classList.contains('is-closed') && addrRow.style.display !== 'none';
+      if (isCurrentlyOpen) {
+        addrRow.classList.remove('is-open');
+        addrRow.classList.add('is-closed');
+        addrRow.style.display = 'none';
+        actionEl.classList.remove('address-expanded', 'is-open');
+        actionEl.setAttribute('aria-expanded', 'false');
+      } else {
+        addrRow.classList.remove('is-closed');
+        addrRow.classList.add('is-open');
+        addrRow.style.display = 'flex';
+        actionEl.classList.add('address-expanded', 'is-open');
+        actionEl.setAttribute('aria-expanded', 'true');
+      }
+      scheduleEqualizeCardHeights();
+    }
+    return;
+  }
 
   if (actionEl.dataset.action === 'navigateFromCurrent') {
     e.stopPropagation();
@@ -3606,6 +4566,16 @@ function handleCardClick(e) {
       const isEditing = card.classList.toggle('editing');
       actionEl.classList.toggle('active', isEditing);
       actionEl.title = isEditing ? 'Close edit' : 'Edit details';
+      if (isEditing) {
+        const nameField = card.querySelector('[data-field="name"]');
+        if (nameField) {
+          nameField.focus();
+          nameField.select();
+        }
+      } else {
+        const loc = state.trip?.locations.find(l => l.id === id);
+        if (loc) updateCardSubcard(card, loc);
+      }
     }
     return;
   }
@@ -3736,6 +4706,19 @@ function handleCardClick(e) {
   }
   if (actionEl.dataset.action === 'findMapsDetails') {
     openMapsDetailsModal(id, card, actionEl);
+  }
+  if (actionEl.dataset.action === 'addAttachment') {
+    e.preventDefault();
+    if (state.role !== 'admin') return;
+    const locId = actionEl.dataset.id || actionEl.dataset.locId || id;
+    if (!locId) return;
+    docViewer.locationId = locId;
+    const fileInput = document.getElementById('modalAttachmentInput');
+    if (fileInput) {
+      fileInput.value = '';
+      fileInput.click();
+    }
+    return;
   }
   if (actionEl.dataset.action === 'viewAttachment') {
     e.preventDefault();
@@ -3930,7 +4913,7 @@ function renderViewerTabs() {
   if (activeBtn) {
     try {
       activeBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-    } catch (_) {}
+    } catch (_) { }
   }
 }
 
@@ -4079,8 +5062,8 @@ function setupAttachmentTabReorder(list) {
     isDragging = true;
     isScrolling = false;
 
-    try { navigator.vibrate?.(40); } catch (_) {}
-    try { activeItem.setPointerCapture(activePointerId); } catch (_) {}
+    try { navigator.vibrate?.(40); } catch (_) { }
+    try { activeItem.setPointerCapture(activePointerId); } catch (_) { }
 
     list.classList.add('tabs-reordering');
     activeItem.classList.add('is-dragging');
@@ -4202,7 +5185,7 @@ function setupAttachmentTabReorder(list) {
           justFinishedDrag = true;
           setTimeout(() => { justFinishedDrag = false; }, 250);
 
-          try { activeItem?.releasePointerCapture(activePointerId); } catch (_) {}
+          try { activeItem?.releasePointerCapture(activePointerId); } catch (_) { }
           list.classList.remove('tabs-reordering');
           activeItem?.classList.remove('is-dragging');
 
@@ -4322,7 +5305,7 @@ function setupAttachmentTabReorder(list) {
           justFinishedDrag = true;
           setTimeout(() => { justFinishedDrag = false; }, 250);
 
-          try { activeItem?.releasePointerCapture(activePointerId); } catch (_) {}
+          try { activeItem?.releasePointerCapture(activePointerId); } catch (_) { }
           list.classList.remove('tabs-reordering');
           activeItem?.classList.remove('is-dragging');
 
@@ -4398,9 +5381,28 @@ function showEmptyViewer() {
     document.getElementById('genericDocName').textContent = 'No Attachments';
     document.getElementById('genericDocSize').textContent = '';
     const notice = genericContainer.querySelector('.generic-doc-notice');
-    if (notice) notice.textContent = 'Click "+ Add File" in the header to upload JPG, PNG, or PDF files.';
+    if (notice) notice.textContent = 'Click "+ Add File" in the header or button below to upload JPG, PNG, or PDF files.';
     const genBtn = document.getElementById('genericDocDownloadBtn');
     if (genBtn) genBtn.style.display = 'none';
+    let emptyAddBtn = document.getElementById('genericDocEmptyAddBtn');
+    if (state.role === 'admin') {
+      if (!emptyAddBtn) {
+        emptyAddBtn = document.createElement('button');
+        emptyAddBtn.id = 'genericDocEmptyAddBtn';
+        emptyAddBtn.className = 'btn-primary';
+        emptyAddBtn.type = 'button';
+        emptyAddBtn.style.marginTop = '12px';
+        emptyAddBtn.textContent = '+ Add Files';
+        emptyAddBtn.addEventListener('click', () => {
+          document.getElementById('modalAttachmentInput')?.click();
+        });
+        genericContainer.querySelector('.generic-doc-card')?.appendChild(emptyAddBtn);
+      } else {
+        emptyAddBtn.style.display = 'inline-flex';
+      }
+    } else if (emptyAddBtn) {
+      emptyAddBtn.style.display = 'none';
+    }
   }
 }
 
@@ -4433,7 +5435,10 @@ async function loadViewerAttachment(index) {
     openNewTabLink.href = `/doc-viewer/${encodeURIComponent(locationId)}/${encodeURIComponent(file.name)}`;
   }
 
-  // Delete button (admin only)
+  const emptyAddBtn = document.getElementById('genericDocEmptyAddBtn');
+  if (emptyAddBtn) emptyAddBtn.style.display = 'none';
+
+  // Delete button (visible only to admin)
   const deleteBtn = document.getElementById('modalDeleteAttachmentBtn');
   if (deleteBtn) {
     deleteBtn.style.display = state.role === 'admin' ? 'inline-flex' : 'none';
@@ -4485,7 +5490,7 @@ async function loadViewerAttachment(index) {
         else if (ext === 'webp') mimeType = 'image/webp';
       }
       docViewer.cachedShareFile = new File([blob], file.name, { type: mimeType });
-    } catch (_) {}
+    } catch (_) { }
   })();
 
   if (meta.isImage) {
@@ -4829,6 +5834,10 @@ function handleCardChange(e) {
 
   // Update modal title live if name field changes
   if (field === 'name') {
+    const textEl = card.querySelector('.card-name-text');
+    if (textEl) {
+      textEl.textContent = value || '';
+    }
     const modalTitle = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
     if (modalTitle && target.closest('#locationModal, #notificationLocationModal')) {
       modalTitle.textContent = value || 'Location';
@@ -4836,53 +5845,60 @@ function handleCardChange(e) {
   }
 
   // Update date row live without full re-render
-  if (field === 'visit_date' || field === 'visit_time' || field === 'duration_minutes') {
-    const loc = state.trip.locations.find(l => l.id === id);
+  // Update place (flag + city/location) live without full re-render
+  if (field === 'country' || field === 'city') {
+    const loc = state.trip?.locations.find(l => l.id === id);
     if (loc) {
-      const schedTimes = getScheduleTimes(loc);
-      const timeStr = schedTimes ? ` @ ${schedTimes.start} – ${schedTimes.end}` : (loc.visit_time ? ` @ ${loc.visit_time}` : '');
-      const dateStr = loc.visit_date ? fmtDate(loc.visit_date, { day: 'numeric', month: 'short' }) + timeStr : '';
-      let row = card.querySelector('.card-date-row');
-      if (dateStr && row) {
-        const tag = row.querySelector('.tag-date');
-        if (tag) tag.textContent = dateStr;
-      } else if (dateStr && !row) {
-        const nameArea = card.querySelector('.card-name-area');
-        if (nameArea) {
-          row = document.createElement('div');
-          row.className = 'card-date-row';
-          row.innerHTML = `<span class="tag tag-date">${dateStr}</span>`;
-          nameArea.appendChild(row);
-        }
-      } else if (!dateStr && row) {
-        row.remove();
-      }
-
-      // Live update duration chip in info strip
-      const strip = card.querySelector('.card-info-strip');
-      if (strip) {
-        let durChip = strip.querySelector('.strip-time');
-        if (schedTimes) {
-          if (durChip) {
-            durChip.textContent = `⏱️ ${formatDuration(schedTimes.duration)}`;
-          } else {
-            durChip = document.createElement('span');
-            durChip.className = 'strip-chip strip-time';
-            durChip.textContent = `⏱️ ${formatDuration(schedTimes.duration)}`;
-            strip.prepend(durChip);
-          }
-        } else if (durChip) {
-          durChip.remove();
-        }
+      const placeEl = card.querySelector('.meta-strip-place');
+      if (placeEl) {
+        const placeName = (loc.city && loc.city !== 'Unknown') ? loc.city : (loc.country || '');
+        placeEl.title = loc.city ? `${loc.city}, ${loc.country}` : (loc.country || '');
+        placeEl.innerHTML = `<span class="meta-flag-wrap">${flagHTML(loc.country, loc.country_code)}</span><span class="meta-place-label">${esc(placeName)}</span>`;
       }
     }
   }
 
-  // Update accent bar when category changes
+  // Update schedule live without full re-render
+  if (field === 'visit_date' || field === 'visit_time' || field === 'duration_minutes') {
+    const loc = state.trip?.locations.find(l => l.id === id);
+    if (loc) {
+      const schedTimes = getScheduleTimes(loc);
+      const schedDateStr = loc.visit_date ? fmtDate(loc.visit_date, { day: 'numeric', month: 'short' }) : '';
+      const schedTimeRange = schedTimes ? `${schedTimes.start} – ${schedTimes.end}` : (loc.visit_time || '');
+
+      const metaStrip = card.querySelector('.card-meta-strip');
+      let schedEl = card.querySelector('.meta-strip-schedule');
+
+      const durStr = schedTimes ? `⏱️ ${formatDuration(schedTimes.duration)}` : '';
+      if (loc.visit_date || durStr) {
+        const schedHTML = `
+          ${loc.visit_date ? `
+          <span class="meta-sched-icon">🗓️</span>
+          <span class="meta-sched-date">${schedDateStr}</span>
+          ${schedTimeRange ? `<span class="meta-sched-divider">·</span><span class="meta-sched-time">${schedTimeRange}</span>` : ''}
+          ` : ''}
+          ${durStr ? `${loc.visit_date ? '<span class="meta-sched-divider">·</span>' : ''}<span class="meta-sched-dur strip-chip strip-time" title="Duration: ${schedTimes ? formatDuration(schedTimes.duration) : ''}">${durStr}</span>` : ''}
+        `;
+        if (schedEl) {
+          schedEl.innerHTML = schedHTML;
+        } else if (metaStrip) {
+          schedEl = document.createElement('div');
+          schedEl.className = 'meta-strip-schedule';
+          schedEl.innerHTML = schedHTML;
+          metaStrip.appendChild(schedEl);
+        }
+      } else if (schedEl) {
+        schedEl.remove();
+      }
+    }
+  }
+
+  // Update window titlebar and cat-color when category changes
   if (field === 'category') {
     const safecat = VALID_CATEGORIES.includes(value) ? value : 'other';
-    const bar = card.querySelector('.card-accent-bar');
-    if (bar) bar.className = `card-accent-bar ${safecat}`;
+    card.style.setProperty('--cat-color', `var(--cat-${safecat})`);
+    const winIcon = card.querySelector('.window-titlebar-icon');
+    if (winIcon) winIcon.textContent = CATEGORY_ICONS[safecat] || '📍';
     const catChip = card.querySelector('.strip-cat');
     if (catChip) {
       catChip.className = `strip-chip strip-cat cat-${safecat}`;
@@ -4890,22 +5906,29 @@ function handleCardChange(e) {
     }
   }
 
-  // Update cost chip live
-  if (field === 'cost') {
-    const sym = getCurrencySymbol(state.trip?.currency);
-    const strip = card.querySelector('.card-info-strip');
-    if (strip) {
-      let costChip = strip.querySelector('.strip-cost');
-      if (parseFloat(value) > 0) {
-        if (costChip) { costChip.textContent = `${sym}${value}`; }
-        else {
-          costChip = document.createElement('span');
-          costChip.className = 'strip-chip strip-cost';
-          costChip.textContent = `${sym}${value}`;
-          strip.querySelector('.strip-cat')?.after(costChip);
+  // Update titlebar meta (booking badge, paid badge, cost) live
+  if (field === 'cost' || field === 'reservation_status' || field === 'paid') {
+    const loc = state.trip?.locations.find(l => l.id === id);
+    if (loc) {
+      const sym = getCurrencySymbol(state.trip?.currency);
+      const titlebar = card.querySelector('.card-window-titlebar');
+      if (titlebar) {
+        const metaWrap = titlebar.querySelector('.card-titlebar-meta');
+        const newMetaHTML = titlebarMetaHTML(loc, sym);
+        if (newMetaHTML) {
+          if (metaWrap) {
+            metaWrap.outerHTML = newMetaHTML;
+          } else {
+            titlebar.insertAdjacentHTML('beforeend', newMetaHTML);
+          }
+        } else if (metaWrap) {
+          metaWrap.remove();
         }
-      } else if (costChip) { costChip.remove(); }
+      }
     }
+  }
+
+  if (field === 'cost') {
     const dayGroup = card.closest('.day-group');
     if (dayGroup) {
       const loc = state.trip?.locations.find(l => l.id === id);
@@ -4932,24 +5955,6 @@ function handleCardChange(e) {
     }
   }
 
-  // Update notes chip live
-  if (field === 'notes') {
-    const strip = card.querySelector('.card-info-strip');
-    if (strip) {
-      let notesChip = strip.querySelector('.strip-notes');
-      if (value) {
-        const txt = value.slice(0, 80) + (value.length > 80 ? '…' : '');
-        if (notesChip) { notesChip.textContent = txt; notesChip.title = value; }
-        else {
-          notesChip = document.createElement('span');
-          notesChip.className = 'strip-chip strip-notes';
-          notesChip.title = value; notesChip.textContent = txt;
-          strip.appendChild(notesChip);
-        }
-      } else if (notesChip) { notesChip.remove(); }
-    }
-  }
-
   // Update country/city tags live
   if (field === 'country' || field === 'city') {
     const loc = state.trip.locations.find(l => l.id === id);
@@ -4964,22 +5969,67 @@ function handleCardChange(e) {
 
   // Update address line live
   if (field === 'address') {
+    const addrRow = card.querySelector('.card-address-row');
     const addrEl = card.querySelector('.card-address');
-    if (value && addrEl) {
-      addrEl.textContent = value;
-      addrEl.title = value;
-    } else if (value && !addrEl) {
-      const nameArea = card.querySelector('.card-name-area');
-      const metaRow = card.querySelector('.card-meta-row');
-      if (nameArea) {
-        const chip = document.createElement('span');
-        chip.className = 'card-address';
-        chip.title = value;
-        chip.textContent = value;
-        nameArea.insertBefore(chip, metaRow || null);
+    const metaPlace = card.querySelector('.meta-strip-place');
+    const metaStrip = card.querySelector('.card-meta-strip');
+
+    if (value) {
+      if (metaPlace) {
+        metaPlace.classList.add('has-address');
+        metaPlace.setAttribute('data-action', 'toggleAddress');
+        metaPlace.setAttribute('role', 'button');
+        metaPlace.setAttribute('tabindex', '0');
+        metaPlace.title = `${metaPlace.title.split(' • ')[0]} • Apasă pentru a ascunde adresa`;
+        if (!metaPlace.querySelector('.meta-address-toggle-icon')) {
+          metaPlace.insertAdjacentHTML('beforeend', '<span class="meta-address-toggle-icon" title="Apasă pentru a ascunde adresa">📍</span>');
+        }
       }
-    } else if (!value && addrEl) {
-      addrEl.remove();
+      if (addrRow && addrEl) {
+        addrEl.textContent = value;
+        addrRow.title = value;
+        addrRow.classList.remove('is-closed');
+        addrRow.classList.add('is-open');
+        addrRow.style.display = 'flex';
+        if (metaPlace) {
+          metaPlace.classList.add('has-address', 'address-expanded', 'is-open');
+          metaPlace.setAttribute('aria-expanded', 'true');
+        }
+      } else if (!addrRow && metaStrip) {
+        const row = document.createElement('div');
+        row.className = 'card-address-row is-open';
+        row.style.display = 'flex';
+        row.title = value;
+        row.innerHTML = `<span class="address-row-icon">📍</span><span class="card-address" title="${esc(value)}">${esc(value)}</span>`;
+
+        metaStrip.insertAdjacentElement('afterend', row);
+
+        if (metaPlace) {
+          metaPlace.classList.add('has-address', 'address-expanded', 'is-open');
+          metaPlace.setAttribute('aria-expanded', 'true');
+        }
+      }
+      scheduleEqualizeCardHeights();
+    } else {
+      if (metaPlace) {
+        metaPlace.classList.remove('has-address', 'address-expanded', 'is-open');
+        metaPlace.removeAttribute('data-action');
+        metaPlace.removeAttribute('role');
+        metaPlace.removeAttribute('tabindex');
+        metaPlace.removeAttribute('aria-expanded');
+        metaPlace.title = metaPlace.title.split(' • ')[0];
+        metaPlace.querySelector('.meta-address-toggle-icon')?.remove();
+      }
+      if (addrRow) addrRow.remove();
+      scheduleEqualizeCardHeights();
+    }
+  }
+
+  // Update card subcard (notes & confirmation/attachments chips) live
+  if (field === 'notes' || field === 'confirmation_url' || field === 'confirmation_label') {
+    const loc = state.trip?.locations.find(l => l.id === id);
+    if (loc) {
+      updateCardSubcard(card, loc);
     }
   }
 
@@ -5242,10 +6292,23 @@ function updateDocumentTitle(name) {
 async function refreshTripSelector(activeId) {
   const selector = document.getElementById('tripSelector');
   if (!selector) return;
-  const data = await api.getTrips();
-  state.tripCatalog = data.trips;
-  selector.dataset.activeTrip = activeId || data.active;
-  selector.title = `Select trip: ${data.trips.find(trip => trip.id === selector.dataset.activeTrip)?.name || ''}`;
+  const selectorWrap = selector.closest('.trip-selector-wrap') || document.getElementById('tripSelectorWrap');
+  try {
+    const data = await api.getTrips();
+    state.tripCatalog = data.trips || [];
+    selector.dataset.activeTrip = activeId || data.active;
+    const activeTrip = state.tripCatalog.find(trip => trip.id === selector.dataset.activeTrip);
+    selector.title = `Select trip: ${activeTrip?.name || ''}`;
+    const tripHint = document.getElementById('tripSelectorActiveName');
+    if (tripHint && activeTrip?.name) {
+      tripHint.textContent = activeTrip.name;
+    }
+    if (selectorWrap) {
+      selectorWrap.style.display = state.tripCatalog.length > 1 ? '' : 'none';
+    }
+  } catch (err) {
+    console.warn('refreshTripSelector error:', err);
+  }
 }
 
 function renderTripManager() {
@@ -5266,7 +6329,14 @@ function renderTripManager() {
 }
 
 function setActiveTrip(trip) {
+  if (!trip || typeof trip !== 'object') {
+    trip = { id: 'my_trip', trip_name: 'Euro Trip', currency: 'EUR', locations: [] };
+  }
+  if (!Array.isArray(trip.locations)) {
+    trip.locations = [];
+  }
   state.trip = trip;
+  const today = getTodayDateString();
   const days = [...new Set((trip.locations || []).map(loc => loc.visit_date).filter(Boolean))];
   const preferredDay = getInitialMapDay();
   if (preferredDay && (preferredDay === 'all' || days.includes(preferredDay))) {
@@ -5286,6 +6356,8 @@ function setActiveTrip(trip) {
   document.getElementById('unsavedDot')?.classList.remove('visible');
   const nameInput = document.getElementById('tripNameInput');
   if (nameInput) nameInput.value = trip.trip_name || '';
+  const tripHint = document.getElementById('tripSelectorActiveName');
+  if (tripHint && trip.trip_name) tripHint.textContent = trip.trip_name;
   updateDocumentTitle(trip.trip_name);
   renderCountryFilter();
   renderMain();
@@ -5408,6 +6480,10 @@ function openLocationModal(locationId) {
 const openNotificationLocation = openLocationModal;
 
 async function init() {
+  if (document.querySelector('.settings-page')) {
+    // Settings page has its own dedicated lifecycle and handlers
+    return;
+  }
   try {
     const trip = await api.getTrip();
     state.trip = trip;
@@ -5441,9 +6517,11 @@ async function init() {
 
     // Restore single-column toggle
     applySingleColMode();
+    updateFilterActiveDot();
 
     render();
     bindEvents();
+    updateNarrowMobileNav();
     updateNotifications(true);
     setInterval(() => updateNotifications(true), 60000);
     registerServiceWorker();

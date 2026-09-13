@@ -9,20 +9,18 @@
       <div class="trip-brand-details">
         <input type="text" id="tripNameInput" class="trip-name-input" placeholder="Trip Name" autocomplete="off"
           spellcheck="false">
+        <div id="tripHeaderDates" class="trip-header-dates" style="display: none;"></div>
       </div>
-    </div>
-    <div class="trip-switcher-row">
-      <div class="trip-selector-wrap">
-        <button id="tripSelector" class="trip-selector" type="button" aria-label="Select trip" title="Select trip">
-          <span class="trip-selector-icon" aria-hidden="true"></span>
-        </button>
-      </div>
-      {% if role == 'admin' %}
-      <button class="trip-new-btn" id="newTripBtn" type="button" title="Create a new trip"
-        aria-label="Create a new trip">+</button>
-      {% endif %}
     </div>
     <div class="header-nav-group">
+      {% if role == 'admin' %}
+      <button class="hdr-btn add-btn" id="addBtn" title="Add location manually">
+        <svg viewBox="0 0 24 24">
+          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+        </svg>
+        <span class="menu-btn-text">Add</span>
+      </button>
+      {% endif %}
       <button class="hdr-btn notification-btn header-notification-btn" id="notificationsBtn" title="Notifications"
         type="button" aria-label="Notifications">
         <span class="notification-bell-icon">🔔</span> <span id="notificationCount">0</span>
@@ -30,59 +28,84 @@
       <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu"
         aria-expanded="false">☰</button>
     </div>
-    <div class="header-actions">
-      {% if role == 'admin' %}
-      <button class="hdr-btn" id="installBtn" title="Install App" style="display:none">
-        <svg viewBox="0 0 24 24">
-          <path
-            d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 0 0-1.99 2L3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2zm3 18H5V8h14v11zM7 10h5v5H7v-5z" />
-        </svg>
-        <span>Install</span>
-      </button>
-      <button class="hdr-btn upload-btn" id="uploadBtn" title="Upload JSON">
-        <svg viewBox="0 0 24 24">
-          <path
-            d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm1 9h-4v4h-2v-4H7l4-4 4 4zm-1-5V3.5L18.5 9H14z" />
-        </svg>
-        <span>Upload</span>
-      </button>
-      <button class="hdr-btn add-btn" id="addBtn" title="Add location manually">
-        <svg viewBox="0 0 24 24">
-          <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-        </svg>
-        <span>Add</span>
-      </button>
-      <button class="hdr-btn save-btn" id="saveBtn" title="Save Trip (Ctrl+S)">
-        <svg viewBox="0 0 24 24">
-          <path
-            d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z" />
-        </svg>
-        <span>Save</span>
-        <span class="unsaved-dot" id="unsavedDot"></span>
-      </button>
-      <button class="hdr-btn danger-btn" id="backupBtn" title="Backup trip data to /backup">
-        <svg viewBox="0 0 24 24">
-          <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z" />
-        </svg>
-        <span>Backup</span>
-      </button>
-      <button class="hdr-btn danger-btn" id="clearAllBtn" title="Delete all records">
-        <svg viewBox="0 0 24 24">
-          <path
-            d="M6 7h12l-1.1 12.1A2 2 0 0 1 14.9 21H9.1a2 2 0 0 1-2-1.9L6 7zm3-3h6l1 2h4V7H4V6h4l1-2zm-1 7h2v7H8v-7zm4 0h2v7h-2v-7z" />
-        </svg>
-        <span>Clear All</span>
-      </button>
-      <a class="hdr-btn" href="/admin/security" title="Check API security">Security</a>
-      <a class="hdr-btn" href="/admin/versions" title="View trip history">History</a>
-      {% endif %}
-      <button class="hdr-btn" id="logoutBtn" title="Logout">
-        <svg viewBox="0 0 24 24">
-          <path
-            d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
-        </svg>
-        <span>Logout</span>
-      </button>
+    <div class="header-actions" id="headerActions">
+      <!-- Category 1: Trips -->
+      <div class="menu-category">
+        <div class="menu-category-header">
+          <span class="menu-category-icon">🗺️</span>
+          <span class="menu-category-title">Trips</span>
+        </div>
+        <div class="menu-subgroup">
+          <div class="trip-selector-wrap menu-item-wrap" id="tripSelectorWrap"{% if trip_count is defined and trip_count <= 1 %} style="display: none;"{% endif %}>
+            <button id="tripSelector" class="hdr-btn menu-btn trip-selector-btn" type="button" aria-label="Select trip" title="Select trip">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4 6h2v4h-2z"/>
+              </svg>
+              <span class="menu-btn-text">Select Trip</span>
+              <span class="menu-btn-hint" id="tripSelectorActiveName">Catalog</span>
+            </button>
+          </div>
+          {% if role == 'admin' %}
+          <button class="hdr-btn menu-btn trip-new-btn" id="newTripBtn" type="button" title="Create a new trip" aria-label="Create a new trip">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+            <span class="menu-btn-text">New Trip</span>
+          </button>
+          <button class="hdr-btn menu-btn save-btn" id="saveBtn" title="Save Trip (Ctrl+S)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+              <path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"/>
+            </svg>
+            <span class="menu-btn-text">Save Trip</span>
+            <span class="unsaved-dot" id="unsavedDot"></span>
+          </button>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="menu-divider"></div>
+
+      <!-- Category 2: Settings & Tools -->
+      <div class="menu-category">
+        <div class="menu-category-header">
+          <span class="menu-category-icon">⚙️</span>
+          <span class="menu-category-title">Settings &amp; Tools</span>
+        </div>
+        {% if role == 'admin' %}
+        <a class="hdr-btn menu-btn settings-btn" id="settingsBtn" href="/admin/settings" title="Settings (Backup, Security, History, Upload)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
+          <span class="menu-btn-text">Settings &amp; Backup</span>
+        </a>
+        <button class="hdr-btn menu-btn install-btn" id="installBtn" title="Install App" style="display:none">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5a2 2 0 0 0-1.99 2L3 19a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2h-1V1h-2zm3 18H5V8h14v11zM7 10h5v5H7v-5z" />
+          </svg>
+          <span class="menu-btn-text">Install App</span>
+        </button>
+        {% endif %}
+      </div>
+
+      <div class="menu-divider"></div>
+
+      <!-- Category 3: Account / Session -->
+      <div class="menu-category">
+        {% if role != 'admin' %}
+        <button class="hdr-btn menu-btn admin-login-btn" id="adminLoginBtn" title="Admin Login" type="button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+          </svg>
+          <span class="menu-btn-text">Admin</span>
+        </button>
+        {% endif %}
+        <button class="hdr-btn menu-btn logout-btn" id="logoutBtn" title="Logout">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+          </svg>
+          <span class="menu-btn-text">Logout</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -149,6 +172,13 @@
         </svg>
         <input type="text" id="searchInput" placeholder="Search locations…" class="search-input" autocomplete="off">
       </div>
+      <button class="mobile-filter-btn" id="openFilterModalBtn" type="button" aria-label="Open Filters" title="Filter &amp; Sort">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+        </svg>
+        <span>Filters</span>
+        <span class="filter-active-dot" id="filterActiveDot" style="display:none;"></span>
+      </button>
       <div class="filter-chips">
         <select id="categoryFilter" class="filter-select">
           <option value="all">All Categories</option>
@@ -179,11 +209,14 @@
           <span>Hide visited</span>
         </label>
 
-        <label class="toggle-pill toggle-pill--single-col"
-          title="Afișează 1 card pe rând (recomandat pe Z Fold 6 pentru a vedea mai multe date)">
-          <input type="checkbox" id="singleColToggle">
-          <span>1 card</span>
-        </label>
+        <select id="cardsPerRowSelect" class="filter-select cards-per-row-select"
+          title="Număr de carduri pe rând" aria-label="Număr de carduri pe rând">
+          <option value="1">1 card / rând</option>
+          <option value="2">2 carduri / rând</option>
+          <option value="3" selected>3 carduri / rând</option>
+          <option value="4">4 carduri / rând</option>
+        </select>
+        <input type="checkbox" id="singleColToggle" style="display:none;" aria-hidden="true">
       </div>
     </div>
   </div>
@@ -577,6 +610,7 @@
           <div class="pdf-viewer-actions">
             <input type="file" id="modalAttachmentInput" class="doc-hidden-file-input" multiple
               accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx" style="display:none;">
+            {% if role == 'admin' %}
             <button type="button" class="btn-secondary doc-add-file-btn" id="modalAddAttachmentBtn"
               title="Add JPG, PNG, or PDF attachment">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -584,6 +618,7 @@
               </svg>
               <span>Add Files</span>
             </button>
+            {% endif %}
             <a id="pdfDownloadLink" class="btn-secondary doc-action-btn" href="#" download title="Download file">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
@@ -603,12 +638,14 @@
                   d="M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z" />
               </svg>
             </a>
+            {% if role == 'admin' %}
             <button type="button" class="btn-secondary btn-danger-soft doc-delete-btn" id="modalDeleteAttachmentBtn"
               title="Delete current attachment" style="display:none;">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
                 <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
               </svg>
             </button>
+            {% endif %}
             <button class="modal-close" id="closePdfViewer" aria-label="Close">
               <svg viewBox="0 0 24 24">
                 <path
@@ -772,48 +809,46 @@
 
   <!-- ===== MOBILE BOTTOM NAV ===== -->
   <nav class="mobile-nav" id="mobileNav" aria-label="Main navigation">
-    <button class="mnav-btn active" data-view="list">
-      <svg viewBox="0 0 24 24">
-        <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z" />
-      </svg>
-      <span>All</span>
-    </button>
-    <button class="mnav-btn" data-view="day">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zM5 8V6h14v2H5z" />
-      </svg>
-      <span>Days</span>
-    </button>
-    <button class="mnav-btn" data-view="country">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
-      </svg>
-      <span>Countries</span>
-    </button>
-    <button class="mnav-btn" data-view="timeline">
+    <div class="mnav-segmented-control" role="group" aria-label="Views">
+      <button class="mnav-btn active" data-view="day" title="Days">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm0 16H5V10h14v10zM9 14H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zm-8 4H7v-2h2v2zm4 0h-2v-2h2v2zm4 0h-2v-2h2v2zM5 8V6h14v2H5z" />
+        </svg>
+        <span>Days</span>
+      </button>
+      <button class="mnav-btn" data-view="country" title="Countries">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+        </svg>
+        <span>Countries</span>
+      </button>
+      <button class="mnav-btn" data-view="table" title="Table">
+        <svg viewBox="0 0 24 24">
+          <path
+            d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4-8h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />
+        </svg>
+        <span>Table</span>
+      </button>
+    </div>
+    <div class="mnav-separator" aria-hidden="true"></div>
+    <button class="mnav-btn mnav-timeline-item" data-view="timeline" title="Timeline">
       <svg viewBox="0 0 24 24">
         <path
           d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
       </svg>
       <span>Timeline</span>
     </button>
-    <button class="mnav-btn" data-view="table">
-      <svg viewBox="0 0 24 24">
-        <path
-          d="M3 3h18v18H3V3zm16 16V5H5v14h14zM7 7h2v2H7V7zm0 4h2v2H7v-2zm0 4h2v2H7v-2zm4-8h6v2h-6V7zm0 4h6v2h-6v-2zm0 4h6v2h-6v-2z" />
-      </svg>
-      <span>Table</span>
-    </button>
-    <button class="mnav-btn" data-view="map">
+    <div class="mnav-separator" aria-hidden="true"></div>
+    <button class="mnav-btn" data-view="map" title="Map">
       <svg viewBox="0 0 24 24">
         <path
           d="M15 5.5 9 3 3 5.5v15L9 18l6 2.5 6-2.5v-15L15 3v2.5zM9 16.2l-4 1.67V7.3l4-1.67v10.57zm6 2.1-4-1.67V5.8l4 1.67V18.3zm6-1.63-4 1.67V7.3l4-1.67v11.04z" />
       </svg>
       <span>Map</span>
     </button>
-    <button class="mnav-btn" data-view="route">
+    <button class="mnav-btn" data-view="route" title="Route">
       <svg viewBox="0 0 24 24">
         <path
           d="M19 15.18V7c0-2.21-1.79-4-4-4s-4 1.79-4 4v10c0 1.1-.9 2-2 2s-2-.9-2-2V8.82C8.16 8.4 9 7.3 9 6c0-1.66-1.34-3-3-3S3 4.34 3 6c0 1.3.84 2.4 2 2.82V17c0 2.21 1.79 4 4 4s4-1.79 4-4V7c0-1.1.9-2 2-2s2 .9 2 2v8.18c-1.16.41-2 1.51-2 2.82 0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.31-.84-2.41-2-2.82z" />
@@ -821,13 +856,13 @@
       <span>Route</span>
     </button>
     {% if role == 'admin' %}
-    <button class="mnav-btn" id="mobileUpload">
+    <a class="mnav-btn" id="mobileSettings" href="/admin/settings" title="Settings">
       <svg viewBox="0 0 24 24">
-        <path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z" />
+        <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
       </svg>
-      <span>Import</span>
-    </button>
-    <button class="mnav-btn" id="mobileSave">
+      <span>Settings</span>
+    </a>
+    <button class="mnav-btn" id="mobileSave" title="Save">
       <svg viewBox="0 0 24 24">
         <path
           d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z" />
@@ -835,7 +870,7 @@
       <span>Save</span>
     </button>
     {% else %}
-    <button class="mnav-btn" id="mobileLogout">
+    <button class="mnav-btn" id="mobileLogout" title="Logout">
       <svg viewBox="0 0 24 24">
         <path
           d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
@@ -844,6 +879,78 @@
     </button>
     {% endif %}
   </nav>
+
+  <!-- ===== MOBILE FILTERS MODAL ===== -->
+  <div class="modal-overlay" id="filterModal" role="dialog" aria-modal="true" aria-labelledby="filterModalTitle">
+    <div class="modal-box filter-modal-box">
+      <div class="modal-header">
+        <h2 id="filterModalTitle">Filters &amp; Display Options</h2>
+        <button class="modal-close" id="closeFilterModal" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body filter-modal-body">
+        <div class="filter-modal-group">
+          <label class="filter-modal-label" for="categoryFilterMobile">Category</label>
+          <select id="categoryFilterMobile" class="filter-modal-select">
+            <option value="all">All Categories</option>
+            <option value="hotel">🏨 Hotel</option>
+            <option value="transport">✈️ Transport</option>
+            <option value="restaurant">🍽️ Restaurant</option>
+            <option value="attraction">🏛️ Attraction</option>
+            <option value="education">📚 Education</option>
+            <option value="shopping">🛍️ Shopping</option>
+            <option value="services">🔧 Services</option>
+            <option value="club">🎵 Club</option>
+            <option value="other">📍 Other</option>
+          </select>
+        </div>
+
+        <div class="filter-modal-group">
+          <label class="filter-modal-label" for="countryFilterMobile">Country</label>
+          <select id="countryFilterMobile" class="filter-modal-select">
+            <option value="all">All Countries</option>
+          </select>
+        </div>
+
+        <div class="filter-modal-group">
+          <label class="filter-modal-label" for="sortSelectMobile">Sort By</label>
+          <select id="sortSelectMobile" class="filter-modal-select">
+            <option value="added">Added Order</option>
+            <option value="date">By Date</option>
+            <option value="name">By Name</option>
+            <option value="cost">By Cost ↓</option>
+            <option value="country">By Country</option>
+            <option value="city">By City</option>
+          </select>
+        </div>
+
+        <div class="filter-modal-group">
+          <label class="filter-modal-label">View Preferences</label>
+          <div class="filter-modal-toggles">
+            <label class="filter-modal-toggle-row">
+              <input type="checkbox" id="hideVisitedMobile">
+              <span>Hide visited locations</span>
+            </label>
+            <label class="filter-modal-toggle-row single-col-toggle-row-mobile" id="singleColToggleRowMobile">
+              <input type="checkbox" id="singleColToggleMobile">
+              <span>1 card per row (Large cards)</span>
+            </label>
+            <div class="filter-modal-select-row" id="cardsPerRowModalGroup" style="display:none; margin-top: 8px;">
+              <label class="filter-modal-label" for="cardsPerRowSelectMobile">Carduri pe rând</label>
+              <select id="cardsPerRowSelectMobile" class="filter-modal-select">
+                <option value="1">1 card / rând</option>
+                <option value="2">2 carduri / rând</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="filter-modal-actions">
+          <button class="btn-secondary" id="resetFiltersBtn" type="button">Reset Filters</button>
+          <button class="btn-primary" id="applyFiltersBtn" type="button">Apply Filters</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Document Share Sheet Modal for non-HTTPS / fallback -->
   <div class="share-modal-overlay" id="docShareModal" style="display:none;" role="dialog" aria-modal="true">
@@ -903,6 +1010,28 @@
           💡 Conexiunea curentă este HTTP (rețea locală). Pentru a trimite direct prin meniul nativ Android (QuickShare, Nearby, aplicații instalate), accesați prin HTTPS sau activați adresa în <code>chrome://flags</code>.
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== ADMIN PASSWORD MODAL ===== -->
+  <div class="modal-overlay" id="adminPasswordModal" role="dialog" aria-modal="true" aria-labelledby="adminPasswordModalTitle">
+    <div class="modal-box admin-password-modal-box" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2 id="adminPasswordModalTitle">Admin Access</h2>
+        <button class="modal-close" id="closeAdminPasswordModal" type="button" aria-label="Close">✕</button>
+      </div>
+      <form id="adminPasswordForm" class="modal-body" onsubmit="return false;">
+        <p class="modal-desc" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 14px;">Enter the admin password to unlock administrative features.</p>
+        <div class="field-group full-width" style="margin-bottom: 12px;">
+          <label class="field-label" for="adminPasswordInput">Password</label>
+          <input type="password" id="adminPasswordInput" class="field-input" placeholder="Enter admin password…" required autocomplete="current-password">
+        </div>
+        <div class="admin-password-error" id="adminPasswordError" style="display:none;" role="alert"></div>
+        <div class="modal-actions" style="display:flex; justify-content:flex-end; gap: 8px; margin-top: 16px;">
+          <button type="button" class="btn-secondary" id="cancelAdminPasswordBtn">Cancel</button>
+          <button type="submit" class="btn-primary" id="submitAdminPasswordBtn">Login</button>
+        </div>
+      </form>
     </div>
   </div>
 

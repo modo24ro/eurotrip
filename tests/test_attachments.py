@@ -154,6 +154,36 @@ class TestAttachmentViewer(unittest.TestCase):
             content_type='application/json'
         )
 
+    def test_upload_and_delete_attachments_as_user(self):
+        user_client = self.app.test_client()
+        with user_client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'user'
+            sess['trip_id'] = 'Spain_2026'
+
+        with self.app.test_request_context():
+            trip = load_trip_data()
+            self.assertTrue(len(trip.get('locations', [])) > 0)
+            loc = trip['locations'][0]
+            loc_id = loc['id']
+
+        png_bytes = (
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01'
+            b'\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00\x02'
+            b'\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82'
+        )
+        # Upload as user is rejected with 403 Forbidden
+        res_upload = user_client.post(
+            f"/api/locations/{loc_id}/attachments",
+            data={'file': (io.BytesIO(png_bytes), 'user_upload_test.png')},
+            content_type='multipart/form-data'
+        )
+        self.assertEqual(res_upload.status_code, 403)
+
+        # Delete as user is rejected with 403 Forbidden
+        res_del = user_client.delete(f"/api/locations/{loc_id}/attachments/user_upload_test.png")
+        self.assertEqual(res_del.status_code, 403)
+
     def test_doc_viewer_token_and_standalone_page(self):
         with self.app.test_request_context():
             trip = load_trip_data()

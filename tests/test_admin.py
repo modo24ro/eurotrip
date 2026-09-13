@@ -96,3 +96,22 @@ def test_remember_me_cookie_persistence():
     cookie_rem = res_rem.headers.get('Set-Cookie', '')
     assert 'Expires=' in cookie_rem
     assert 'session=' in cookie_rem
+
+
+def test_trip_selector_hidden_when_single_trip():
+    cfg = load_config()
+    client = app.test_client()
+    client.post('/loginadmin', data={'password': cfg['admin_password']}, follow_redirects=False)
+
+    # Check /admin with current trips
+    res = client.get('/admin')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'id="tripSelectorWrap"' in html
+
+    from app import available_trip_ids
+    trip_count = len(available_trip_ids())
+    if trip_count <= 1:
+        assert 'id="tripSelectorWrap" style="display: none;"' in html
+    else:
+        assert 'id="tripSelectorWrap" style="display: none;"' not in html

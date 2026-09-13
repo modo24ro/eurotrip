@@ -852,21 +852,35 @@ def index():
 @app.route('/admin')
 @require_auth
 def admin():
-    return render_template('index.html', role='admin')
+    return render_template('index.html', role='admin', trip_count=len(available_trip_ids()))
+
+
+@app.route('/admin/settings', methods=['GET'])
+@require_auth
+@require_role('admin')
+def admin_settings():
+    tab = request.args.get('tab', 'backup')
+    return render_template('settings.html', role='admin', active_tab=tab)
+
+
+@app.route('/settings', methods=['GET'])
+@require_auth
+def settings_redirect():
+    return redirect(url_for('admin_settings'))
 
 
 @app.route('/admin/security')
 @require_auth
 @require_role('admin')
 def admin_security():
-    return render_template('security.html', role='admin')
+    return redirect(url_for('admin_settings', tab='security'))
 
 
 @app.route('/admin/versions')
 @require_auth
 @require_role('admin')
 def admin_versions():
-    return render_template('versions.html', role='admin')
+    return redirect(url_for('admin_settings', tab='history'))
 
 
 def authorization_metadata(view):
@@ -906,7 +920,7 @@ def admin_security_audit():
 @app.route('/user')
 @require_auth
 def user():
-    return render_template('index.html', role='user')
+    return render_template('index.html', role='user', trip_count=len(available_trip_ids()))
 
 
 def trip_summary(trip_id):
@@ -1190,7 +1204,6 @@ def list_location_attachments(location_id):
 
 
 @app.route('/api/locations/<path:location_id>/attachments', methods=['POST', 'OPTIONS'])
-@require_auth
 @require_role('admin')
 def upload_location_attachment(location_id):
     if request.method == 'OPTIONS':
@@ -1356,7 +1369,6 @@ def download_location_attachment(location_id, filename):
 
 
 @app.route('/api/locations/<path:location_id>/attachments/<path:filename>', methods=['DELETE', 'OPTIONS'])
-@require_auth
 @require_role('admin')
 def delete_location_attachment(location_id, filename):
     if request.method == 'OPTIONS':

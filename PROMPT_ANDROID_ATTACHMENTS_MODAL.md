@@ -1,4 +1,5 @@
 # PROMPT PENTRU ASISTENTUL AI / DEZVOLTATORUL ANDROID STUDIO
+
 ## Integrare & Modernizare Modal / Ecran Atașamente EuroTrip
 
 > **Instrucțiuni de utilizare:** Copiază întregul text de mai jos și trimite-l asistentului AI (sau folosește-l în Android Studio / proiectul Android) pentru a implementa sau actualiza ecranul/modalul de gestionare și vizualizare a documentelor și atașamentelor, la paritate completă cu versiunea Web EuroTrip Flask.
@@ -39,6 +40,7 @@ data class AttachmentTokenResponse(
 ### 3. CERINȚE DE UI & FUNCȚIONALITĂȚI (MODAL / ECRAN DOCUMENT VIEWER)
 
 #### A. Header & Acțiuni Rapide
+
 - **Titlu:** Numele locației + indicatorul de documente (ex: `"Sagrada Família · Documente"`).
 - **Subtitlu / Metadate:** Numărul atașamentului curent și totalul (ex: `1 din 3`).
 - **Buton "+ Adaugă fișier" (Add Files):** Deschide `ActivityResultContracts.GetMultipleContents()` sau `OpenDocument()` pentru a permite utilizatorului să selecteze imagini sau PDF-uri și să le uploadeze prin `uploadAttachment`.
@@ -52,6 +54,7 @@ data class AttachmentTokenResponse(
 - **Buton Închidere (Close / Back):** Închide modalul / ecranul.
 
 #### B. Bară Orizontală de Tab-uri cu Reordonare (Drag & Drop)
+
 - Listează toate fișierele atașate ca tab-uri sau chip-uri orizontale derulabile (pictogramă tip fișier + nume).
 - **Reordonare tactilă (Drag & Drop):**
   - La apăsare lungă (long press), tab-ul selectat se ridică (haptic feedback `performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)`).
@@ -60,34 +63,41 @@ data class AttachmentTokenResponse(
   - Ordinea este salvată direct în `trip_data.json` pe server.
 
 #### C. Zona Centrală de Vizualizare (Multi-Format Viewer Stage)
+
 Ecranul trebuie să comute automat renderer-ul în funcție de extensia fișierului activ:
 
 1. **Pentru Fișiere PDF (.pdf):**
+
    - Folosește `PdfRenderer` (nativ Android), `PhotoView` cu pagini randate bitmap, sau biblioteca oficială AndroidX PDF / AndroidPdfViewer.
    - Bară de instrumente dedicată PDF:
      - Paginare: Buton "Pagina anterioară" (◀), Indicator "X / Y", Buton "Pagina următoare" (▶).
      - Zoom & Pan: Zoom In (+), Zoom Out (-), Nivel Zoom (100%), Fit to screen (⛶).
      - Suport pentru gesturi tactile naturale: **pinch-to-zoom** și **pan** fără sacadare sau salturi de scroll.
-
 2. **Pentru Imagini (.jpg, .jpeg, .png, .webp, .gif, .svg):**
+
    - Încarcă imaginea (prin Coil / Glide sau direct din cache-ul local).
    - Suport complet pentru gesturi: pinch-to-zoom (între 1.0x și 5.0x), dublu-tap pentru zoom 2x / reset, pan în toate direcțiile.
    - **Buton de Rotație (↻):** Rotește imaginea la fiecare apăsare cu 90 de grade (0° -> 90° -> 180° -> 270°).
    - Buton de "Fit to screen" (centrare și resetare zoom).
-
 3. **Pentru Documente Generice Office (.doc, .docx, .xls, .xlsx):**
+
    - Card grafic elegant centrat în ecran: pictogramă mare fișier (Word/Excel), nume fișier, dimensiune formatată (KB/MB).
    - Mesaj informativ: *"Previzualizarea directă nu este suportată în aplicație pentru acest format."*
    - Buton principal: *"Deschide în aplicație externă"* (lansează `Intent.ACTION_VIEW` cu `FileProvider` pentru deschidere în Microsoft Word, Google Docs, Excel etc.).
    - Buton secundar: *"Descarcă fișierul"*.
 
 ### 4. GESTIONARE CACHE & PERFORMANȚĂ PE ANDROID
+
 - Descarcă fișierul binar în `context.cacheDir/attachments/{locationId}/` pentru a nu re-descărca fișierul la fiecare comutare de tab.
 - Afișează un `ProgressBar` / skeleton loader în timp ce fișierul se descarcă.
 - Implementează mecanisme de eliberare a memoriei la închiderea ecranului (reciclare bitmap-uri PDF).
 
 ### 5. LIVRABILE AȘTEPTATE
+
 1. Componenta UI (Composables Jetpack Compose SAU Fragment/Custom View XML).
 2. ViewModel-ul asociat (`LocationAttachmentsViewModel`) cu stările: `Loading`, `Success`, `Error`, `Reordering`, gestionând descărcarea, reordonarea și partajarea.
 3. Tratarea erorilor cu mesaje prietenoase (Snackbar / Toast).
+
+```
+
 ```

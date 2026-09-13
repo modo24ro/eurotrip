@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurotrip-v17';
+const CACHE_NAME = 'eurotrip-v32';
 const STATIC_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',
@@ -47,21 +47,23 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
         return response;
-      }).catch(() => caches.match(request))
+      }).catch(() => caches.match(request).then(cached => cached || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })))
     );
     return;
   }
 
   event.respondWith(
     caches.match(request).then(cached => {
-      const networkFetch = fetch(request).then(response => {
+      if (cached) {
+        return cached;
+      }
+      return fetch(request).then(response => {
         if (response && response.status === 200 && response.type !== 'opaque') {
           const clone = response.clone();
           caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
         }
         return response;
-      });
-      return cached || networkFetch;
+      }).catch(() => cached || new Response('', { status: 408, statusText: 'Network request failed' }));
     })
   );
 });

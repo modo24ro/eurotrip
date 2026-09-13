@@ -1,0 +1,37 @@
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Git & IDE
+.git/
+.gitignore
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Tests & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local data & temporary backups
+.save/
+scratch/
+cert.pem
+key.pem
+
+# Markdown documentation files not required in container
+API_ROUTES.md
+GHID_REZOLVARE_AUTHENTICATION_REQUIRED_ANDROID.md
+PROMPT_*.md
+EuroTripApiClient.kt
