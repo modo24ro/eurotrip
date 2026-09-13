@@ -21,7 +21,8 @@
         </svg>
         <span class="menu-btn-text">Back to Planner</span>
       </a>
-      <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu" aria-expanded="false">☰</button>
+      <button class="mobile-menu-btn" id="mobileMenuBtn" type="button" aria-label="Open menu"
+        aria-expanded="false">☰</button>
     </div>
     <div class="header-actions" id="headerActions">
       <!-- Category 1: Trips -->
@@ -33,7 +34,7 @@
         <div class="menu-subgroup">
           <a class="hdr-btn menu-btn" href="/admin" title="Go to Planner">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
             </svg>
             <span class="menu-btn-text">Planner</span>
           </a>
@@ -46,7 +47,8 @@
       <div class="menu-category">
         <a class="hdr-btn menu-btn logout-btn" id="logoutBtn" href="/logout" title="Logout">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-            <path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
+            <path
+              d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
           </svg>
           <span class="menu-btn-text">Logout</span>
         </a>
@@ -100,21 +102,22 @@
     <button class="settings-tab-btn" data-tab="timezone" role="tab" aria-selected="false" aria-controls="paneTimezone"
       id="tabTimezone">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+        <path
+          d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
       </svg>
       <span>Fus Orar</span>
     </button>
     <button class="settings-tab-btn" data-tab="apilogs" role="tab" aria-selected="false" aria-controls="paneApiLogs"
       id="tabApiLogs">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"/>
+        <path d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z" />
       </svg>
       <span>Monitor API</span>
     </button>
-    <button class="settings-tab-btn settings-tab-danger" data-tab="danger" role="tab" aria-selected="false" aria-controls="paneDanger"
-      id="tabDanger">
+    <button class="settings-tab-btn settings-tab-danger" data-tab="danger" role="tab" aria-selected="false"
+      aria-controls="paneDanger" id="tabDanger">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
       </svg>
       <span>Danger Zone</span>
     </button>
@@ -345,26 +348,35 @@
   </section>
 
   <!-- ==================== TAB 5: TIMEZONE ==================== -->
-  <section class="settings-tab-pane" id="paneTimezone" role="tabpanel" aria-labelledby="tabTimezone" style="display:none;">
+  <section class="settings-tab-pane" id="paneTimezone" role="tabpanel" aria-labelledby="tabTimezone"
+    style="display:none;">
     <div class="settings-card">
       <div class="settings-card-header">
         <div>
           <h2>⏰ Fus Orar &amp; Setări Oră</h2>
-          <p class="settings-card-desc">Configurează fusul orar utilizat pentru înregistrările de istoric, backup-uri și afișarea orelor în aplicație.</p>
+          <p class="settings-card-desc">Configurează fusul orar utilizat pentru înregistrările de istoric, backup-uri și
+            afișarea orelor în aplicație.</p>
         </div>
       </div>
 
       <div class="settings-card-body" style="padding: 24px;">
         <!-- Live Clocks -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
-          <div style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 10px; padding: 18px; position: relative;">
+        <div
+          style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 24px;">
+          <div
+            style="background: rgba(59, 130, 246, 0.08); border: 1px solid rgba(59, 130, 246, 0.25); border-radius: 10px; padding: 18px; position: relative;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 0.8rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px;">
-                🇷🇴 Ora României
+              <span
+                style="font-size: 0.8rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.5px;">
+                <img src="https://flagcdn.com/20x15/ro.png" srcset="https://flagcdn.com/40x30/ro.png 2x" alt="RO"
+                  class="flag-img" onerror="this.outerHTML='&lt;span class=flag-fallback&gt;🌍&lt;/span&gt;'">Ora
+                României
               </span>
-              <span id="badgeActiveRomania" class="backup-pill" style="background:#10b981; color:#fff; display:none;">Activ</span>
+              <span id="badgeActiveRomania" class="backup-pill"
+                style="background:#10b981; color:#fff; display:none;">Activ</span>
             </div>
-            <div id="clockRomania" style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
+            <div id="clockRomania"
+              style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
               --:--:--
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted);">
@@ -372,14 +384,18 @@
             </div>
           </div>
 
-          <div style="background: rgba(107, 114, 128, 0.08); border: 1px solid rgba(107, 114, 128, 0.25); border-radius: 10px; padding: 18px; position: relative;">
+          <div
+            style="background: rgba(107, 114, 128, 0.08); border: 1px solid rgba(107, 114, 128, 0.25); border-radius: 10px; padding: 18px; position: relative;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
+              <span
+                style="font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">
                 🖥️ Ora Serverului
               </span>
-              <span id="badgeActiveServer" class="backup-pill" style="background:#10b981; color:#fff; display:none;">Activ</span>
+              <span id="badgeActiveServer" class="backup-pill"
+                style="background:#10b981; color:#fff; display:none;">Activ</span>
             </div>
-            <div id="clockServer" style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
+            <div id="clockServer"
+              style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
               --:--:--
             </div>
             <div id="serverTzLabel" style="font-size: 0.78rem; color: var(--text-muted);">
@@ -395,30 +411,45 @@
           </label>
 
           <div style="display: flex; flex-direction: column; gap: 12px;">
-            <label style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
-              <input type="radio" name="timezoneMode" value="romania" id="tzModeRomania" style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+            <label
+              style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
+              <input type="radio" name="timezoneMode" value="romania" id="tzModeRomania"
+                style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
               <div>
-                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🇷🇴 Ora României (Europe/Bucharest) — Recomandat</div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">
+                  <img src="https://flagcdn.com/20x15/ro.png" srcset="https://flagcdn.com/40x30/ro.png 2x" alt="RO"
+                    class="flag-img" onerror="this.outerHTML='&lt;span class=flag-fallback&gt;🌍&lt;/span&gt;'">Ora
+                  României
+                  (Europe/Bucharest) — Recomandat
+                </div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">
-                  Toate backup-urile, înregistrările din istoricul de versiuni și timestamp-urile din aplicație folosesc ora exactă a României, indiferent pe ce server sau container Docker rulează aplicația.
+                  Toate backup-urile, înregistrările din istoricul de versiuni și timestamp-urile din aplicație folosesc
+                  ora exactă a României, indiferent pe ce server sau container Docker rulează aplicația.
                 </div>
               </div>
             </label>
 
-            <label style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
-              <input type="radio" name="timezoneMode" value="server" id="tzModeServer" style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+            <label
+              style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
+              <input type="radio" name="timezoneMode" value="server" id="tzModeServer"
+                style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
               <div>
-                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🖥️ Ora Serverului (System Local Time)</div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🖥️ Ora Serverului
+                  (System Local Time)</div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">
-                  Folosește ceasul intern al sistemului de operare unde rulează serverul backend (pe mașinile cloud este de obicei UTC).
+                  Folosește ceasul intern al sistemului de operare unde rulează serverul backend (pe mașinile cloud este
+                  de obicei UTC).
                 </div>
               </div>
             </label>
 
-            <label style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
-              <input type="radio" name="timezoneMode" value="utc" id="tzModeUtc" style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
+            <label
+              style="display: flex; align-items: flex-start; gap: 14px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; background: var(--bg-surface); transition: border-color 0.2s;">
+              <input type="radio" name="timezoneMode" value="utc" id="tzModeUtc"
+                style="margin-top: 4px; width: 18px; height: 18px; cursor: pointer;">
               <div>
-                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🌐 UTC (Coordinated Universal Time)</div>
+                <div style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">🌐 UTC (Coordinated
+                  Universal Time)</div>
                 <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; line-height: 1.4;">
                   Timpul Universal Coordonat standard fără offset sau ajustare de vară/iarnă.
                 </div>
@@ -427,10 +458,12 @@
           </div>
         </div>
 
-        <div style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border); padding-top: 20px;">
-          <button class="btn-primary" id="saveTimezoneBtn" type="button" style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
+        <div
+          style="display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border); padding-top: 20px;">
+          <button class="btn-primary" id="saveTimezoneBtn" type="button"
+            style="display: inline-flex; align-items: center; gap: 8px; font-weight: 600;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
             </svg>
             <span>Salvează fusul orar</span>
           </button>
@@ -440,41 +473,52 @@
   </section>
 
   <!-- ==================== TAB 6: API LOGS ==================== -->
-  <section class="settings-tab-pane" id="paneApiLogs" role="tabpanel" aria-labelledby="tabApiLogs" style="display:none;">
+  <section class="settings-tab-pane" id="paneApiLogs" role="tabpanel" aria-labelledby="tabApiLogs"
+    style="display:none;">
     <div class="settings-card">
-      <div class="settings-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
+      <div class="settings-card-header"
+        style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px;">
         <div>
           <h2 style="display: flex; align-items: center; gap: 10px;">
             <span>📡 Monitorizare Cereri API</span>
-            <span id="apiLiveIndicator" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
-              <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulse 2s infinite;"></span>
+            <span id="apiLiveIndicator"
+              style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">
+              <span
+                style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block; animation: pulse 2s infinite;"></span>
               <span>LIVE</span>
             </span>
           </h2>
           <p class="settings-card-desc">
-            Monitorizează apelurile API în timp real: vezi dispozitivele conectate (aplicație Android, browser, etc.), adresele IP, latența și sincronizările 304.
+            Monitorizează apelurile API în timp real: vezi dispozitivele conectate (aplicație Android, browser, etc.),
+            adresele IP, latența și sincronizările 304.
           </p>
         </div>
         <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-          <button class="btn-secondary" id="apiLiveToggleBtn" type="button" title="Pauză / Reia actualizarea automată" style="display: inline-flex; align-items: center; gap: 6px;">
+          <button class="btn-secondary" id="apiLiveToggleBtn" type="button" title="Pauză / Reia actualizarea automată"
+            style="display: inline-flex; align-items: center; gap: 6px;">
             <span id="apiLiveBtnIcon">⏸️</span>
             <span id="apiLiveBtnText">Pauză Live</span>
           </button>
-          <button class="btn-secondary" id="apiRefreshBtn" type="button" title="Reîmprospătează lista" style="display: inline-flex; align-items: center; gap: 6px;">
+          <button class="btn-secondary" id="apiRefreshBtn" type="button" title="Reîmprospătează lista"
+            style="display: inline-flex; align-items: center; gap: 6px;">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+              <path
+                d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
             </svg>
             <span>Reîmprospătează</span>
           </button>
-          <a class="btn-secondary" id="apiExportBtn" href="/api/admin/request-logs/export" download title="Exportă istoricul cererilor ca JSON" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+          <a class="btn-secondary" id="apiExportBtn" href="/api/admin/request-logs/export" download
+            title="Exportă istoricul cererilor ca JSON"
+            style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z"/>
+              <path d="M19 9h-4V3H9v6H5l7 7 7-7zm-8 9v2H5v-2h6zm8 0v2h-6v-2h6z" />
             </svg>
             <span>Export JSON</span>
           </a>
-          <button class="btn-danger" id="apiClearLogsBtn" type="button" title="Șterge istoricul cererilor" style="display: inline-flex; align-items: center; gap: 6px;">
+          <button class="btn-danger" id="apiClearLogsBtn" type="button" title="Șterge istoricul cererilor"
+            style="display: inline-flex; align-items: center; gap: 6px;">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
-              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+              <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" />
             </svg>
             <span>Șterge log-uri</span>
           </button>
@@ -482,36 +526,48 @@
       </div>
 
       <!-- KPI Summary Cards -->
-      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 18px; margin-bottom: 20px;">
-        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
-          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Total Cereri</div>
-          <div id="statTotalReq" style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin-top: 4px;">0</div>
+      <div
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 18px; margin-bottom: 20px;">
+        <div
+          style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">
+            Total Cereri</div>
+          <div id="statTotalReq"
+            style="font-size: 1.6rem; font-weight: 700; color: var(--text-primary); margin-top: 4px;">0</div>
           <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">înregistrate în buffer</div>
         </div>
-        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
-          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Sincronizări 304</div>
+        <div
+          style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">
+            Sincronizări 304</div>
           <div id="stat304Req" style="font-size: 1.6rem; font-weight: 700; color: #3b82f6; margin-top: 4px;">0</div>
           <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">economie completă de date</div>
         </div>
-        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
-          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Dispozitive Active</div>
+        <div
+          style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">
+            Dispozitive Active</div>
           <div id="statDevices" style="font-size: 1.6rem; font-weight: 700; color: #8b5cf6; margin-top: 4px;">0</div>
           <div id="statIps" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">0 IP-uri unice</div>
         </div>
-        <div style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
-          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">Latență Medie</div>
+        <div
+          style="background: var(--bg-surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase;">
+            Latență Medie</div>
           <div id="statLatency" style="font-size: 1.6rem; font-weight: 700; color: #10b981; margin-top: 4px;">0 ms</div>
           <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">timp procesare backend</div>
         </div>
       </div>
 
       <!-- Quick Filter Chips: Dispozitive & IP-uri Active -->
-      <div style="background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 20px;">
+      <div
+        style="background: rgba(255, 255, 255, 0.02); border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
           <span style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary);">
             🔍 Dispozitive &amp; IP-uri active (apasă pentru a filtra instant):
           </span>
-          <button id="clearActiveFilterBtn" type="button" style="display: none; background: none; border: none; color: #ef4444; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
+          <button id="clearActiveFilterBtn" type="button"
+            style="display: none; background: none; border: none; color: #ef4444; font-size: 0.8rem; font-weight: 600; cursor: pointer;">
             ✕ Resetează filtrele rapide
           </button>
         </div>
@@ -523,24 +579,30 @@
       <!-- Toolbar: Search & Filters -->
       <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 16px;">
         <div style="position: relative; flex: 1; min-width: 220px;">
-          <input type="text" id="apiSearchInput" placeholder="Caută după IP, endpoint (/api/trip), dispozitiv, status..." style="width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; outline: none;">
-          <span style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: var(--text-muted);">🔍</span>
+          <input type="text" id="apiSearchInput"
+            placeholder="Caută după IP, endpoint (/api/trip), dispozitiv, status..."
+            style="width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; outline: none;">
+          <span
+            style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: var(--text-muted);">🔍</span>
         </div>
-        <select id="apiFilterMethod" style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
+        <select id="apiFilterMethod"
+          style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
           <option value="ALL">Toate Metodele</option>
           <option value="GET">GET</option>
           <option value="POST">POST</option>
           <option value="HEAD">HEAD</option>
           <option value="OPTIONS">OPTIONS</option>
         </select>
-        <select id="apiFilterStatus" style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
+        <select id="apiFilterStatus"
+          style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
           <option value="all">Toate Statusurile</option>
           <option value="2xx">2xx Succes</option>
           <option value="304">304 Not Modified</option>
           <option value="4xx">4xx Erori Client</option>
           <option value="5xx">5xx Erori Server</option>
         </select>
-        <select id="apiFilterDevice" style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
+        <select id="apiFilterDevice"
+          style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
           <option value="all">Toate Dispozitivele</option>
           <option value="Android">📱 Android</option>
           <option value="EuroTrip">📱 EuroTrip App</option>
@@ -556,7 +618,8 @@
       <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
         <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem; text-align: left;">
           <thead>
-            <tr style="background: rgba(255, 255, 255, 0.03); border-bottom: 2px solid var(--border); color: var(--text-primary); user-select: none;">
+            <tr
+              style="background: rgba(255, 255, 255, 0.03); border-bottom: 2px solid var(--border); color: var(--text-primary); user-select: none;">
               <th style="padding: 11px 14px; cursor: pointer;" data-sort="timestamp" title="Sortare după dată și oră">
                 🕒 Dată &amp; Oră <span class="sort-icon" id="sortIcon_timestamp">▼</span>
               </th>
@@ -592,11 +655,14 @@
       </div>
 
       <!-- Pagination / Count Footer -->
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 0.85rem; color: var(--text-muted);">
+      <div
+        style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; font-size: 0.85rem; color: var(--text-muted);">
         <div id="apiLogsCountInfo">Afișare 0 cereri</div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn-secondary" id="apiPrevPageBtn" type="button" disabled style="padding: 6px 12px; font-size: 0.82rem;">« Înapoi</button>
-          <button class="btn-secondary" id="apiNextPageBtn" type="button" disabled style="padding: 6px 12px; font-size: 0.82rem;">Înainte »</button>
+          <button class="btn-secondary" id="apiPrevPageBtn" type="button" disabled
+            style="padding: 6px 12px; font-size: 0.82rem;">« Înapoi</button>
+          <button class="btn-secondary" id="apiNextPageBtn" type="button" disabled
+            style="padding: 6px 12px; font-size: 0.82rem;">Înainte »</button>
         </div>
       </div>
     </div>
@@ -608,7 +674,8 @@
       <div class="settings-card-header">
         <div>
           <h2 class="danger-title">⚠️ Danger Zone</h2>
-          <p class="settings-card-desc">Acțiuni ireversibile pentru trip-ul activ. Un backup de siguranță este creat automat înainte de execuție.</p>
+          <p class="settings-card-desc">Acțiuni ireversibile pentru trip-ul activ. Un backup de siguranță este creat
+            automat înainte de execuție.</p>
         </div>
       </div>
 
@@ -714,7 +781,8 @@
     </div>
     <div class="modal-body">
       <p id="dangerAuthDesc" style="margin-bottom:14px;color:var(--text-secondary);line-height:1.5;">
-        Ești sigur că vrei să ștergi <strong>TOATE locațiile</strong> din călătoria curentă? Un backup de siguranță va fi creat automat înainte. Această acțiune este ireversibilă.
+        Ești sigur că vrei să ștergi <strong>TOATE locațiile</strong> din călătoria curentă? Un backup de siguranță va
+        fi creat automat înainte. Această acțiune este ireversibilă.
       </p>
       <div id="dangerAuthError" style="color:#f87171;font-size:0.82rem;min-height:18px;margin-bottom:10px;"></div>
       <div class="backup-delete-actions">
@@ -731,18 +799,25 @@
 </div>
 
 <!-- ==================== REQUEST DETAIL MODAL (API LOGS) ==================== -->
-<div class="modal-overlay" id="requestDetailModal" role="dialog" aria-modal="true" aria-labelledby="requestDetailModalTitle">
-  <div class="modal-box" style="max-width: 680px !important; width: 94%; max-height: 88vh; display: flex; flex-direction: column;">
-    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
-      <h2 id="requestDetailModalTitle" style="font-size: 1.15rem; margin: 0; display: flex; align-items: center; gap: 8px;">
+<div class="modal-overlay" id="requestDetailModal" role="dialog" aria-modal="true"
+  aria-labelledby="requestDetailModalTitle">
+  <div class="modal-box"
+    style="max-width: 680px !important; width: 94%; max-height: 88vh; display: flex; flex-direction: column;">
+    <div class="modal-header"
+      style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding: 16px 20px;">
+      <h2 id="requestDetailModalTitle"
+        style="font-size: 1.15rem; margin: 0; display: flex; align-items: center; gap: 8px;">
         <span>🔎 Detalii Cerere API</span>
       </h2>
-      <button class="modal-close" id="closeRequestDetailModal" type="button" aria-label="Închide" style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);">✕</button>
+      <button class="modal-close" id="closeRequestDetailModal" type="button" aria-label="Închide"
+        style="background:none; border:none; font-size:1.2rem; cursor:pointer; color:var(--text-muted);">✕</button>
     </div>
-    <div class="modal-body" style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;">
-      
+    <div class="modal-body"
+      style="padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 16px;">
+
       <!-- Top badges: Method, Status, Duration, Time -->
-      <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: rgba(255, 255, 255, 0.03); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+      <div
+        style="display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: rgba(255, 255, 255, 0.03); padding: 12px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
         <span id="modalReqMethod" class="backup-pill" style="font-weight: 700; font-size: 0.9rem;">GET</span>
         <span id="modalReqStatus" class="backup-pill" style="font-weight: 700; font-size: 0.9rem;">200 OK</span>
         <span id="modalReqDuration" style="font-size: 0.85rem; color: var(--text-secondary);">⏱️ 0 ms</span>
@@ -750,72 +825,101 @@
       </div>
 
       <!-- Endpoint & Query -->
-      <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
-        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">Cale &amp; Endpoint</div>
-        <div id="modalReqPath" style="font-family: monospace; font-size: 0.95rem; font-weight: 600; word-break: break-all; color: var(--text-primary);">/api/trip</div>
+      <div
+        style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
+        <div
+          style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">
+          Cale &amp; Endpoint</div>
+        <div id="modalReqPath"
+          style="font-family: monospace; font-size: 0.95rem; font-weight: 600; word-break: break-all; color: var(--text-primary);">
+          /api/trip</div>
         <div id="modalReqQueryWrap" style="margin-top: 8px; display: none;">
-          <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">Parametri Query</div>
-          <div id="modalReqQuery" style="font-family: monospace; font-size: 0.82rem; background: rgba(0, 0, 0, 0.25); color: var(--text-primary); padding: 6px 10px; border-radius: 4px; word-break: break-all;"></div>
+          <div
+            style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 4px;">
+            Parametri Query</div>
+          <div id="modalReqQuery"
+            style="font-family: monospace; font-size: 0.82rem; background: rgba(0, 0, 0, 0.25); color: var(--text-primary); padding: 6px 10px; border-radius: 4px; word-break: break-all;">
+          </div>
         </div>
       </div>
 
       <!-- Client & Device Info -->
-      <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
-        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">Dispozitiv &amp; Rețea Client</div>
+      <div
+        style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
+        <div
+          style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">
+          Dispozitiv &amp; Rețea Client</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">IP Client</div>
-            <div id="modalReqIp" style="font-family: monospace; font-weight: 700; font-size: 0.9rem; margin-top: 2px; color: var(--text-primary);">127.0.0.1</div>
+            <div id="modalReqIp"
+              style="font-family: monospace; font-weight: 700; font-size: 0.9rem; margin-top: 2px; color: var(--text-primary);">
+              127.0.0.1</div>
           </div>
           <div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">Dispozitiv / Client</div>
-            <div id="modalReqDevice" style="font-weight: 600; font-size: 0.9rem; margin-top: 2px; color: var(--text-primary);">📱 Android · EuroTrip App</div>
+            <div id="modalReqDevice"
+              style="font-weight: 600; font-size: 0.9rem; margin-top: 2px; color: var(--text-primary);">📱 Android ·
+              EuroTrip App</div>
           </div>
           <div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">Sistem Operare</div>
-            <div id="modalReqOs" style="font-size: 0.85rem; margin-top: 2px; color: var(--text-secondary);">Android</div>
+            <div id="modalReqOs" style="font-size: 0.85rem; margin-top: 2px; color: var(--text-secondary);">Android
+            </div>
           </div>
           <div>
             <div style="font-size: 0.75rem; color: var(--text-muted);">Rol &amp; Autentificare</div>
-            <div id="modalReqRole" style="font-size: 0.85rem; margin-top: 2px; color: var(--text-secondary);">admin</div>
+            <div id="modalReqRole" style="font-size: 0.85rem; margin-top: 2px; color: var(--text-secondary);">admin
+            </div>
           </div>
         </div>
 
         <div style="margin-top: 12px;">
           <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">User-Agent complet</div>
-          <div id="modalReqUa" style="font-family: monospace; font-size: 0.78rem; background: rgba(0, 0, 0, 0.25); color: var(--text-secondary); padding: 8px 10px; border-radius: 6px; word-break: break-all; max-height: 80px; overflow-y: auto;"></div>
+          <div id="modalReqUa"
+            style="font-family: monospace; font-size: 0.78rem; background: rgba(0, 0, 0, 0.25); color: var(--text-secondary); padding: 8px 10px; border-radius: 6px; word-break: break-all; max-height: 80px; overflow-y: auto;">
+          </div>
         </div>
       </div>
 
       <!-- Sync & Cache Headers -->
-      <div style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
-        <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">Sincronizare Smart &amp; Cache</div>
+      <div
+        style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
+        <div
+          style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); margin-bottom: 10px;">
+          Sincronizare Smart &amp; Cache</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.82rem;">
           <div>
             <span style="color: var(--text-muted);">ETag Client (If-None-Match):</span>
-            <div id="modalReqEtagReq" style="font-family: monospace; font-weight: 600; margin-top: 2px; color: var(--text-primary);">-</div>
+            <div id="modalReqEtagReq"
+              style="font-family: monospace; font-weight: 600; margin-top: 2px; color: var(--text-primary);">-</div>
           </div>
           <div>
             <span style="color: var(--text-muted);">ETag Răspuns Server:</span>
-            <div id="modalReqEtagResp" style="font-family: monospace; font-weight: 600; margin-top: 2px; color: var(--text-primary);">-</div>
+            <div id="modalReqEtagResp"
+              style="font-family: monospace; font-weight: 600; margin-top: 2px; color: var(--text-primary);">-</div>
           </div>
           <div>
             <span style="color: var(--text-muted);">Dimensiune Răspuns:</span>
-            <div id="modalReqSize" style="font-family: monospace; margin-top: 2px; color: var(--text-secondary);">-</div>
+            <div id="modalReqSize" style="font-family: monospace; margin-top: 2px; color: var(--text-secondary);">-
+            </div>
           </div>
           <div>
             <span style="color: var(--text-muted);">Trip ID activ:</span>
-            <div id="modalReqTripId" style="font-family: monospace; margin-top: 2px; color: var(--text-secondary);">Spain_2026</div>
+            <div id="modalReqTripId" style="font-family: monospace; margin-top: 2px; color: var(--text-secondary);">
+              Spain_2026</div>
           </div>
         </div>
       </div>
 
       <!-- Raw Headers Accordion / Pre -->
-      <details style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; background: var(--bg-surface);">
+      <details
+        style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; background: var(--bg-surface);">
         <summary style="font-size: 0.82rem; font-weight: 600; cursor: pointer; color: var(--text-secondary);">
           Antete HTTP Complete (Headers)
         </summary>
-        <pre id="modalReqHeaders" style="margin-top: 10px; background: rgba(0, 0, 0, 0.35); color: var(--text-primary); padding: 10px; border-radius: 6px; font-size: 0.75rem; max-height: 160px; overflow-y: auto; white-space: pre-wrap; font-family: monospace;"></pre>
+        <pre id="modalReqHeaders"
+          style="margin-top: 10px; background: rgba(0, 0, 0, 0.35); color: var(--text-primary); padding: 10px; border-radius: 6px; font-size: 0.75rem; max-height: 160px; overflow-y: auto; white-space: pre-wrap; font-family: monospace;"></pre>
       </details>
     </div>
     <div style="padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
