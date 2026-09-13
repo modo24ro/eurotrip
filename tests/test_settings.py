@@ -197,6 +197,21 @@ class TestSettingsPage(unittest.TestCase):
             self.assertIn(f'data-view="{v}"', html)
             self.assertIn(f'href="?view={v}"', html)
 
+    def test_settings_history_tab_search_and_filter_present(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        res = self.client.get('/admin/settings')
+        self.assertEqual(res.status_code, 200)
+        content = res.data.decode('utf-8')
+        self.assertIn('paneHistory', content)
+        self.assertIn('historySearchInput', content)
+        self.assertIn('historyFilterSource', content)
+        self.assertIn('clearHistoryFilterBtn', content)
+        self.assertIn('historyCountInfo', content)
+
     def test_settings_timezone_tab_present(self):
         with self.client.session_transaction() as sess:
             sess['authenticated'] = True
@@ -233,11 +248,28 @@ class TestSettingsPage(unittest.TestCase):
         self.assertIn('timezone_mode', data['settings'])
         self.assertIn('now_romania', data)
         self.assertIn('now_server', data)
+        self.assertIn('server_timezone', data)
+        self.assertIn('server_offset_seconds', data)
+        self.assertIn('server_timestamp_ms', data)
+        self.assertIn('server_iana_tz', data)
+
+        from app import get_server_timezone_info
+        srv_info = get_server_timezone_info()
+        self.assertIn('datetime', srv_info)
+        self.assertIn('offset_seconds', srv_info)
+        self.assertIn('label', srv_info)
 
         # POST update settings (switch to server, then back to romania)
         res_post = self.client.post('/api/admin/settings', json={'timezone_mode': 'server'})
         self.assertEqual(res_post.status_code, 200)
         self.assertEqual(res_post.get_json().get('settings', {}).get('timezone_mode'), 'server')
+        self.assertIn('server_offset_seconds', res_post.get_json())
+        self.assertIn('server_timestamp_ms', res_post.get_json())
+
+        # Verify get_current_datetime when mode is server
+        now_server_dt = get_current_datetime()
+        self.assertIsNotNone(now_server_dt)
+        self.assertIsNotNone(now_server_dt.tzinfo)
 
         # Invalid mode -> 400
         res_invalid = self.client.post('/api/admin/settings', json={'timezone_mode': 'invalid_zone'})
@@ -352,6 +384,49 @@ class TestSettingsPage(unittest.TestCase):
         res_after_clear = self.client.get('/api/admin/request-logs')
         self.assertEqual(res_after_clear.status_code, 200)
         self.assertEqual(res_after_clear.get_json().get('total'), 0)
+
+    def test_api_request_associated_with_version_history(self):
+        with self.client.session_transaction() as sess:
+            sess['authenticated'] = True
+            sess['role'] = 'admin'
+            sess['trip_id'] = 'Spain_2026'
+
+        self.client.post('/api/admin/request-logs/clear')
+
+        # Trigger a modification via API
+        from app import load_trip_data, create_trip_version
+        current_data = load_trip_data()
+
+        # Simulate API save
+        test_ip = '198.51.100.99'
+        test_ua = 'EuroTrip/2.5 (Linux; Android 15; Pixel 9)'
+        res_save = self.client.post('/api/trip', json=current_data, headers={
+            'X-Forwarded-For': test_ip,
+            'User-Agent': test_ua,
+        })
+        self.assertEqual(res_save.status_code, 200)
+
+        # 1. Verify version history captures IP, is_api, device, and request_id
+        res_versions = self.client.get('/api/admin/versions')
+        self.assertEqual(res_versions.status_code, 200)
+        v_data = res_versions.get_json()
+        versions = v_data.get('versions', [])
+        self.assertGreaterEqual(len(versions), 1)
+        latest_version = versions[0]
+        self.assertEqual(latest_version.get('ip'), test_ip)
+        self.assertTrue(latest_version.get('is_api'))
+        self.assertIn('Android', latest_version.get('device', ''))
+        self.assertIsNotNone(latest_version.get('request_id'))
+
+        # 2. Verify API logs capture version_id and has_site_changes
+        res_logs = self.client.get('/api/admin/request-logs')
+        self.assertEqual(res_logs.status_code, 200)
+        logs = res_logs.get_json().get('logs', [])
+        save_log = next((l for l in logs if l.get('path') == '/api/trip' and l.get('method') == 'POST'), None)
+        self.assertIsNotNone(save_log)
+        self.assertTrue(save_log.get('has_site_changes'))
+        self.assertEqual(save_log.get('version_id'), latest_version.get('version_id'))
+        self.assertEqual(save_log.get('id'), latest_version.get('request_id'))
 
 
 if __name__ == '__main__':

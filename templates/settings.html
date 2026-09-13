@@ -229,6 +229,34 @@
         </button>
       </div>
 
+      <!-- Toolbar: Real-time Search, Source Filter & URL Sync -->
+      <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 18px; margin-bottom: 14px;">
+        <div style="position: relative; flex: 1; min-width: 220px;">
+          <input type="text" id="historySearchInput"
+            placeholder="Caută după ID versiune, acțiune (save, visited), dată, IP, modificare..."
+            style="width: 100%; padding: 9px 12px 9px 34px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.9rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; outline: none;">
+          <span
+            style="position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 0.9rem; color: var(--text-muted);">🔍</span>
+        </div>
+        <select id="historyFilterSource"
+          style="padding: 9px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 0.88rem; background: var(--bg-surface); color: var(--text-primary); color-scheme: dark; cursor: pointer;">
+          <option value="all">Toate Sursele</option>
+          <option value="api">📡 Doar Cereri API</option>
+          <option value="web">💻 Doar Web UI</option>
+        </select>
+        <button id="clearHistoryFilterBtn" type="button" class="btn-secondary"
+          style="display: none; padding: 9px 14px; font-size: 0.85rem; font-weight: 600; color: #ef4444; cursor: pointer;">
+          ✕ Resetează filtrul
+        </button>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 0.85rem; color: var(--text-muted);">
+        <div id="historyCountInfo">Afișare 0 versiuni</div>
+        <div id="historyFilterActiveTag" style="display: none; font-size: 0.78rem; font-weight: 600; background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); padding: 2px 10px; border-radius: 12px;">
+          Filtru activ
+        </div>
+      </div>
+
       <div class="security-table-wrap">
         <table class="security-table">
           <thead>
@@ -236,6 +264,7 @@
               <th>Created</th>
               <th>Action</th>
               <th>Role</th>
+              <th>IP &amp; Sursă</th>
               <th>Locations</th>
               <th>Changes</th>
               <th style="text-align:right;">Actions</th>
@@ -243,7 +272,7 @@
           </thead>
           <tbody id="versionsBody">
             <tr>
-              <td colspan="6" style="text-align:center;padding:24px;">Loading version history…</td>
+              <td colspan="7" style="text-align:center;padding:24px;">Loading version history…</td>
             </tr>
           </tbody>
         </table>
@@ -376,7 +405,7 @@
                 style="background:#10b981; color:#fff; display:none;">Activ</span>
             </div>
             <div id="clockRomania"
-              style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
+              style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-primary); margin: 6px 0;">
               --:--:--
             </div>
             <div style="font-size: 0.78rem; color: var(--text-muted);">
@@ -395,7 +424,7 @@
                 style="background:#10b981; color:#fff; display:none;">Activ</span>
             </div>
             <div id="clockServer"
-              style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-color); margin: 6px 0;">
+              style="font-size: 1.6rem; font-weight: 700; font-family: monospace; color: var(--text-primary); margin: 6px 0;">
               --:--:--
             </div>
             <div id="serverTzLabel" style="font-size: 0.78rem; color: var(--text-muted);">
@@ -843,6 +872,20 @@
         </div>
       </div>
 
+      <!-- Site Changes & Version Association -->
+      <div id="modalSiteChangesSection"
+        style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="font-size: 0.75rem; text-transform: uppercase; font-weight: 700; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+            <span>⚡ Modificări Efectuate pe Site</span>
+          </div>
+          <span id="modalChangesBadge" class="backup-pill" style="font-size: 0.72rem; font-weight: 600;">-</span>
+        </div>
+        <div id="modalChangesContent">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
       <!-- Client & Device Info -->
       <div
         style="border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: var(--bg-surface);">
@@ -1083,14 +1126,65 @@
     // ==========================================
     let currentAppTimezoneMode = 'romania';
     let clocksTimer = null;
+    let serverTimeSync = {
+      serverEpochMs: null,
+      serverOffsetSec: 0,
+      serverIanaTz: null,
+      serverTzLabel: null,
+      clientEpochAtFetch: null
+    };
+
+    function updateServerSync(data) {
+      if (!data) return;
+      if (typeof data.server_timestamp_ms === 'number') {
+        serverTimeSync.serverEpochMs = data.server_timestamp_ms;
+        serverTimeSync.clientEpochAtFetch = Date.now();
+      }
+      if (typeof data.server_offset_seconds === 'number') {
+        serverTimeSync.serverOffsetSec = data.server_offset_seconds;
+      }
+      if (data.server_iana_tz) {
+        serverTimeSync.serverIanaTz = data.server_iana_tz;
+      }
+      if (data.server_timezone) {
+        serverTimeSync.serverTzLabel = data.server_timezone;
+        const srvLabel = document.getElementById('serverTzLabel');
+        if (srvLabel) srvLabel.textContent = `Sistem: ${data.server_timezone}`;
+      }
+    }
 
     function formatAppDateTime(isoString) {
       if (!isoString) return '-';
       try {
         const d = new Date(isoString);
         if (isNaN(d.getTime())) return isoString;
-        const tz = currentAppTimezoneMode === 'romania' ? 'Europe/Bucharest' : (currentAppTimezoneMode === 'utc' ? 'UTC' : undefined);
-        return d.toLocaleString('ro-RO', tz ? { timeZone: tz } : undefined);
+
+        if (currentAppTimezoneMode === 'romania') {
+          return d.toLocaleString('ro-RO', { timeZone: 'Europe/Bucharest' });
+        }
+        if (currentAppTimezoneMode === 'utc') {
+          return d.toLocaleString('ro-RO', { timeZone: 'UTC' });
+        }
+        // Mode is 'server': format in the server's timezone
+        if (serverTimeSync.serverIanaTz) {
+          try {
+            return d.toLocaleString('ro-RO', { timeZone: serverTimeSync.serverIanaTz });
+          } catch (e) {
+            // Fall through to offset calculation if browser doesn't recognize IANA tz
+          }
+        }
+        if (typeof serverTimeSync.serverOffsetSec === 'number') {
+          const localEpoch = d.getTime() + (serverTimeSync.serverOffsetSec * 1000);
+          const ld = new Date(localEpoch);
+          const day = String(ld.getUTCDate()).padStart(2, '0');
+          const month = String(ld.getUTCMonth() + 1).padStart(2, '0');
+          const year = ld.getUTCFullYear();
+          const hh = String(ld.getUTCHours()).padStart(2, '0');
+          const mm = String(ld.getUTCMinutes()).padStart(2, '0');
+          const ss = String(ld.getUTCSeconds()).padStart(2, '0');
+          return `${day}.${month}.${year}, ${hh}:${mm}:${ss}`;
+        }
+        return d.toLocaleString('ro-RO');
       } catch (e) {
         return isoString;
       }
@@ -1406,26 +1500,98 @@
     const restoreVersionModal = document.getElementById('restoreVersionModal');
     const versionRestoredModal = document.getElementById('versionRestoredModal');
     let pendingVersionId = null;
+    let currentVersionsData = [];
+    let historyState = {
+      q: '',
+      source: 'all',
+      highlight_version_id: ''
+    };
 
-    async function loadVersions() {
-      versionsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;">Loading version history…</td></tr>';
-      try {
-        const res = await fetch('/api/admin/versions');
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Could not load versions');
-        const versions = data.versions || [];
-        if (!versions.length) {
-          versionsBody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">No history snapshots recorded yet.</td></tr>';
-          return;
+    function syncHistoryUrl() {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get('tab') === 'history') {
+        if (historyState.q) {
+          url.searchParams.set('q', historyState.q);
+          url.searchParams.delete('version');
+        } else {
+          url.searchParams.delete('q');
+          url.searchParams.delete('version');
         }
-        versionsBody.innerHTML = versions.map(v => `
-        <tr>
-          <td>${escapeHtml(formatAppDateTime(v.created))}</td>
+        if (historyState.source && historyState.source !== 'all') {
+          url.searchParams.set('source', historyState.source);
+        } else {
+          url.searchParams.delete('source');
+        }
+        window.history.replaceState({}, '', url.toString());
+      }
+    }
+
+    function renderVersionsList() {
+      const qLower = (historyState.q || '').trim().toLowerCase();
+      const filtered = currentVersionsData.filter(v => {
+        if (historyState.source === 'api' && !v.is_api) return false;
+        if (historyState.source === 'web' && v.is_api) return false;
+        if (qLower) {
+          const matchId = (v.version_id || '').toLowerCase().includes(qLower);
+          const matchAction = (v.action || '').toLowerCase().includes(qLower);
+          const matchRole = (v.role || '').toLowerCase().includes(qLower);
+          const matchIp = (v.ip || '').toLowerCase().includes(qLower);
+          const matchDev = (v.device || '').toLowerCase().includes(qLower);
+          const matchReq = (v.request_id || '').toLowerCase().includes(qLower);
+          const matchChanges = (v.changes || []).join(' ').toLowerCase().includes(qLower);
+          const matchDate = (v.created || '').toLowerCase().includes(qLower) || formatAppDateTime(v.created).toLowerCase().includes(qLower);
+          if (!matchId && !matchAction && !matchRole && !matchIp && !matchDev && !matchReq && !matchChanges && !matchDate) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      const countEl = document.getElementById('historyCountInfo');
+      if (countEl) {
+        countEl.textContent = `Afișare ${filtered.length} din ${currentVersionsData.length} versiuni`;
+      }
+
+      const clearBtn = document.getElementById('clearHistoryFilterBtn');
+      const activeTag = document.getElementById('historyFilterActiveTag');
+      const isFiltered = Boolean(historyState.q || historyState.source !== 'all');
+      if (clearBtn) clearBtn.style.display = isFiltered ? 'inline-block' : 'none';
+      if (activeTag) {
+        activeTag.style.display = isFiltered ? 'inline-block' : 'none';
+        activeTag.textContent = historyState.q ? `Filtru: "${historyState.q}"` : 'Filtru activ';
+      }
+
+      if (!filtered.length) {
+        versionsBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-muted);">Nicio versiune găsită pentru filtrul curent.</td></tr>';
+        return;
+      }
+
+      versionsBody.innerHTML = filtered.map(v => `
+        <tr id="versionRow_${escapeHtml(v.version_id)}" style="transition: all 0.3s ease;">
+          <td style="white-space:nowrap;">${escapeHtml(formatAppDateTime(v.created))}</td>
           <td><span class="backup-pill">${escapeHtml(v.action)}</span></td>
           <td>${escapeHtml(v.role)}</td>
+          <td>
+            <div style="display:flex; flex-direction:column; gap:4px;">
+              <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span style="font-family:monospace; font-size:0.83rem; font-weight:600; color:var(--text-primary);">${escapeHtml(v.ip || '-')}</span>
+                ${v.is_api 
+                  ? `<span class="backup-pill" style="background:rgba(99,102,241,0.2); color:#818cf8; border:1px solid rgba(99,102,241,0.4); font-size:0.72rem; padding:1px 6px;" title="${escapeHtml(v.method || '')} ${escapeHtml(v.path || '')}">📡 API</span>` 
+                  : `<span class="backup-pill" style="background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3); font-size:0.72rem; padding:1px 6px;">💻 Web UI</span>`}
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-muted);">
+                ${escapeHtml(v.device || '')}
+              </div>
+            </div>
+          </td>
           <td>${v.location_count || 0}</td>
           <td>${(v.changes || []).map(c => `<div>${escapeHtml(c)}</div>`).join('')}</td>
-          <td style="text-align:right;">
+          <td style="text-align:right; white-space:nowrap;">
+            ${v.request_id ? `
+            <button class="btn-secondary btn-sm view-version-api-btn" data-req-id="${escapeHtml(v.request_id)}" type="button" title="Vezi cererea API din monitor" style="margin-right:6px; font-size:0.78rem; padding:4px 8px;">
+              📡 Cerere API
+            </button>
+            ` : ''}
             <button class="btn-secondary btn-sm restore-version-btn" data-version="${escapeHtml(v.version_id)}" type="button">
               Restore
             </button>
@@ -1433,17 +1599,110 @@
         </tr>
       `).join('');
 
-        versionsBody.querySelectorAll('.restore-version-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            pendingVersionId = btn.dataset.version;
-            document.getElementById('restoreVersionName').textContent = pendingVersionId;
-            restoreVersionModal.classList.add('open');
-          });
+      versionsBody.querySelectorAll('.restore-version-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          pendingVersionId = btn.dataset.version;
+          document.getElementById('restoreVersionName').textContent = pendingVersionId;
+          restoreVersionModal.classList.add('open');
         });
-      } catch (err) {
-        versionsBody.innerHTML = `<tr><td colspan="6" class="error-msg">${escapeHtml(err.message)}</td></tr>`;
+      });
+
+      versionsBody.querySelectorAll('.view-version-api-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const reqId = btn.dataset.reqId;
+          if (!reqId) return;
+          switchTab('apilogs');
+          let foundLog = (apiLogsData || []).find(l => l.id === reqId);
+          if (!foundLog) {
+            try {
+              const res = await fetch(`/api/admin/request-logs?q=${encodeURIComponent(reqId)}`);
+              const logData = await res.json();
+              if (logData.ok && logData.logs && logData.logs.length) {
+                foundLog = logData.logs.find(l => l.id === reqId) || logData.logs[0];
+              }
+            } catch (e) {
+              console.warn('Could not fetch specific log:', e);
+            }
+          }
+          if (foundLog) {
+            openRequestDetailModal(foundLog);
+          } else {
+            showToast(`Cererea API cu ID-ul ${reqId} nu a mai fost găsită în memorie (posibil rotită).`, 'warning');
+          }
+        });
+      });
+
+      if (historyState.highlight_version_id) {
+        const targetVer = historyState.highlight_version_id;
+        const row = document.getElementById(`versionRow_${targetVer}`);
+        if (row) {
+          row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          row.style.outline = '2px solid #818cf8';
+          row.style.backgroundColor = 'rgba(99, 102, 241, 0.22)';
+          setTimeout(() => {
+            row.style.outline = 'none';
+            row.style.backgroundColor = '';
+          }, 3500);
+        }
+        historyState.highlight_version_id = '';
       }
     }
+
+    async function loadVersions() {
+      versionsBody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;">Loading version history…</td></tr>';
+      try {
+        const res = await fetch('/api/admin/versions');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not load versions');
+        currentVersionsData = data.versions || [];
+
+        // Check URL parameters for filtering by version, query, date, or source
+        const params = new URLSearchParams(window.location.search);
+        const urlQ = params.get('q') || params.get('history_q') || params.get('version') || params.get('version_id') || params.get('date');
+        const urlSource = params.get('source') || params.get('history_source');
+        if (urlQ) {
+          historyState.q = urlQ;
+          const sInput = document.getElementById('historySearchInput');
+          if (sInput) sInput.value = urlQ;
+          if (params.get('version') || params.get('version_id')) {
+            historyState.highlight_version_id = urlQ;
+          }
+        }
+        if (urlSource) {
+          historyState.source = urlSource;
+          const sFilter = document.getElementById('historyFilterSource');
+          if (sFilter) sFilter.value = urlSource;
+        }
+
+        renderVersionsList();
+      } catch (err) {
+        versionsBody.innerHTML = `<tr><td colspan="7" class="error-msg">${escapeHtml(err.message)}</td></tr>`;
+      }
+    }
+
+    document.getElementById('historySearchInput')?.addEventListener('input', (e) => {
+      historyState.q = e.target.value.trim();
+      syncHistoryUrl();
+      renderVersionsList();
+    });
+
+    document.getElementById('historyFilterSource')?.addEventListener('change', (e) => {
+      historyState.source = e.target.value;
+      syncHistoryUrl();
+      renderVersionsList();
+    });
+
+    document.getElementById('clearHistoryFilterBtn')?.addEventListener('click', () => {
+      historyState.q = '';
+      historyState.source = 'all';
+      historyState.highlight_version_id = '';
+      const sInput = document.getElementById('historySearchInput');
+      if (sInput) sInput.value = '';
+      const sFilter = document.getElementById('historyFilterSource');
+      if (sFilter) sFilter.value = 'all';
+      syncHistoryUrl();
+      renderVersionsList();
+    });
 
     document.getElementById('refreshVersions')?.addEventListener('click', loadVersions);
     const closeVersionRestore = () => { pendingVersionId = null; restoreVersionModal.classList.remove('open'); };
@@ -1641,10 +1900,7 @@
         if (radio) radio.checked = true;
 
         updateTimezoneBadges(currentAppTimezoneMode);
-        if (data.server_timezone) {
-          const srvLabel = document.getElementById('serverTzLabel');
-          if (srvLabel) srvLabel.textContent = `Sistem: ${data.server_timezone}`;
-        }
+        updateServerSync(data);
       } catch (err) {
         console.warn('Could not load timezone settings:', err);
       }
@@ -1660,14 +1916,33 @@
     function startLiveClocks() {
       if (clocksTimer) return;
       function tick() {
-        const now = new Date();
         const cRo = document.getElementById('clockRomania');
         const cSrv = document.getElementById('clockServer');
-        if (cRo) {
-          cRo.textContent = now.toLocaleTimeString('ro-RO', { timeZone: 'Europe/Bucharest', hour12: false });
-        }
-        if (cSrv) {
-          cSrv.textContent = now.toLocaleTimeString('ro-RO', { hour12: false });
+
+        if (serverTimeSync.serverEpochMs && serverTimeSync.clientEpochAtFetch) {
+          const elapsed = Date.now() - serverTimeSync.clientEpochAtFetch;
+          const currentServerUtcEpoch = serverTimeSync.serverEpochMs + elapsed;
+
+          // 1. Romania Clock (Europe/Bucharest)
+          const dRo = new Date(currentServerUtcEpoch);
+          if (cRo) {
+            cRo.textContent = dRo.toLocaleTimeString('ro-RO', { timeZone: 'Europe/Bucharest', hour12: false });
+          }
+
+          // 2. Server Clock: calculate based on server offset (pure UTC hours/mins/secs so client browser tz has NO impact)
+          const serverLocalMs = currentServerUtcEpoch + (serverTimeSync.serverOffsetSec * 1000);
+          const dSrv = new Date(serverLocalMs);
+          const hh = String(dSrv.getUTCHours()).padStart(2, '0');
+          const mm = String(dSrv.getUTCMinutes()).padStart(2, '0');
+          const ss = String(dSrv.getUTCSeconds()).padStart(2, '0');
+          if (cSrv) {
+            cSrv.textContent = `${hh}:${mm}:${ss}`;
+          }
+        } else {
+          // Fallback before initial sync arrives
+          const now = new Date();
+          if (cRo) cRo.textContent = now.toLocaleTimeString('ro-RO', { timeZone: 'Europe/Bucharest', hour12: false });
+          if (cSrv) cSrv.textContent = now.toLocaleTimeString('ro-RO', { hour12: false });
         }
       }
       tick();
@@ -1690,10 +1965,11 @@
         if (!res.ok) throw new Error(data.error || 'Salvarea a eșuat');
         currentAppTimezoneMode = selected;
         updateTimezoneBadges(selected);
+        updateServerSync(data);
         showToast(
           selected === 'romania'
             ? 'Fusul orar a fost setat pe: Ora României (Europe/Bucharest)'
-            : (selected === 'utc' ? 'Fusul orar a fost setat pe: UTC' : 'Fusul orar a fost setat pe: Ora Serverului'),
+            : (selected === 'utc' ? 'Fusul orar a fost setat pe: UTC' : `Fusul orar a fost setat pe: Ora Serverului (${data.server_timezone || 'Local'})`),
           'success'
         );
         if (document.getElementById('paneBackup')?.classList.contains('active')) renderBackups();
@@ -2040,6 +2316,93 @@
       document.getElementById('modalReqSize').textContent = log.resp_size ? `${log.resp_size} bytes` : '0 bytes';
       document.getElementById('modalReqTripId').textContent = log.trip_id || '-';
 
+      // Populate Site Changes & Version Association
+      const changesBadge = document.getElementById('modalChangesBadge');
+      const changesContent = document.getElementById('modalChangesContent');
+
+      if (changesContent) {
+        if (log.has_site_changes || log.version_id) {
+          if (changesBadge) {
+            changesBadge.textContent = 'A modificat călătoria';
+            changesBadge.style.background = 'rgba(16, 185, 129, 0.2)';
+            changesBadge.style.color = '#10b981';
+            changesBadge.style.border = '1px solid rgba(16, 185, 129, 0.4)';
+          }
+          const changesList = (log.changes && log.changes.length)
+            ? log.changes.map(c => `<li style="margin-bottom: 3px;">${escapeHtml(c)}</li>`).join('')
+            : '<li>Modificare de date înregistrată în snapshot.</li>';
+
+          changesContent.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: 0.85rem;">
+                <div>
+                  <span style="color: var(--text-muted);">Versiune creată în istoric:</span>
+                  <code style="font-family: monospace; font-size: 0.82rem; background: rgba(0,0,0,0.3); color: var(--text-primary); padding: 2px 7px; border-radius: 4px;">${escapeHtml(log.version_id || '-')}</code>
+                </div>
+                <div>
+                  <span class="backup-pill" style="font-size: 0.75rem;">Acțiune: ${escapeHtml(log.version_action || log.method)}</span>
+                </div>
+              </div>
+              <div style="background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 8px 12px; font-size: 0.82rem; color: var(--text-secondary);">
+                <ul style="margin: 0; padding-left: 18px;">
+                  ${changesList}
+                </ul>
+              </div>
+              <div style="margin-top: 4px;">
+                <button type="button" class="btn-primary btn-sm" id="btnModalJumpToHistory" data-version="${escapeHtml(log.version_id || '')}" style="display: inline-flex; align-items: center; gap: 6px; font-size: 0.82rem; padding: 6px 12px; cursor: pointer;">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                    <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+                  </svg>
+                  <span>Deschide în Istoric Versiuni (Tab History)</span>
+                </button>
+              </div>
+            </div>
+          `;
+
+          document.getElementById('btnModalJumpToHistory')?.addEventListener('click', () => {
+            const targetVer = log.version_id;
+            closeRequestDetailModal();
+
+            // Set filter in history state
+            historyState.q = targetVer || '';
+            historyState.source = 'all';
+            historyState.highlight_version_id = targetVer || '';
+
+            const sInput = document.getElementById('historySearchInput');
+            if (sInput) sInput.value = targetVer || '';
+            const sFilter = document.getElementById('historyFilterSource');
+            if (sFilter) sFilter.value = 'all';
+
+            // Switch to History tab
+            switchTab('history');
+
+            // Update URL with ?tab=history&version=...
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', 'history');
+            if (targetVer) {
+              url.searchParams.set('version', targetVer);
+              url.searchParams.delete('q');
+            }
+            window.history.replaceState({}, '', url.toString());
+
+            // Render filtered list immediately
+            renderVersionsList();
+          });
+        } else {
+          if (changesBadge) {
+            changesBadge.textContent = 'Fără modificări date';
+            changesBadge.style.background = 'rgba(148, 163, 184, 0.15)';
+            changesBadge.style.color = 'var(--text-secondary)';
+            changesBadge.style.border = '1px solid var(--border)';
+          }
+          changesContent.innerHTML = `
+            <div style="font-size: 0.83rem; color: var(--text-muted); line-height: 1.4;">
+              Această cerere API nu a modificat datele călătoriei (operațiune de citire / sincronizare GET sau HEAD).
+            </div>
+          `;
+        }
+      }
+
       const headersObj = {
         'Antete Cerere (Request)': log.headers_req || {},
         'Antete Răspuns (Response)': log.headers_resp || {}
@@ -2185,10 +2548,10 @@
     // INITIALIZATION & TAB ACTIVATION
     // ==========================================
     startLiveClocks();
-    loadTimezoneSettings();
-
-    const initialTab = new URLSearchParams(window.location.search).get('tab') || '{{ active_tab | default("backup") }}';
-    switchTab(initialTab);
+    loadTimezoneSettings().finally(() => {
+      const initialTab = new URLSearchParams(window.location.search).get('tab') || '{{ active_tab | default("backup") }}';
+      switchTab(initialTab);
+    });
 
   })();
 </script>

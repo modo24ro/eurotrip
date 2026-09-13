@@ -17,7 +17,7 @@ from datetime import datetime, timedelta, timezone
 import zoneinfo
 import email.utils
 from functools import wraps
-from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, make_response
+from flask import Flask, render_template, request, jsonify, send_from_directory, session, redirect, url_for, make_response, g, has_request_context
 from werkzeug.utils import secure_filename
 from werkzeug.http import parse_etags, parse_date
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
@@ -399,6 +399,62 @@ def save_config(cfg):
         json.dump(cfg, f, ensure_ascii=False, indent=2)
 
 
+def get_server_timezone_info():
+    """
+    Returns server local datetime, utc offset in seconds, formatted offset string, and timezone name.
+    Accurately detects timezone on Linux production (via /etc/timezone or /etc/localtime) and Windows/macOS.
+    """
+    now_srv = datetime.now().astimezone()
+    offset_sec = int(now_srv.utcoffset().total_seconds()) if now_srv.utcoffset() else 0
+    sign = '+' if offset_sec >= 0 else '-'
+    hours = abs(offset_sec) // 3600
+    mins = (abs(offset_sec) % 3600) // 60
+    offset_str = f"UTC{sign}{hours:02d}:{mins:02d}"
+
+    iana_tz = None
+    if os.path.exists('/etc/timezone'):
+        try:
+            with open('/etc/timezone', 'r', encoding='utf-8') as f:
+                c = f.read().strip()
+                if c:
+                    iana_tz = c
+        except Exception:
+            pass
+    if not iana_tz and os.path.exists('/etc/localtime'):
+        try:
+            target = os.path.realpath('/etc/localtime')
+            idx = target.find('zoneinfo/')
+            if idx != -1:
+                iana_tz = target[idx + len('zoneinfo/'):]
+        except Exception:
+            pass
+
+    if iana_tz:
+        try:
+            zoneinfo.ZoneInfo(iana_tz)
+        except Exception:
+            iana_tz = None
+
+    tz_name = iana_tz or now_srv.tzname()
+    if not tz_name:
+        if hasattr(time, 'tzname') and time.tzname:
+            tz_name = time.tzname[time.daylight] if time.daylight and len(time.tzname) > 1 else time.tzname[0]
+        else:
+            tz_name = 'Local'
+
+    label = f"{tz_name} ({offset_str})" if tz_name and tz_name != offset_str else offset_str
+
+    return {
+        'datetime': now_srv,
+        'offset_seconds': offset_sec,
+        'offset_str': offset_str,
+        'tz_name': tz_name,
+        'iana_tz': iana_tz or ('UTC' if offset_sec == 0 else (tz_name if '/' in tz_name else '')),
+        'label': label,
+        'timestamp_ms': int(time.time() * 1000)
+    }
+
+
 def get_app_timezone():
     cfg = load_config()
     mode = cfg.get('timezone_mode', 'romania')
@@ -419,14 +475,15 @@ def get_app_timezone():
             return timezone(timedelta(hours=3 if is_dst else 2))
     elif mode == 'utc':
         return timezone.utc
-    return None
+    # Mode is 'server': return local server timezone with exact UTC offset
+    return datetime.now().astimezone().tzinfo
 
 
 def get_current_datetime():
     tz = get_app_timezone()
     if tz is not None:
         return datetime.now(tz)
-    return datetime.now()
+    return datetime.now().astimezone()
 
 
 def current_role():
@@ -489,17 +546,62 @@ def active_versions_dir():
 
 
 def create_trip_version(action, data=None):
-    data = data if data is not None else load_trip_data()
+    old_data = load_trip_data() if data is not None else None
+    data = data if data is not None else (old_data or {})
     os.makedirs(active_versions_dir(), exist_ok=True)
     now_dt = get_current_datetime()
     timestamp = now_dt.strftime('%Y%m%d-%H%M%S-%f')
     version_id = f'{timestamp}_{secure_filename(action) or "change"}'
     path = os.path.join(active_versions_dir(), version_id + '.json')
+
+    req_ip = '-'
+    req_ua = ''
+    req_device = 'System'
+    req_is_api = False
+    req_method = ''
+    req_path = ''
+    req_id = None
+
+    if has_request_context():
+        try:
+            req_ip = get_client_ip(request)
+            req_ua = request.headers.get('User-Agent', '')
+            device_info = parse_user_agent_device(req_ua)
+            req_device = device_info['device_summary']
+            req_is_api = request.path.startswith('/api/') or bool(request.is_json)
+            req_method = request.method
+            req_path = request.path
+            req_id = getattr(g, 'api_request_id', None)
+        except Exception:
+            pass
+
+    changes_summary = summarize_trip_changes(old_data, data) if old_data else ['Version recorded']
+
     with open(path, 'w', encoding='utf-8') as f:
         json.dump({
-            'version_id': version_id, 'created': now_dt.isoformat(timespec='seconds'),
-            'action': action, 'role': current_role(), 'trip': data,
+            'version_id': version_id,
+            'created': now_dt.isoformat(timespec='seconds'),
+            'action': action,
+            'role': current_role(),
+            'trip': data,
+            'ip': req_ip,
+            'is_api': req_is_api,
+            'device': req_device,
+            'user_agent': req_ua,
+            'method': req_method,
+            'path': req_path,
+            'request_id': req_id,
+            'changes_summary': changes_summary,
         }, f, ensure_ascii=False, indent=2)
+
+    if has_request_context():
+        try:
+            g.created_version_id = version_id
+            g.created_version_action = action
+            g.created_version_changes = changes_summary
+        except Exception:
+            pass
+
     return version_id
 
 
@@ -514,9 +616,18 @@ def list_trip_versions():
             with open(entry.path, 'r', encoding='utf-8') as f:
                 item = json.load(f)
             versions.append({
-                'version_id': item.get('version_id', os.path.splitext(entry.name)[0]), 'created': item.get('created'),
-                'action': item.get('action', 'change'), 'role': item.get('role', 'unknown'),
+                'version_id': item.get('version_id', os.path.splitext(entry.name)[0]),
+                'created': item.get('created'),
+                'action': item.get('action', 'change'),
+                'role': item.get('role', 'unknown'),
                 'location_count': len(item.get('trip', {}).get('locations', [])),
+                'ip': item.get('ip', '-'),
+                'is_api': bool(item.get('is_api', False)),
+                'device': item.get('device', '-'),
+                'request_id': item.get('request_id'),
+                'method': item.get('method', ''),
+                'path': item.get('path', ''),
+                'changes_saved': item.get('changes_summary', []),
                 '_trip': item.get('trip', {}),
             })
         except (OSError, json.JSONDecodeError):
@@ -525,7 +636,8 @@ def list_trip_versions():
     previous = None
     for version in versions:
         current_trip = version['_trip']
-        version['changes'] = summarize_trip_changes(previous, current_trip)
+        computed_changes = summarize_trip_changes(previous, current_trip)
+        version['changes'] = version.get('changes_saved') or computed_changes
         version.pop('_trip', None)
         previous = current_trip
     return list(reversed(versions))
@@ -721,6 +833,7 @@ def load_trip_data(trip_id=None):
 @app.before_request
 def protect_app():
     request._req_start_time = time.time()
+    g.api_request_id = uuid.uuid4().hex[:10]
     if request.method == 'OPTIONS':
         resp = make_response('', 204)
         origin = request.headers.get('Origin')
@@ -1027,8 +1140,14 @@ def track_api_request(response):
         is_auth = bool(session.get('authenticated'))
         user_role = session.get('role') if is_auth else 'unauth'
 
+        req_id = getattr(g, 'api_request_id', None) or uuid.uuid4().hex[:10]
+        has_version = bool(getattr(g, 'created_version_id', None))
+        version_id = getattr(g, 'created_version_id', None)
+        version_action = getattr(g, 'created_version_action', None)
+        version_changes = getattr(g, 'created_version_changes', None)
+
         log_entry = {
-            'id': uuid.uuid4().hex[:10],
+            'id': req_id,
             'timestamp': now_dt.strftime('%Y-%m-%d %H:%M:%S'),
             'timestamp_iso': now_dt.isoformat(timespec='seconds'),
             'epoch': time.time(),
@@ -1049,6 +1168,10 @@ def track_api_request(response):
             'resp_size': resp_size or 0,
             'role': user_role,
             'trip_id': session.get('trip_id') or active_trip_id(),
+            'has_site_changes': has_version,
+            'version_id': version_id,
+            'version_action': version_action,
+            'changes': version_changes or [],
             'headers_req': headers_captured,
             'headers_resp': resp_headers,
         }
@@ -1262,22 +1385,25 @@ def admin_get_settings():
         tz_ro = get_app_timezone()
         now_ro = datetime.now(tz_ro) if tz_ro else datetime.now()
 
-    now_server = datetime.now()
+    srv_info = get_server_timezone_info()
+    now_server = srv_info['datetime']
     now_active = get_current_datetime()
-    server_tz_str = time.tzname[time.daylight] if hasattr(time, 'tzname') and time.tzname else 'Local'
 
     return jsonify({
         'ok': True,
         'status': 'ok',
         'timezone_mode': tz_mode,
-        'timezone_name': 'Europe/Bucharest' if tz_mode == 'romania' else ('UTC' if tz_mode == 'utc' else 'Server Local'),
+        'timezone_name': 'Europe/Bucharest' if tz_mode == 'romania' else ('UTC' if tz_mode == 'utc' else srv_info['label']),
         'timezone': tz_name,
         'current_time_active': now_active.strftime('%Y-%m-%d %H:%M:%S'),
         'current_time_romania': now_ro.strftime('%Y-%m-%d %H:%M:%S'),
         'current_time_server': now_server.strftime('%Y-%m-%d %H:%M:%S'),
         'now_romania': now_ro.isoformat(timespec='seconds'),
         'now_server': now_server.isoformat(timespec='seconds'),
-        'server_timezone': server_tz_str,
+        'server_timezone': srv_info['label'],
+        'server_offset_seconds': srv_info['offset_seconds'],
+        'server_timestamp_ms': srv_info['timestamp_ms'],
+        'server_iana_tz': srv_info['iana_tz'],
         'settings': {
             'timezone_mode': tz_mode,
             'timezone': tz_name,
@@ -1296,7 +1422,8 @@ def admin_save_settings():
 
     cfg = load_config()
     cfg['timezone_mode'] = mode
-    cfg['timezone'] = 'Europe/Bucharest' if mode == 'romania' else ('UTC' if mode == 'utc' else 'Server')
+    srv_info = get_server_timezone_info()
+    cfg['timezone'] = 'Europe/Bucharest' if mode == 'romania' else ('UTC' if mode == 'utc' else srv_info['label'])
     save_config(cfg)
     app.logger.info("Admin a schimbat fusul orar în '%s'", mode)
 
@@ -1307,6 +1434,10 @@ def admin_save_settings():
         'timezone_mode': mode,
         'current_time_active': now_active.strftime('%Y-%m-%d %H:%M:%S'),
         'message': 'Fusul orar a fost actualizat cu succes!',
+        'server_timezone': srv_info['label'],
+        'server_offset_seconds': srv_info['offset_seconds'],
+        'server_timestamp_ms': srv_info['timestamp_ms'],
+        'server_iana_tz': srv_info['iana_tz'],
         'settings': {
             'timezone_mode': mode,
             'timezone': cfg['timezone'],
