@@ -256,6 +256,34 @@ body::before {
   height: 16px;
   fill: currentColor;
 }
+.header-nav-group .save-btn,
+.header-nav-group .desktop-save-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 13px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.header-nav-group .save-btn .menu-btn-text,
+.header-nav-group .desktop-save-btn .menu-btn-text {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.header-nav-group .save-btn svg,
+.header-nav-group .desktop-save-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
 
 @media (max-width: 480px) {
   .header-nav-group .add-btn svg {
@@ -581,17 +609,32 @@ body::before {
   max-width: 540px;
 }
 
-.location-modal-box,
-.notification-location-modal-box {
-  width: min(680px, 94vw);
-  max-width: none;
+.modal-box.location-modal-box,
+.modal-box.notification-location-modal-box,
+#locationModal .modal-box,
+#notificationLocationModal .modal-box {
+  width: min(860px, 94vw) !important;
+  max-width: min(860px, 94vw) !important;
 }
 
 .location-modal-body,
 .notification-location-body {
-  max-height: 82vh;
+  max-height: 85vh;
   overflow-y: auto;
   padding: 16px;
+}
+
+@media (max-width: 600px) {
+  .location-modal-body,
+  .notification-location-body {
+    padding: 12px;
+  }
+
+  .location-modal-body .card-fields,
+  .notification-location-body .card-fields {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
 }
 
 .location-modal-body .location-card,
@@ -599,6 +642,16 @@ body::before {
   box-shadow: none;
   border-color: var(--border);
   margin-bottom: 0;
+}
+
+.location-modal-body .card-fields,
+.notification-location-body .card-fields {
+  display: grid !important;
+}
+
+.location-modal-body .card-overflow-menu-wrap,
+.notification-location-body .card-overflow-menu-wrap {
+  display: none !important;
 }
 
 .notifications-list {
@@ -1319,17 +1372,17 @@ body.map-is-fullscreen .toast-container {
   z-index: 100001 !important;
 }
 
-/* Hide top header and bottom navigation when attachments / document viewer is open */
+/* Hide top header and bottom navigation when any modal or document viewer is open */
 html.doc-viewer-open,
-body.doc-viewer-open {
+body.doc-viewer-open,
+body:has(.modal-overlay.open) {
   overflow: hidden !important;
-  height: 100% !important;
 }
 
 body.doc-viewer-open .app-header,
 body.doc-viewer-open .mobile-nav,
-body:has(#pdfViewerModal.open) .app-header,
-body:has(#pdfViewerModal.open) .mobile-nav {
+body:has(.modal-overlay.open) .app-header,
+body:has(.modal-overlay.open) .mobile-nav {
   display: none !important;
 }
 
@@ -2252,18 +2305,20 @@ body:has(#pdfViewerModal.open) .mobile-nav {
   border-color: var(--border-hover);
 }
 
-.save-btn {
+.save-btn,
+.desktop-save-btn {
   position: relative;
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: rgba(34, 197, 94, 0.12) !important;
+  border: 1px solid rgba(34, 197, 94, 0.25) !important;
+  color: #86efac !important;
 }
 
-.save-btn:hover {
-  background: var(--accent-light);
-  border-color: var(--accent-light);
-  color: #fff;
-  box-shadow: var(--shadow-accent);
+.save-btn:hover,
+.desktop-save-btn:hover {
+  background: rgba(34, 197, 94, 0.22) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  color: #fff !important;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.25) !important;
 }
 
 .danger-btn {
@@ -2869,7 +2924,7 @@ body.single-col-cards .card-actions,
 .single-col-cards .card-actions {
   justify-content: space-between;
   width: 100%;
-  margin-top: 10px;
+  margin-top: auto !important;
 }
 
 body.single-col-cards .card-nav-btns .loc-nav-btn {
@@ -3171,6 +3226,171 @@ body.single-col-cards .card-notes-row,
   box-shadow: none !important;
   color: #6ee7b7;
   transform: none !important;
+}
+
+/* Three-dot overflow menu in location card titlebar */
+.card-overflow-menu-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.card-overflow-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.card-overflow-btn:hover,
+.card-overflow-btn:focus-visible,
+.card-overflow-menu-wrap.is-open .card-overflow-btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: var(--border-hover);
+  outline: none;
+}
+
+.card-overflow-btn svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.card-overflow-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 1050;
+  min-width: 160px;
+  padding: 4px;
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border-hover, rgba(255, 255, 255, 0.18));
+  border-radius: var(--radius-md, 8px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  display: none;
+  flex-direction: column;
+  gap: 2px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.card-overflow-menu-wrap.is-open .card-overflow-dropdown {
+  display: flex;
+  animation: menuDropdownFadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-overflow-menu-wrap.open-up .card-overflow-dropdown {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.card-overflow-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-primary, #f1f5f9);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  box-sizing: border-box;
+  text-decoration: none;
+  font-family: inherit;
+}
+
+.card-overflow-item:hover,
+.card-overflow-item:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  outline: none;
+}
+
+.card-overflow-item svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--text-muted, #94a3b8);
+  transition: color 0.12s ease;
+}
+
+.card-overflow-item:hover svg,
+.card-overflow-item:focus-visible svg {
+  color: var(--text-primary, #f1f5f9);
+}
+
+.card-overflow-item--danger {
+  color: #f87171;
+}
+
+.card-overflow-item--danger svg {
+  color: #f87171;
+}
+
+.card-overflow-item--danger:hover,
+.card-overflow-item--danger:focus-visible {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+}
+
+.card-overflow-item--danger:hover svg,
+.card-overflow-item--danger:focus-visible svg {
+  color: #fca5a5;
+}
+
+.card-overflow-item.exclude-route-btn.is-excluded {
+  color: #fca5a5;
+}
+
+.card-overflow-item.exclude-route-btn.is-excluded svg {
+  color: #f87171;
+}
+
+.card-overflow-item.exclude-route-btn.is-excluded:hover,
+.card-overflow-item.exclude-route-btn.is-excluded:focus-visible {
+  background: rgba(16, 185, 129, 0.12);
+  color: #86efac;
+}
+
+.card-overflow-item.exclude-route-btn.is-excluded:hover svg,
+.card-overflow-item.exclude-route-btn.is-excluded:focus-visible svg {
+  color: #86efac;
+}
+
+.card-overflow-item.exclude-route-btn:not(.is-excluded):hover,
+.card-overflow-item.exclude-route-btn:not(.is-excluded):focus-visible {
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+.card-overflow-item.exclude-route-btn:not(.is-excluded):hover svg,
+.card-overflow-item.exclude-route-btn:not(.is-excluded):focus-visible svg {
+  color: #f87171;
+}
+
+
+.location-card:has(.card-overflow-menu-wrap.is-open),
+.location-card.menu-open {
+  overflow: visible !important;
+  z-index: 100 !important;
 }
 
 .card-info-strip:empty {
@@ -3699,7 +3919,7 @@ body.single-col-cards .card-notes-row,
   align-items: center;
   gap: 6px;
   width: 100%;
-  margin-top: auto;
+  margin-top: auto !important;
   flex-shrink: 0;
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
@@ -4188,7 +4408,7 @@ body.single-col-cards .place-info-text,
 }
 
 .card-address-row+.card-actions {
-  margin-top: 4px;
+  margin-top: auto !important;
 }
 
 .address-row-icon {
@@ -4269,197 +4489,121 @@ body.single-col-cards .place-info-text,
   background: rgba(0, 210, 170, 0.08);
 }
 
-/* Nav buttons (Maps / Waze / Go To) in card-actions */
-.loc-nav-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px;
-  height: 26px;
-  width: auto;
-  border-radius: var(--radius-sm);
-  flex-shrink: 0;
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  cursor: pointer;
-  text-decoration: none;
-  font-size: 0.76rem;
-  font-weight: 500;
-  letter-spacing: 0.01em;
-  transition: all 0.15s;
-  white-space: nowrap;
-}
-
-.loc-nav-btn .nav-btn-text {
-  display: inline;
-  white-space: nowrap;
-}
-
-.loc-nav-btn svg {
-  width: 13px;
-  height: 13px;
-  fill: currentColor;
-  flex-shrink: 0;
-}
-
-.loc-nav-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-  border-color: var(--border-hover);
-}
-
-.loc-nav-btn.waze:hover {
-  color: #00d2aa;
-  border-color: rgba(0, 210, 170, 0.4);
-  background: rgba(0, 210, 170, 0.08);
-}
-
-.loc-nav-btn.exclude-route-btn {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  padding: 0;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.loc-nav-btn.exclude-route-btn:hover {
-  background: rgba(239, 68, 68, 0.12);
-  border-color: rgba(239, 68, 68, 0.4);
-  color: #fca5a5;
-}
-
-.loc-nav-btn.exclude-route-btn.is-excluded {
-  background: rgba(239, 68, 68, 0.16);
-  border-color: rgba(239, 68, 68, 0.5);
-  color: #fca5a5;
-}
-
-.loc-nav-btn.exclude-route-btn.is-excluded:hover {
-  background: rgba(16, 185, 129, 0.16);
-  border-color: rgba(16, 185, 129, 0.45);
-  color: #6ee7b7;
-}
-
-/* Dynamic single-row card-actions for narrow cards */
-@container (max-width: 440px) {
-  .card-actions {
-    gap: 8px;
-    flex-wrap: nowrap !important;
-  }
-
-  .card-btns-top {
-    gap: 5px;
-    flex-wrap: nowrap !important;
-  }
-
-  .card-nav-btns {
-    gap: 6px;
-    flex-wrap: nowrap !important;
-  }
-
-  .card-actions .loc-nav-btn.maps-btn,
-  .card-actions .loc-nav-btn.waze-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.maps-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.waze-btn {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    padding: 0 !important;
-    justify-content: center;
-    gap: 0;
-  }
-
-  .card-actions .loc-nav-btn.maps-btn .nav-btn-text,
-  .card-actions .loc-nav-btn.waze-btn .nav-btn-text {
-    display: none !important;
-  }
-
-  .card-actions .loc-nav-btn.exclude-route-btn {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-  }
-
-  .card-actions .loc-nav-btn.gps-nav-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.gps-nav-btn {
-    width: auto !important;
-    min-width: auto !important;
-    height: 28px;
-    padding: 3px 9px !important;
-    gap: 5px;
-  }
-
-  .card-actions .loc-nav-btn.gps-nav-btn .nav-btn-text {
-    display: inline !important;
-  }
-}
-
 /* ============================================================
-   USER MODE: Display card-nav-btns with full names when resolution permits
-   (Except loc-nav-btn exclude-route-btn which remains icon only)
+   CARD NAV BUTTONS (Maps, Waze, Go To, Route) - Identical Dimensions
    ============================================================ */
-body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn:not(.exclude-route-btn),
-#app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn:not(.exclude-route-btn) {
-  width: auto !important;
-  min-width: auto !important;
-  padding: 3px 8px !important;
-  gap: 5px !important;
+.card-nav-btns {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 6px !important;
+  flex: 1 1 auto !important;
+  max-width: 100% !important;
+  margin-left: auto !important;
 }
 
-body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn:not(.exclude-route-btn) .nav-btn-text,
-#app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn:not(.exclude-route-btn) .nav-btn-text {
-  display: inline !important;
-}
-
-body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.exclude-route-btn,
-#app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.exclude-route-btn {
-  width: 28px !important;
-  min-width: 28px !important;
-  padding: 0 !important;
+.card-nav-btns .loc-nav-btn {
+  flex: 1 1 0% !important;
+  min-width: 0 !important;
+  width: 0 !important;
+  max-width: none !important;
+  height: 30px !important;
+  padding: 0 6px !important;
+  border-radius: var(--radius-sm) !important;
+  display: inline-flex !important;
+  align-items: center !important;
   justify-content: center !important;
+  gap: 5px !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  font-size: 0.74rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text-muted) !important;
+  background: transparent !important;
+  text-decoration: none !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
 }
 
-/* Fallback to compact icons only when card or screen resolution is too narrow (< 280px / < 340px) */
-@container (max-width: 280px) {
+.card-nav-btns .loc-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-hover) !important;
+}
 
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn,
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn {
-    width: 28px !important;
-    min-width: 28px !important;
-    padding: 0 !important;
-    justify-content: center !important;
-    gap: 0 !important;
+.card-nav-btns .loc-nav-btn svg,
+.card-nav-btns .loc-nav-btn img,
+.card-nav-btns .loc-nav-btn .nav-btn-icon {
+  width: 14px !important;
+  height: 14px !important;
+  max-width: 14px !important;
+  max-height: 14px !important;
+  flex-shrink: 0 !important;
+  object-fit: contain !important;
+  vertical-align: middle !important;
+  display: inline-block !important;
+}
+
+.card-nav-btns .loc-nav-btn .nav-btn-text {
+  display: inline !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  line-height: 1 !important;
+}
+
+.card-nav-btns .loc-nav-btn.waze:hover {
+  color: #00d2aa !important;
+  border-color: rgba(0, 210, 170, 0.4) !important;
+  background: rgba(0, 210, 170, 0.08) !important;
+}
+
+.card-nav-btns .loc-nav-btn.exclude-route-btn:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+  color: #fca5a5 !important;
+}
+
+.card-nav-btns .loc-nav-btn.exclude-route-btn.is-excluded {
+  background: rgba(239, 68, 68, 0.16) !important;
+  border-color: rgba(239, 68, 68, 0.5) !important;
+  color: #fca5a5 !important;
+}
+
+.card-nav-btns .loc-nav-btn.exclude-route-btn.is-excluded:hover {
+  background: rgba(16, 185, 129, 0.16) !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+  color: #6ee7b7 !important;
+}
+
+/* On narrow containers/screens, scale padding and gap while keeping strictly identical dimensions */
+@container (max-width: 340px) {
+  .card-nav-btns {
+    gap: 4px !important;
   }
-
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn .nav-btn-text,
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn .nav-btn-text,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn .nav-btn-text,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn .nav-btn-text {
-    display: none !important;
+  .card-nav-btns .loc-nav-btn {
+    padding: 0 4px !important;
+    gap: 3px !important;
+    font-size: 0.70rem !important;
   }
 }
 
-@media (max-width: 330px) {
-
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn,
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn {
-    width: 28px !important;
-    min-width: 28px !important;
-    padding: 0 !important;
-    justify-content: center !important;
-    gap: 0 !important;
+@media (max-width: 420px) {
+  .card-nav-btns {
+    gap: 4px !important;
   }
+  .card-nav-btns .loc-nav-btn {
+    padding: 0 4px !important;
+    gap: 3px !important;
+    font-size: 0.70rem !important;
+  }
+}
 
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn .nav-btn-text,
-  body[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn .nav-btn-text,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.maps-btn .nav-btn-text,
-  #app[data-role="user"] .card-actions .card-nav-btns .loc-nav-btn.waze-btn .nav-btn-text {
+@container (max-width: 260px) {
+  .card-nav-btns .loc-nav-btn .nav-btn-text {
     display: none !important;
   }
 }
@@ -4472,9 +4616,7 @@ body[data-role="user"] #modalDeleteAttachmentBtn,
 body[data-role="user"] #genericDocEmptyAddBtn,
 #app[data-role="user"] #genericDocEmptyAddBtn,
 body[data-role="user"] .attachment-add-btn,
-#app[data-role="user"] .attachment-add-btn,
-body[data-role="user"] .strip-attachments.is-empty,
-#app[data-role="user"] .strip-attachments.is-empty {
+#app[data-role="user"] .attachment-add-btn {
   display: none !important;
 }
 
@@ -5566,6 +5708,8 @@ body[data-role="user"] .strip-attachments.is-empty,
   letter-spacing: 0.07em;
   height: 14px;
   /* fixed so all labels are same height */
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .field-input,
@@ -5584,6 +5728,18 @@ body[data-role="user"] .strip-attachments.is-empty,
   transition: border-color 0.18s, background 0.18s;
   width: 100%;
   box-sizing: border-box;
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+.card-name-field {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+  -webkit-touch-callout: default !important;
 }
 
 .field-input:focus,
@@ -5614,9 +5770,39 @@ input[type="time"].field-input {
   background-color: rgba(255, 255, 255, 0.04);
 }
 
-.field-select option {
-  background: var(--bg-elevated, #162036);
-  color: var(--text-primary, #e2e8f0);
+.field-select option,
+select option,
+.filter-select option,
+.tbl-select option,
+#syncIntervalSelect option {
+  background-image: none !important;
+  background: var(--bg-elevated, #162036) !important;
+  background-color: var(--bg-elevated, #162036) !important;
+  color: var(--text-primary, #e2e8f0) !important;
+}
+
+.sync-interval-select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: var(--bg-elevated, #162036) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 8px center / 16px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  color: var(--text-primary) !important;
+  font-family: inherit;
+  font-size: 0.85rem !important;
+  font-weight: 500;
+  padding: 6px 30px 6px 12px !important;
+  outline: none;
+  cursor: pointer;
+}
+
+.sync-interval-select option {
+  background-image: none !important;
+  background: #162036 !important;
+  background-color: #162036 !important;
+  color: #e2e8f0 !important;
+  padding: 8px 12px !important;
 }
 
 .field-textarea {
@@ -5828,7 +6014,7 @@ input[type="time"].field-input {
   inset: 0;
   background: rgba(0, 0, 0, 0.72);
   backdrop-filter: blur(10px);
-  z-index: 200;
+  z-index: 100000 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5842,6 +6028,16 @@ input[type="time"].field-input {
   opacity: 1;
   visibility: visible;
 }
+
+/* Confirmation modals that can appear on top of other modals (e.g., delete attachment from doc viewer) */
+#deleteAttachmentModal,
+#deleteLocationModal,
+#deleteBackupModal,
+#restoreBackupModal,
+#deleteTripModal {
+  z-index: 100050 !important;
+}
+
 
 .modal-box {
   background: var(--bg-elevated);
@@ -5858,6 +6054,14 @@ input[type="time"].field-input {
 .modal-box.pdf-viewer-modal-box,
 #pdfViewerModal .modal-box {
   max-width: none !important;
+}
+
+.modal-box.location-modal-box,
+.modal-box.notification-location-modal-box,
+#locationModal .modal-box,
+#notificationLocationModal .modal-box {
+  width: min(860px, 94vw) !important;
+  max-width: min(860px, 94vw) !important;
 }
 
 .modal-overlay.open .modal-box {
@@ -6426,7 +6630,7 @@ input[type="time"].field-input {
   position: fixed;
   bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px) + 14px);
   right: 14px;
-  z-index: 300;
+  z-index: 100100 !important;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -6523,6 +6727,14 @@ input[type="time"].field-input {
 
 .mobile-nav::-webkit-scrollbar {
   display: none;
+}
+
+/* Hide mobile bottom navigation bar when virtual keyboard is active (input/textarea focused) */
+@media (max-width: 900px) {
+  body:has(input:focus, textarea:focus, [contenteditable="true"]:focus) .mobile-nav,
+  body.keyboard-open .mobile-nav {
+    display: none !important;
+  }
 }
 
 
@@ -7410,7 +7622,7 @@ input[type="time"].field-input {
     justify-content: space-between;
     gap: 8px;
     width: 100%;
-    margin-top: 6px;
+    margin-top: auto !important;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -7453,43 +7665,8 @@ input[type="time"].field-input {
     flex-shrink: 0;
   }
 
-  .card-actions .loc-nav-btn.maps-btn,
-  .card-actions .loc-nav-btn.waze-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.maps-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.waze-btn {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    padding: 0 !important;
-    justify-content: center;
-    gap: 0;
-  }
-
-  .card-actions .loc-nav-btn.maps-btn .nav-btn-text,
-  .card-actions .loc-nav-btn.waze-btn .nav-btn-text {
-    display: none !important;
-  }
-
   .loc-nav-btn.exclude-route-btn {
-    width: 28px;
-    height: 28px;
-    min-width: 28px;
-    padding: 0;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .card-actions .loc-nav-btn.gps-nav-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.gps-nav-btn {
-    width: auto !important;
-    min-width: auto !important;
-    height: 28px;
-    padding: 3px 9px !important;
-    gap: 5px;
-  }
-
-  .card-actions .loc-nav-btn.gps-nav-btn .nav-btn-text {
-    display: inline !important;
+    min-width: 0;
   }
 
   .card-address-row {
@@ -7587,28 +7764,7 @@ input[type="time"].field-input {
     height: 13px;
   }
 
-  .card-actions .loc-nav-btn.maps-btn,
-  .card-actions .loc-nav-btn.waze-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.maps-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.waze-btn {
-    width: 28px;
-    min-width: 28px;
-    height: 28px;
-    padding: 0 !important;
-  }
 
-  .card-actions .loc-nav-btn.gps-nav-btn,
-  body.single-col-cards .card-actions .loc-nav-btn.gps-nav-btn {
-    width: auto !important;
-    min-width: auto !important;
-    height: 28px;
-    padding: 3px 8px !important;
-    gap: 4px;
-  }
-
-  .card-actions .loc-nav-btn.gps-nav-btn .nav-btn-text {
-    display: inline !important;
-  }
 
   .day-header {
     gap: 5px;
@@ -9592,7 +9748,134 @@ input[type="time"].field-input {
   font-size: 0.9rem;
 }
 
-/* Tabs Bar */
+/* Tabs & Categorized Settings Navigation */
+.settings-nav-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.settings-category-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 5px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.settings-cat-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 10px 8px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.settings-cat-btn svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.settings-cat-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-cat-btn.active {
+  color: #fff;
+  background: var(--accent);
+  border-color: var(--accent-light);
+  box-shadow: 0 2px 10px var(--accent-glow);
+}
+
+.settings-cat-btn.active svg {
+  opacity: 1;
+}
+
+.settings-subnav-container {
+  width: 100%;
+}
+
+.settings-subnav-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 4px;
+  background: rgba(15, 24, 41, 0.7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  width: 100%;
+  box-sizing: border-box;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.settings-subnav-bar .settings-tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 6px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s ease;
+}
+
+.settings-subnav-bar .settings-tab-btn svg {
+  flex-shrink: 0;
+  opacity: 0.75;
+}
+
+.settings-subnav-bar .settings-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.settings-subnav-bar .settings-tab-btn.active {
+  color: #fff;
+  background: rgba(92, 115, 242, 0.25);
+  border-color: rgba(92, 115, 242, 0.45);
+  font-weight: 600;
+}
+
+.settings-subnav-bar .settings-tab-btn.settings-tab-danger.active {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+/* Fallback Legacy Tabs Bar */
 .settings-nav-bar {
   display: flex;
   align-items: center;
@@ -9601,13 +9884,8 @@ input[type="time"].field-input {
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.settings-nav-bar::-webkit-scrollbar {
-  display: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .settings-tab-btn {
@@ -9882,14 +10160,46 @@ input[type="time"].field-input {
     font-size: 1.4rem;
   }
 
+  .settings-category-bar {
+    gap: 4px;
+    padding: 4px;
+  }
+
+  .settings-cat-btn {
+    padding: 8px 4px;
+    font-size: 0.78rem;
+    gap: 5px;
+  }
+
+  .settings-cat-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .settings-subnav-bar {
+    gap: 4px;
+    padding: 3px;
+  }
+
+  .settings-subnav-bar .settings-tab-btn {
+    padding: 7px 3px;
+    font-size: 0.75rem;
+    gap: 4px;
+  }
+
+  .settings-subnav-bar .settings-tab-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
   .settings-nav-bar {
     width: 100%;
     justify-content: flex-start;
   }
 
   .settings-tab-btn {
-    padding: 8px 14px;
-    font-size: 0.82rem;
+    padding: 8px 10px;
+    font-size: 0.8rem;
   }
 
   .backup-item {
@@ -10025,4 +10335,14 @@ input[type="time"].field-input {
   gap: 10px;
   justify-content: flex-end;
   margin-top: 6px;
+}
+
+/* Always push card-actions to the bottom of the card */
+.location-card .card-actions,
+body.single-col-cards .location-card .card-actions,
+.single-col-cards .location-card .card-actions,
+.card-address-row + .card-actions,
+.card-info-strip + .card-actions {
+  margin-top: auto !important;
+  flex-shrink: 0 !important;
 }

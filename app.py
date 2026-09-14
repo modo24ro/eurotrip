@@ -2863,6 +2863,6 @@ if __name__ == '__main__':
                 print(f"[SSL] Could not auto-generate certificate: {e}")
         if os.path.isfile(cert_file) and os.path.isfile(key_file):
             ssl_ctx = (cert_file, key_file)
-            print("[SSL] Running with HTTPS (https://0.0.0.0:5000)")
+            print("[SSL] Running with HTTPS (https://0.0.0.0:5001)")
 
-    app.run(debug=True, host='0.0.0.0', port=5000, ssl_context=ssl_ctx)
+    app.run(debug=True, host='0.0.0.0', port=5001, ssl_context=ssl_ctx)

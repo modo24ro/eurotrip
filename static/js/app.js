@@ -391,8 +391,14 @@ function deleteLocation(id) {
 }
 
 function closeLocationModal() {
-  document.getElementById('locationModal')?.classList.remove('open');
-  document.getElementById('notificationLocationModal')?.classList.remove('open');
+  const locModal = document.getElementById('locationModal');
+  const notifModal = document.getElementById('notificationLocationModal');
+  const wasOpen = locModal?.classList.contains('open') || notifModal?.classList.contains('open');
+  locModal?.classList.remove('open');
+  notifModal?.classList.remove('open');
+  if (wasOpen) {
+    renderMain();
+  }
 }
 
 let pendingDeleteLocationId = '';
@@ -463,28 +469,32 @@ function addBlankLocation() {
   renderMain();
   renderStats();
   renderSummary();
-  // Scroll to top and focus the name field
+  // Open the newly created location in the existing Details modal
+  openLocationModal(loc.id);
   setTimeout(() => {
     const newCard = document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`);
     if (newCard) {
-      newCard.classList.add('editing');
-      const editBtn = newCard.querySelector('[data-action="edit"]');
-      if (editBtn) {
-        editBtn.classList.add('active');
-        editBtn.title = 'Close edit';
-      }
       newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      const nameField = newCard.querySelector('[data-field="name"]');
-      if (nameField) { nameField.focus(); nameField.select(); }
     }
-  }, 100);
+    const modal = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
+    const nameField = modal?.querySelector('input[data-field="name"]');
+    if (nameField) {
+      nameField.focus();
+      nameField.select();
+    }
+  }, 60);
 }
 
 function markUnsaved() {
   if (!state.unsaved) {
     state.unsaved = true;
-    document.getElementById('unsavedDot')?.classList.add('visible');
+    document.querySelectorAll('.unsaved-dot').forEach(el => el.classList.add('visible'));
   }
+}
+
+function clearUnsaved() {
+  state.unsaved = false;
+  document.querySelectorAll('.unsaved-dot').forEach(el => el.classList.remove('visible'));
 }
 
 // ============================================================
@@ -2235,18 +2245,13 @@ function renderConfirmationLinkHTML(rawUrl, rawLabel, options = {}) {
 function renderAttachmentChipHTML(loc) {
   if (!loc) return '';
   const attCount = loc.attachments?.length || 0;
-  const isAdmin = state.role === 'admin';
 
   if (attCount > 0) {
     const label = `${attCount} ${attCount === 1 ? 'Attachment' : 'Attachments'}`;
     return `<button class="strip-chip strip-attachments attachment-count-btn" data-action="viewAttachments" data-id="${esc(loc.id)}" type="button" title="View attachments"><span class="chip-icon">📎</span><span class="chip-label">${label}</span></button>`;
   }
 
-  if (isAdmin) {
-    return `<button class="strip-chip strip-attachments attachment-count-btn is-empty" data-action="addAttachment" data-id="${esc(loc.id)}" type="button" title="Add attachment"><span class="chip-icon">📎</span><span class="chip-label">+ Attachment</span></button>`;
-  }
-
-  return '';
+  return `<button class="strip-chip strip-attachments attachment-count-btn is-empty" data-action="addAttachment" data-id="${esc(loc.id)}" type="button" title="Add attachment"><span class="chip-icon">📎</span><span class="chip-label">+ Attachment</span></button>`;
 }
 
 function renderTimelineView() {
@@ -2510,8 +2515,46 @@ function titlebarMetaHTML(loc, sym) {
   const hasValidCost = loc.cost != null && loc.cost !== '' && !isNaN(Number(loc.cost)) && Number(loc.cost) > 0;
   const costVal = hasValidCost ? loc.cost : 0;
   const costChip = `<span class="strip-cost card-title-cost">${sym}${costVal}</span>`;
-  if (!bookingBadge && !paidBadge && !costChip) return '';
-  return `<div class="card-titlebar-meta">${bookingBadge}${paidBadge}${costChip}</div>`;
+  const isAdmin = state.role === 'admin';
+  const isExcluded = !!(loc.excluded || state.mapExcluded.has(loc.id));
+  const routeTitle = isExcluded ? 'Include în traseu' : 'Exclude din traseu';
+  const routeLabel = isExcluded ? 'Include in Route' : 'Exclude from Route';
+  const routeSvg = isExcluded
+    ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>'
+    : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z" fill="currentColor"/>';
+
+  const routeItem = `
+        <button class="card-overflow-item exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" role="menuitem" type="button" title="${routeTitle}">
+          <svg viewBox="0 0 24 24" width="14" height="14">${routeSvg}</svg>
+          <span class="route-item-text">${routeLabel}</span>
+        </button>`;
+
+  const adminItems = isAdmin ? `
+        <button class="card-overflow-item" data-action="edit" role="menuitem" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          Edit
+        </button>
+        <button class="card-overflow-item" data-action="duplicate" role="menuitem" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+          Duplicate
+        </button>
+        <button class="card-overflow-item card-overflow-item--danger" data-action="delete" role="menuitem" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          Remove
+        </button>` : '';
+
+  const overflowMenu = `
+    <div class="card-overflow-menu-wrap">
+      <button class="card-overflow-btn" data-action="cardOverflowMenu" aria-label="More actions" title="More actions" type="button">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+      </button>
+      <div class="card-overflow-dropdown" role="menu">
+${routeItem}
+${adminItems}
+      </div>
+    </div>`;
+
+  return `<div class="card-titlebar-meta">${bookingBadge}${paidBadge}${costChip}${overflowMenu}</div>`;
 }
 
 function checkTimeConflict(loc, allLocs) {
@@ -2611,9 +2654,7 @@ function cardHTML(loc) {
   const durationChip = schedTimes ? `<span class="meta-sched-dur strip-chip strip-time" title="Duration: ${formatDuration(schedTimes.duration)}">⏱️ ${formatDuration(schedTimes.duration)}</span>` : '';
   const placeName = (loc.city && loc.city !== 'Unknown') ? loc.city : (loc.country || '');
 
-  const titleMarkup = isAdmin
-    ? `<span class="card-name-text">${esc(loc.name)}</span><input type="text" class="card-name-field" data-field="name" value="${esc(loc.name)}" placeholder="Location name">`
-    : `<span class="card-name-text">${esc(loc.name)}</span>`;
+  const titleMarkup = `<span class="card-name-text">${esc(loc.name)}</span>`;
 
   const catOptions = VALID_CATEGORIES.map(c =>
     `<option value="${c}"${c === safecat ? ' selected' : ''}>${CATEGORY_ICONS[c]} ${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
@@ -2626,34 +2667,27 @@ function cardHTML(loc) {
 
   const addressLine = loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '';
 
-  // Nav buttons in card-actions (dynamic responsive text/icon)
-  const mapsBtn = mapsHref ? `<a href="${mapsHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn maps-btn" title="Open in Maps"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg><span class="nav-btn-text">Maps</span></a>` : '';
-  const wazeBtn = wazeHref ? `<a href="${wazeHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn waze-btn waze" title="Waze"><svg viewBox="0 0 24 24"><path d="M12 2a9 9 0 0 1 9 9c0 3.5-2 6.6-4.9 8.2L15 21l-3 1-3-1-.1-1.8C6 18.6 4 15.5 4 12a9 9 0 0 1 8-8.94V2zm0 2a7 7 0 1 0 0 14A7 7 0 0 0 12 4zm-1 3h2v5.5l3.2 1.9-1 1.7L11 14V7z"/></svg><span class="nav-btn-text">Waze</span></a>` : '';
-  const navGpsBtn = `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z"/></svg><span class="nav-btn-text">Go To</span></button>`;
+  // Nav buttons in card-actions (equal dimensions with static SVG assets)
+  const MAPS_ICON_URL = (window.location.protocol === 'file:') ? 'icons/maps-icon.svg' : '/static/icons/maps-icon.svg';
+  const WAZE_ICON_URL = (window.location.protocol === 'file:') ? 'icons/waze-icon.svg' : '/static/icons/waze-icon.svg';
+  const mapsBtn = mapsHref ? `<a href="${mapsHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn maps-btn" title="Open in Maps"><img src="${MAPS_ICON_URL}" class="nav-btn-icon maps-icon" alt="" width="14" height="14"><span class="nav-btn-text">Maps</span></a>` : '';
+  const wazeBtn = wazeHref ? `<a href="${wazeHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn waze-btn waze" title="Waze"><img src="${WAZE_ICON_URL}" class="nav-btn-icon waze-icon" alt="" width="14" height="14"><span class="nav-btn-text">Waze</span></a>` : '';
+  const navGpsBtn = `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" fill="currentColor"/></svg><span class="nav-btn-text">Go To</span></button>`;
   const isExcluded = !!(loc.excluded || state.mapExcluded.has(loc.id));
-  const excludeBtn = `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg></button>`;
-  const topButtons = isAdmin ? `
+  const excludeBtn = `<button type="button" class="loc-nav-btn exclude-route-btn${isExcluded ? ' is-excluded' : ''}" data-action="toggleRouteExclude" title="${isExcluded ? 'Include în traseu' : 'Exclude din traseu'}"><svg viewBox="0 0 24 24" width="14" height="14">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z" fill="currentColor"/>'}</svg><span class="nav-btn-text">Route</span></button>`;
+  // topButtons: only the markVisited button remains — Edit/Duplicate/Delete moved to ⋮ overflow menu in titlebar
+  const topButtons = `
     <div class="card-btns-top">
       <button class="card-icon-btn${loc.visited ? ' done-active' : ''}" data-action="markVisited" title="${loc.visited ? 'Marchează ca nefăcut' : 'Marchează ca făcut'}">
-        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
-      </button>
-      <button class="card-icon-btn edit-btn" data-action="edit" title="Edit details">
-        <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-      </button>
-      <button class="card-icon-btn duplicate-btn" data-action="duplicate" title="Duplicate location">
-        <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
-      </button>
-      <button class="card-icon-btn delete" data-action="delete" title="Remove location">
-        <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
-      </button>
-    </div>` : `
-    <div class="card-btns-top">
-      <button class="card-icon-btn${loc.visited ? ' done-active' : ''}" data-action="markVisited" title="${loc.visited ? 'Marchează ca nefăcut' : 'Marchează ca făcut'}">
-        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>
       </button>
     </div>`;
   const cardFields = isAdmin ? `
     <div class="card-fields">
+      <div class="field-group full-width">
+        <label class="field-label">Name</label>
+        <input type="text" class="field-input" data-field="name" value="${esc(loc.name || '')}" placeholder="Location name">
+      </div>
       <div class="field-group">
         <label class="field-label">Country</label>
         <input type="text" class="field-input" data-field="country" value="${esc(loc.country || '')}" placeholder="Country">
@@ -2779,7 +2813,7 @@ function cardHTML(loc) {
         ${renderCardSubcardHTML(loc)}
         <div class="card-actions">
           ${topButtons}
-          ${(mapsBtn || wazeBtn || navGpsBtn || excludeBtn) ? `<div class="card-nav-btns">${excludeBtn}${mapsBtn}${wazeBtn}${navGpsBtn}</div>` : ''}
+          ${(mapsBtn || wazeBtn || navGpsBtn) ? `<div class="card-nav-btns">${mapsBtn}${wazeBtn}${navGpsBtn}</div>` : ''}
         </div>
         ${cardFields}
       </div>
@@ -3277,11 +3311,15 @@ function bindEvents() {
   const handleNameInput = e => {
     if (e.target.dataset?.field === 'name') {
       const card = e.target.closest('[data-id]');
-      if (card) {
-        const textEl = card.querySelector('.card-name-text');
-        if (textEl) {
-          textEl.textContent = e.target.value || '';
-        }
+      const id = card?.dataset?.id;
+      if (id) {
+        document.querySelectorAll(`[data-id="${CSS.escape(id)}"] .card-name-text, [data-id="${CSS.escape(id)}"] .cell-name-text`).forEach(el => {
+          el.textContent = e.target.value || '';
+        });
+      }
+      const modalTitle = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
+      if (modalTitle && e.target.closest('#locationModal, #notificationLocationModal')) {
+        modalTitle.textContent = e.target.value || 'Location';
       }
     }
   };
@@ -3716,7 +3754,6 @@ function bindEvents() {
   // Add location
   const addAction = () => addBlankLocation();
   document.getElementById('addBtn')?.addEventListener('click', addAction);
-  document.getElementById('addBtn')?.addEventListener('click', addAction);
 
   // Save
   const saveAction = async () => {
@@ -3724,8 +3761,7 @@ function bindEvents() {
     if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; }
     try {
       await api.saveTrip(state.trip);
-      state.unsaved = false;
-      document.getElementById('unsavedDot')?.classList.remove('visible');
+      clearUnsaved();
       toast('Trip saved!', 'success');
     } catch (e) {
       toast('Save failed: ' + e.message, 'error');
@@ -3845,8 +3881,7 @@ function bindEvents() {
   };
   const applyRestoredTrip = data => {
     state.trip = data.trip;
-    state.unsaved = false;
-    document.getElementById('unsavedDot')?.classList.remove('visible');
+    clearUnsaved();
     const nameInput = document.getElementById('tripNameInput');
     if (nameInput) nameInput.value = state.trip.trip_name || '';
     updateDocumentTitle(state.trip.trip_name);
@@ -4328,16 +4363,49 @@ function bindEvents() {
   // Open in New Tab: Native anchor navigation with target="_blank"
   // For standard browsers/PWA, do not preventDefault! Only intercept in native Capacitor wrapper.
   document.getElementById('docOpenNewTabLink')?.addEventListener('click', (e) => {
-    const isCapacitor = !!(window.Capacitor && window.Capacitor.Plugins);
-    if (isCapacitor) {
+    const linkEl = document.getElementById('docOpenNewTabLink');
+    const fullViewerUrl = (linkEl?.href && linkEl.href !== '#' && !linkEl.href.endsWith('#'))
+      ? linkEl.href
+      : (docViewer.locationId && docViewer.files[docViewer.currentIndex]
+          ? buildAttachmentRawUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken)
+          : '');
+    if (!fullViewerUrl) return;
+
+    // 1. Native Capacitor wrapper
+    if (window.Capacitor && window.Capacitor.Plugins) {
       e.preventDefault();
-      const linkEl = document.getElementById('docOpenNewTabLink');
-      const fullViewerUrl = linkEl?.href || (docViewer.locationId && docViewer.files[docViewer.currentIndex] ? buildDocViewerUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken) : '');
-      if (!fullViewerUrl) return;
       if (window.Capacitor.Plugins.Browser && window.Capacitor.Plugins.Browser.open) {
         window.Capacitor.Plugins.Browser.open({ url: fullViewerUrl });
+        return;
       } else {
         window.open(fullViewerUrl, '_system');
+        return;
+      }
+    }
+
+    // 2. Android Standalone PWA or Android WebView:
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isWebView = /wv|Android.*Version\/[0-9.]+/i.test(navigator.userAgent);
+    const isLocalhostOrCap = window.location.origin === 'https://localhost' || window.location.origin === 'http://localhost' || window.location.protocol === 'capacitor:';
+
+    if (isAndroid && (isStandalone || isWebView || isLocalhostOrCap)) {
+      e.preventDefault();
+      const hostPath = fullViewerUrl.replace(/^https?:\/\//, '');
+      const scheme = window.location.protocol.replace(':', '');
+      const intentUrl = `intent://${hostPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;end;`;
+      try {
+        window.location.href = intentUrl;
+        return;
+      } catch (_) { }
+    }
+
+    // 3. Fallback for popup-blocker or standalone mode where target="_blank" might be suppressed
+    if (!linkEl?.href || linkEl.href === '#' || isStandalone) {
+      e.preventDefault();
+      const win = window.open(fullViewerUrl, '_blank');
+      if (!win || win.closed || typeof win.closed === 'undefined') {
+        window.location.href = fullViewerUrl;
       }
     }
   });
@@ -4435,7 +4503,25 @@ function bindEvents() {
       toast('Descărcare inițiată…', 'info');
       return;
     }
-    toast('Descărcare fișier…', 'info');
+    // 2. Android Standalone PWA / WebView
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    const isWebView = /wv|Android.*Version\/[0-9.]+/i.test(navigator.userAgent);
+    const isLocalhostOrCap = window.location.origin === 'https://localhost' || window.location.origin === 'http://localhost' || window.location.protocol === 'capacitor:';
+
+    if (isAndroid && (isStandalone || isWebView || isLocalhostOrCap)) {
+      e.preventDefault();
+      const hostPath = fullDlUrl.replace(/^https?:\/\//, '');
+      const scheme = window.location.protocol.replace(':', '');
+      const intentUrl = `intent://${hostPath}#Intent;scheme=${scheme};action=android.intent.action.VIEW;end;`;
+      try {
+        window.location.href = intentUrl;
+        toast('Descărcare inițiată în browser…', 'success');
+        return;
+      } catch (_) { }
+    }
+
+        toast('Descărcare fișier…', 'info');
   };
 
   document.getElementById('docShareBtn')?.addEventListener('click', (e) => {
@@ -4512,8 +4598,7 @@ function bindEvents() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
       state.trip.locations = [];
-      state.unsaved = false;
-      document.getElementById('unsavedDot')?.classList.remove('visible');
+      clearUnsaved();
       renderMain();
       renderStats();
       renderSummary();
@@ -4594,6 +4679,18 @@ function bindEvents() {
   mc?.addEventListener('click', handleCardClick);
   mc?.addEventListener('change', handleCardChange);
   mc?.addEventListener('input', handleNameInput);
+
+  // Close any open overflow menu when clicking outside
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.card-overflow-menu-wrap')) {
+      document.querySelectorAll('.card-overflow-menu-wrap.is-open').forEach(el => el.classList.remove('is-open'));
+    }
+  }, true);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.card-overflow-menu-wrap.is-open').forEach(el => el.classList.remove('is-open'));
+    }
+  });
   mc?.addEventListener('keydown', e => {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-action="toggleAddress"]')) {
       e.preventDefault();
@@ -4687,6 +4784,40 @@ function handleCardClick(e) {
   const actionEl = e.target.closest('[data-action], .confirmation-link');
   if (!actionEl) return;
 
+  // Three-dot overflow menu toggle
+  if (actionEl.dataset.action === 'cardOverflowMenu') {
+    e.preventDefault();
+    e.stopPropagation();
+    const wrap = actionEl.closest('.card-overflow-menu-wrap');
+    if (!wrap) return;
+    const dropdown = wrap.querySelector('.card-overflow-dropdown');
+    const isOpen = wrap.classList.contains('is-open');
+    // Close all other open menus
+    document.querySelectorAll('.card-overflow-menu-wrap.is-open').forEach(el => el.classList.remove('is-open', 'open-up'));
+    if (!isOpen) {
+      wrap.classList.add('is-open');
+      // Position dropdown so it doesn't overflow the viewport
+      if (dropdown) {
+        dropdown.style.removeProperty('right');
+        dropdown.style.removeProperty('left');
+        wrap.classList.remove('open-up');
+        const rect = dropdown.getBoundingClientRect();
+        if (rect.right > window.innerWidth - 8) {
+          dropdown.style.right = '0';
+          dropdown.style.left = 'auto';
+        }
+        if (rect.left < 8) {
+          dropdown.style.left = '0';
+          dropdown.style.right = 'auto';
+        }
+        if (rect.bottom > window.innerHeight - 8) {
+          wrap.classList.add('open-up');
+        }
+      }
+    }
+    return;
+  }
+
   if (actionEl.dataset.action === 'openConfirmationDoc' || actionEl.classList.contains('confirmation-link')) {
     const webUrl = actionEl.dataset.canonicalUrl || actionEl.getAttribute('href');
     e.stopPropagation();
@@ -4718,6 +4849,9 @@ function handleCardClick(e) {
     if (country) navigateToCountry(country);
     return;
   }
+
+  // Close overflow menu when any menu item is clicked
+  actionEl.closest('.card-overflow-menu-wrap')?.classList.remove('is-open', 'open-up');
 
   if (state.role !== 'admin' && ['edit', 'duplicate', 'delete'].includes(actionEl.dataset.action)) {
     return;
@@ -4759,23 +4893,7 @@ function handleCardClick(e) {
   if (actionEl.dataset.action === 'edit') {
     e.preventDefault();
     e.stopPropagation();
-    const card = actionEl.closest('[data-id]');
-    if (card) {
-      const isEditing = card.classList.toggle('editing');
-      actionEl.classList.toggle('active', isEditing);
-      actionEl.title = isEditing ? 'Close edit' : 'Edit details';
-      if (isEditing) {
-        const nameField = card.querySelector('[data-field="name"]');
-        if (nameField) {
-          nameField.focus();
-          nameField.select();
-        }
-      } else {
-        const loc = state.trip?.locations.find(l => l.id === id);
-        if (loc) updateCardSubcard(card, loc);
-      }
-      scheduleEqualizeCardHeights();
-    }
+    openLocationModal(id);
     return;
   }
   if (actionEl.dataset.action === 'markVisited') {
@@ -4793,8 +4911,7 @@ function handleCardClick(e) {
       })
         .then(res => res.ok ? res.json() : Promise.reject(new Error('Visit update failed')))
         .then(() => {
-          state.unsaved = false;
-          document.getElementById('unsavedDot')?.classList.remove('visible');
+          clearUnsaved();
         })
         .catch(() => {
           toast('Could not save visited state.', 'error');
@@ -4856,8 +4973,7 @@ function handleCardClick(e) {
     })
       .then(res => res.ok ? res.json() : Promise.reject(new Error('Exclude update failed')))
       .then(() => {
-        state.unsaved = false;
-        document.getElementById('unsavedDot')?.classList.remove('visible');
+        clearUnsaved();
       })
       .catch(() => {
         // Preference is still saved locally in localStorage
@@ -4866,7 +4982,14 @@ function handleCardClick(e) {
     document.querySelectorAll(`[data-id="${CSS.escape(id)}"] [data-action="toggleRouteExclude"]`).forEach(btn => {
       btn.classList.toggle('is-excluded', isExcluded);
       btn.title = isExcluded ? 'Include în traseu' : 'Exclude din traseu';
-      btn.innerHTML = `<svg viewBox="0 0 24 24">${isExcluded ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>' : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z"/>'}</svg>`;
+      const svgPath = isExcluded
+        ? '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/>'
+        : '<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8 0-1.85.63-3.55 1.69-4.9L16.9 18.31C15.55 19.37 13.85 20 12 20zm6.31-3.1L7.1 5.69C8.45 4.63 10.15 4 12 4c4.42 0 8 3.58 8 8 0 1.85-.63 3.55-1.69 4.9z" fill="currentColor"/>';
+      if (btn.classList.contains('card-overflow-item')) {
+        btn.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14">${svgPath}</svg><span class="route-item-text">${isExcluded ? 'Include in Route' : 'Exclude from Route'}</span>`;
+      } else {
+        btn.innerHTML = `<svg viewBox="0 0 24 24">${svgPath}</svg>`;
+      }
     });
     document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(el => {
       el.classList.toggle('card-excluded', isExcluded);
@@ -4915,9 +5038,12 @@ function handleCardClick(e) {
   }
   if (actionEl.dataset.action === 'addAttachment') {
     e.preventDefault();
-    if (state.role !== 'admin') return;
     const locId = actionEl.dataset.id || actionEl.dataset.locId || id;
     if (!locId) return;
+    if (state.role !== 'admin') {
+      openDocumentViewer(locId);
+      return;
+    }
     docViewer.locationId = locId;
     const fileInput = document.getElementById('modalAttachmentInput');
     if (fileInput) {
@@ -6642,8 +6768,7 @@ function setActiveTrip(trip) {
   savePrefs({ mapExcluded: serverExcluded });
   state.mapOptimized = false;
   updateNotifications();
-  state.unsaved = false;
-  document.getElementById('unsavedDot')?.classList.remove('visible');
+  clearUnsaved();
   const nameInput = document.getElementById('tripNameInput');
   if (nameInput) nameInput.value = trip.trip_name || '';
   const tripHint = document.getElementById('tripSelectorActiveName');
