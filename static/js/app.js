@@ -356,7 +356,19 @@ const api = {
 // ============================================================
 // MUTATIONS
 // ============================================================
+function getLocation(id) {
+  if (!id) return null;
+  if (state.pendingNewLocation && state.pendingNewLocation.id === id) {
+    return state.pendingNewLocation;
+  }
+  return state.trip?.locations?.find(l => l.id === id) || null;
+}
+
 function updateLocation(id, fields) {
+  if (state.pendingNewLocation && state.pendingNewLocation.id === id) {
+    Object.assign(state.pendingNewLocation, fields);
+    return;
+  }
   const loc = state.trip.locations.find(l => l.id === id);
   if (!loc) return;
   Object.assign(loc, fields);
@@ -396,6 +408,12 @@ function closeLocationModal() {
   const wasOpen = locModal?.classList.contains('open') || notifModal?.classList.contains('open');
   locModal?.classList.remove('open');
   notifModal?.classList.remove('open');
+  if (state.pendingNewLocation) {
+    state.pendingNewLocation = null;
+    const body = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
+    if (body) body.innerHTML = '';
+    return;
+  }
   if (wasOpen) {
     renderMain();
   }
@@ -409,8 +427,14 @@ function closeDeleteLocationModal() {
 }
 
 function openDeleteLocationModal(id) {
-  const location = state.trip?.locations.find(item => item.id === id);
+  const location = (state.pendingNewLocation && state.pendingNewLocation.id === id)
+    ? state.pendingNewLocation
+    : state.trip?.locations.find(item => item.id === id);
   if (!location) return;
+  if (state.pendingNewLocation && state.pendingNewLocation.id === id) {
+    closeLocationModal();
+    return;
+  }
   pendingDeleteLocationId = id;
   const name = document.getElementById('deleteLocationName');
   if (name) name.textContent = location.name || 'Unnamed location';
@@ -445,44 +469,20 @@ function addBlankLocation() {
     enabled: true,
     visit_date: '',
     visit_time: '',
+    duration_minutes: 60,
     cost: 0,
     notes: '',
     category: 'other',
     original_date: '',
     place_info: '',
+    reservation_status: '',
+    paid: false,
+    confirmation_label: '',
+    confirmation_url: '',
+    attachments: [],
   };
-  state.trip.locations.unshift(loc);
-  state.sortBy = 'added';
-  state.filter.search = '';
-  state.filter.category = 'all';
-  state.filter.country = 'all';
-  savePrefs({ sortBy: 'added' });
-  const sortSelect = document.getElementById('sortSelect');
-  if (sortSelect) sortSelect.value = 'added';
-  const searchInput = document.getElementById('searchInput');
-  if (searchInput) searchInput.value = '';
-  const categoryFilter = document.getElementById('categoryFilter');
-  if (categoryFilter) categoryFilter.value = 'all';
-  const countryFilter = document.getElementById('countryFilter');
-  if (countryFilter) countryFilter.value = 'all';
-  markUnsaved();
-  renderMain();
-  renderStats();
-  renderSummary();
-  // Open the newly created location in the existing Details modal
-  openLocationModal(loc.id);
-  setTimeout(() => {
-    const newCard = document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`);
-    if (newCard) {
-      newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-    const modal = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
-    const nameField = modal?.querySelector('input[data-field="name"]');
-    if (nameField) {
-      nameField.focus();
-      nameField.select();
-    }
-  }, 60);
+  state.pendingNewLocation = loc;
+  openLocationModal(loc, true);
 }
 
 function markUnsaved() {
@@ -3299,6 +3299,91 @@ function bindEvents() {
     if (notification) openNotificationLocation(notification.dataset.notificationLocation);
   });
   document.getElementById('closeLocationModal')?.addEventListener('click', closeLocationModal);
+  document.getElementById('cancelLocationModal')?.addEventListener('click', closeLocationModal);
+  function syncLocationModalFields(locId) {
+    const modalBody = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
+    if (!modalBody) return;
+    const card = modalBody.querySelector(`[data-id="${CSS.escape(locId)}"]`) || modalBody.querySelector('.location-card');
+    if (!card) return;
+    const loc = getLocation(locId);
+    if (!loc) return;
+    card.querySelectorAll('[data-field]').forEach(input => {
+      const field = input.dataset.field;
+      if (!field) return;
+      let value = input.type === 'checkbox' ? input.checked : input.value;
+      if (field === 'cost') value = parseFloat(value) || 0;
+      if (field === 'duration_minutes') value = parseInt(value, 10) || 60;
+      loc[field] = value;
+    });
+  }
+
+  document.getElementById('locationModalSaveBtn')?.addEventListener('click', async () => {
+    if (document.activeElement && document.activeElement.closest('#locationModal, #notificationLocationModal')) {
+      const activeEl = document.activeElement;
+      activeEl.blur();
+    }
+    const modalBody = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
+    const modalLocId = modalBody?.querySelector('[data-id]')?.dataset?.id;
+    if (modalLocId) {
+      syncLocationModalFields(modalLocId);
+    }
+    const saveBtn = document.getElementById('locationModalSaveBtn');
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.style.opacity = '0.7';
+    }
+    try {
+      if (state.role === 'admin') {
+        let isNew = false;
+        let createdLocId = null;
+        if (state.pendingNewLocation) {
+          isNew = true;
+          const newLoc = state.pendingNewLocation;
+          createdLocId = newLoc.id;
+          if (!newLoc.name || !newLoc.name.trim()) {
+            newLoc.name = 'New Location';
+          }
+          state.trip.locations.unshift(newLoc);
+          state.pendingNewLocation = null;
+          state.sortBy = 'added';
+          state.filter.search = '';
+          state.filter.category = 'all';
+          state.filter.country = 'all';
+          savePrefs({ sortBy: 'added' });
+          const sortSelect = document.getElementById('sortSelect');
+          if (sortSelect) sortSelect.value = 'added';
+          const searchInput = document.getElementById('searchInput');
+          if (searchInput) searchInput.value = '';
+          const categoryFilter = document.getElementById('categoryFilter');
+          if (categoryFilter) categoryFilter.value = 'all';
+          const countryFilter = document.getElementById('countryFilter');
+          if (countryFilter) countryFilter.value = 'all';
+          renderMain();
+          renderStats();
+          renderSummary();
+        }
+        await api.saveTrip(state.trip);
+        clearUnsaved();
+        toast('Locație salvată!', 'success');
+        closeLocationModal();
+        if (isNew && createdLocId) {
+          setTimeout(() => {
+            const newCard = document.querySelector(`.location-card[data-id="${CSS.escape(createdLocId)}"]`);
+            if (newCard) newCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 60);
+        }
+      } else {
+        closeLocationModal();
+      }
+    } catch (err) {
+      toast('Save failed: ' + (err.message || err), 'error');
+    } finally {
+      if (saveBtn) {
+        saveBtn.disabled = false;
+        saveBtn.style.opacity = '';
+      }
+    }
+  });
   document.getElementById('closeNotificationLocation')?.addEventListener('click', closeLocationModal);
   const locationModalEl = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
   locationModalEl?.addEventListener('click', event => {
@@ -4548,7 +4633,7 @@ function bindEvents() {
   document.getElementById('addMapsDetails')?.addEventListener('click', () => {
     if (!pendingMapsDetails) return;
     const { id, data } = pendingMapsDetails;
-    const loc = state.trip.locations.find(item => item.id === id);
+    const loc = getLocation(id);
     const card = document.querySelector(`.location-card[data-id="${CSS.escape(id)}"]`);
     if (!loc || !card) return;
     const updates = {};
@@ -4613,7 +4698,15 @@ function bindEvents() {
 
   // Ctrl/Cmd+S
   document.addEventListener('keydown', e => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); saveAction(); }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      const locModal = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
+      if (locModal?.classList.contains('open')) {
+        document.getElementById('locationModalSaveBtn')?.click();
+      } else {
+        saveAction();
+      }
+    }
   });
 
   // Upload modal
@@ -4689,6 +4782,10 @@ function bindEvents() {
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       document.querySelectorAll('.card-overflow-menu-wrap.is-open').forEach(el => el.classList.remove('is-open'));
+      const locModal = document.getElementById('locationModal');
+      if (locModal?.classList.contains('open')) {
+        closeLocationModal();
+      }
     }
   });
   mc?.addEventListener('keydown', e => {
@@ -4885,7 +4982,7 @@ function handleCardClick(e) {
 
   if (actionEl.dataset.action === 'navigateFromCurrent') {
     e.stopPropagation();
-    const loc = state.trip?.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (loc) openDirectNavigation(loc);
     return;
   }
@@ -4899,23 +4996,25 @@ function handleCardClick(e) {
   if (actionEl.dataset.action === 'markVisited') {
     e.preventDefault();
     e.stopPropagation();
-    const loc = state.trip?.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (loc) {
       const newVisited = !loc.visited;
       updateLocation(id, { visited: newVisited });
 
-      fetch('/api/visited', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, visited: newVisited }),
-      })
-        .then(res => res.ok ? res.json() : Promise.reject(new Error('Visit update failed')))
-        .then(() => {
-          clearUnsaved();
+      if (!state.pendingNewLocation || state.pendingNewLocation.id !== id) {
+        fetch('/api/visited', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, visited: newVisited }),
         })
-        .catch(() => {
-          toast('Could not save visited state.', 'error');
-        });
+          .then(res => res.ok ? res.json() : Promise.reject(new Error('Visit update failed')))
+          .then(() => {
+            clearUnsaved();
+          })
+          .catch(() => {
+            toast('Could not save visited state.', 'error');
+          });
+      }
 
       // Synchronize all cards, rows, and timeline items for this ID in the DOM
       document.querySelectorAll(`[data-id="${CSS.escape(id)}"]`).forEach(el => {
@@ -4953,7 +5052,7 @@ function handleCardClick(e) {
     return;
   }
   if (actionEl.dataset.action === 'toggleRouteExclude') {
-    const loc = state.trip?.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (!loc) return;
     const isCurrentlyExcluded = !!(loc.excluded || state.mapExcluded.has(id));
     const isExcluded = !isCurrentlyExcluded;
@@ -4966,18 +5065,20 @@ function handleCardClick(e) {
     }
     savePrefs({ mapExcluded: [...state.mapExcluded] });
 
-    fetch('/api/excluded', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, excluded: isExcluded }),
-    })
-      .then(res => res.ok ? res.json() : Promise.reject(new Error('Exclude update failed')))
-      .then(() => {
-        clearUnsaved();
+    if (!state.pendingNewLocation || state.pendingNewLocation.id !== id) {
+      fetch('/api/excluded', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, excluded: isExcluded }),
       })
-      .catch(() => {
-        // Preference is still saved locally in localStorage
-      });
+        .then(res => res.ok ? res.json() : Promise.reject(new Error('Exclude update failed')))
+        .then(() => {
+          clearUnsaved();
+        })
+        .catch(() => {
+          // Preference is still saved locally in localStorage
+        });
+    }
 
     document.querySelectorAll(`[data-id="${CSS.escape(id)}"] [data-action="toggleRouteExclude"]`).forEach(btn => {
       btn.classList.toggle('is-excluded', isExcluded);
@@ -5004,7 +5105,7 @@ function handleCardClick(e) {
     return;
   }
   if (actionEl.dataset.action === 'fetchInfo') {
-    const loc = state.trip.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (!loc?.google_maps_url) return;
     actionEl.textContent = '⏳ Se caută…';
     actionEl.disabled = true;
@@ -5075,7 +5176,7 @@ function handleCardClick(e) {
 
 function autoFetchPlaceInfo(id, url, card) {
   if (!url || !/google\.[a-z.]+|goo\.gl/i.test(url)) return;
-  const loc = state.trip.locations.find(item => item.id === id);
+  const loc = getLocation(id);
   if (!loc || loc.place_info || card.dataset.fetchingPlaceInfo === 'true') return;
   card.dataset.fetchingPlaceInfo = 'true';
   fetch('/api/place-info', {
@@ -5139,10 +5240,19 @@ async function uploadLocationAttachments(locationId, files) {
       const response = await fetch(`/api/locations/${encodeURIComponent(locationId)}/attachments`, { method: 'POST', body: formData });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Attachment upload failed');
-      const location = state.trip?.locations.find(item => item.id === locationId);
+      const location = getLocation(locationId);
       if (location) location.attachments = data.attachments;
     }
-    renderMain();
+    if (!state.pendingNewLocation || state.pendingNewLocation.id !== locationId) {
+      renderMain();
+    } else {
+      const modalBody = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
+      const card = modalBody?.querySelector(`[data-id="${CSS.escape(locationId)}"]`);
+      const loc = getLocation(locationId);
+      if (card && loc) {
+        updateCardSubcard(card, loc);
+      }
+    }
     toast('Attachment(s) uploaded.', 'success');
   } catch (error) {
     toast('Attachment upload failed: ' + error.message, 'error');
@@ -6186,7 +6296,7 @@ window.addEventListener('resize', () => {
 let pendingMapsDetails = null;
 
 async function openMapsDetailsModal(id, card, actionButton) {
-  const loc = state.trip.locations.find(item => item.id === id);
+  const loc = getLocation(id);
   const urlField = card.querySelector('[data-field="google_maps_url"]');
   const url = urlField?.value.trim() || loc?.google_maps_url || '';
   const status = document.getElementById('mapsDetailsStatus');
@@ -6263,7 +6373,7 @@ function handleCardChange(e) {
   // Update date row live without full re-render
   // Update place (flag + city/location) live without full re-render
   if (field === 'country' || field === 'city') {
-    const loc = state.trip?.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (loc) {
       const placeEl = card.querySelector('.meta-strip-place');
       if (placeEl) {
@@ -6276,7 +6386,7 @@ function handleCardChange(e) {
 
   // Update schedule live without full re-render
   if (field === 'visit_date' || field === 'visit_time' || field === 'duration_minutes') {
-    const loc = state.trip?.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (loc) {
       const schedTimes = getScheduleTimes(loc);
       const schedDateStr = loc.visit_date ? fmtDate(loc.visit_date, { day: 'numeric', month: 'short' }) : '';
@@ -6324,7 +6434,7 @@ function handleCardChange(e) {
 
   // Update titlebar meta (booking badge, paid badge, cost) live
   if (field === 'cost' || field === 'reservation_status' || field === 'paid') {
-    const loc = state.trip?.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (loc) {
       const sym = getCurrencySymbol(state.trip?.currency);
       const titlebar = card.querySelector('.card-window-titlebar');
@@ -6347,7 +6457,7 @@ function handleCardChange(e) {
   if (field === 'cost') {
     const dayGroup = card.closest('.day-group');
     if (dayGroup) {
-      const loc = state.trip?.locations.find(l => l.id === id);
+      const loc = getLocation(id);
       const key = loc?.visit_date || '__none__';
       const allDayLocs = (state.trip?.locations || []).filter(l => (l.visit_date || '__none__') === key);
       const dayCost = allDayLocs.filter(l => l.enabled !== false).reduce((s, l) => s + (l.cost || 0), 0);
@@ -6373,14 +6483,14 @@ function handleCardChange(e) {
 
   // Update country/city tags live
   if (field === 'country' || field === 'city') {
-    const loc = state.trip.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (loc) {
       const countryTag = card.querySelector('.tag-country');
       if (countryTag) countryTag.innerHTML = `${flagHTML(loc.country, loc.country_code)} ${esc(loc.country)}`;
       const cityTag = card.querySelector('.tag-city');
       if (cityTag) cityTag.textContent = loc.city;
     }
-    if (field === 'country') renderCountryFilter();
+    if (field === 'country' && !state.pendingNewLocation) renderCountryFilter();
   }
 
   // Update address line live
@@ -6443,7 +6553,7 @@ function handleCardChange(e) {
 
   // Update card subcard (notes & confirmation/attachments chips) live
   if (field === 'notes' || field === 'confirmation_url' || field === 'confirmation_label') {
-    const loc = state.trip?.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     if (loc) {
       updateCardSubcard(card, loc);
     }
@@ -6451,7 +6561,7 @@ function handleCardChange(e) {
 
   // Update Maps button live when URL is changed
   if (field === 'google_maps_url') {
-    const loc = state.trip.locations.find(l => l.id === id);
+    const loc = getLocation(id);
     const newUrl = safeMapsUrl(loc?.google_maps_url || '');
     const actionsDiv = card.querySelector('.card-actions');
     if (actionsDiv) {
@@ -6879,17 +6989,34 @@ function renderNotifications() {
   }
 }
 
-function openLocationModal(locationId) {
-  if (!locationId) return;
-  const location = state.trip?.locations.find(item => item.id === locationId);
+function openLocationModal(locationOrId, isNew = false) {
+  if (!locationOrId) return;
+  const location = (typeof locationOrId === 'object' && locationOrId !== null)
+    ? locationOrId
+    : getLocation(locationOrId);
   const body = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
   if (!location || !body) return;
+  state.pendingNewLocation = isNew ? location : null;
   body.innerHTML = cardHTML(location);
   const title = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
-  if (title) title.textContent = location.name || 'Location';
+  if (title) title.textContent = isNew ? (location.name || 'New Location') : (location.name || 'Location');
+  const cancelBtn = document.getElementById('cancelLocationModal');
+  if (cancelBtn) {
+    cancelBtn.textContent = (state.role === 'admin') ? 'Cancel' : 'Close';
+  }
   document.getElementById('notificationsModal')?.classList.remove('open');
   const modal = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
   modal?.classList.add('open');
+
+  if (isNew) {
+    setTimeout(() => {
+      const nameField = modal?.querySelector('input[data-field="name"]');
+      if (nameField) {
+        nameField.focus();
+        nameField.select();
+      }
+    }, 60);
+  }
 }
 
 const openNotificationLocation = openLocationModal;
