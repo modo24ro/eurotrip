@@ -4538,6 +4538,26 @@ body.single-col-cards .card-notes-row,
   margin: 0 !important;
 }
 
+/* 4. Address Slide */
+.subcard-slide-address .subcard-address-content {
+  cursor: default;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.subcard-address-text {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--text-secondary, #cbd5e1);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
 /* Navigation Chevrons */
 .subcard-nav-arrow {
   position: absolute;

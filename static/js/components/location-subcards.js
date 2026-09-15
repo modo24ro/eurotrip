@@ -145,24 +145,45 @@
   }
 
   /**
+   * 4. Subcard: Address
+   */
+  function renderAddressCard(loc) {
+    const address = (loc.address || '').trim();
+    if (!address) return null;
+    return `
+      <div class="subcard-slide subcard-slide-address" data-subcard-type="address">
+        <div class="subcard-inner subcard-address-content card-address-row is-open" title="${esc(address)}">
+          <span class="address-row-icon subcard-icon">📍</span>
+          <span class="card-address subcard-text subcard-address-text">${esc(address)}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
    * Generates the entire subcards viewport HTML
    */
   function renderHTML(loc) {
     if (!loc) return '';
 
+    const flightSlide = renderFlightCard(loc);
+    const notesSlide = renderNotesCard(loc);
+    const mediaSlide = renderAttachmentsAndConfCard(loc);
+    const addressSlide = renderAddressCard(loc);
+
     const slides = [];
 
-    // 1. Notes (if any)
-    const notesSlide = renderNotesCard(loc);
-    if (notesSlide) slides.push(notesSlide);
-
-    // 2. Flight (ONLY if category === 'transport_flight')
-    const flightSlide = renderFlightCard(loc);
+    // 1. Flight is top priority if present
     if (flightSlide) slides.push(flightSlide);
 
+    // 2. Notes
+    if (notesSlide) slides.push(notesSlide);
+
     // 3. Attachments + Confirmation
-    const mediaSlide = renderAttachmentsAndConfCard(loc);
     if (mediaSlide) slides.push(mediaSlide);
+
+    // 4. Address (lowest priority when media/notes/flight present)
+    if (addressSlide) slides.push(addressSlide);
 
     // Case G: Nothing available -> Do not render secondary area
     if (slides.length === 0) return '';

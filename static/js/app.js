@@ -2362,11 +2362,13 @@ ${adminItems}
 }
 
 function renderCardSubcardHTML(loc) {
-  if (window.LocationSubcards) {
+  if (typeof window !== 'undefined' && window.LocationSubcards) {
     return window.LocationSubcards.renderHTML(loc);
   }
   const notes = (loc.notes || '').trim();
-  return notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
+  const notesHtml = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
+  const addrHtml = loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '';
+  return `${notesHtml}${addrHtml}`;
 }
 
 function updateCardSubcard(card, loc) {
@@ -2398,7 +2400,7 @@ function cardHTML(loc) {
 
   const sym = getCurrencySymbol(state.trip?.currency);
 
-  const addressLine = loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '';
+  const addressLine = (typeof window !== 'undefined' && window.LocationSubcards) ? '' : (loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '');
 
   // Nav buttons in card-actions (equal dimensions with static SVG assets)
   const MAPS_ICON_URL = (window.location.protocol === 'file:') ? 'icons/maps-icon.svg' : '/static/icons/maps-icon.svg';
@@ -6458,8 +6460,8 @@ function handleCardChange(e) {
     }
   }
 
-  // Update card subcard (notes & confirmation/attachments chips) live
-  if (field === 'notes' || field === 'confirmation_url' || field === 'confirmation_label') {
+  // Update card subcard (notes & confirmation/attachments chips, address) live
+  if (field === 'notes' || field === 'confirmation_url' || field === 'confirmation_label' || field === 'address') {
     const loc = getLocation(id);
     if (loc) {
       updateCardSubcard(card, loc);
