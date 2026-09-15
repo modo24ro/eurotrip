@@ -1,4 +1,46 @@
-'use strict';
+import {
+  esc,
+  formatEur,
+  formatCurrency,
+  formatBytes,
+  formatFileSize,
+  getCurrencySymbol,
+  getTodayDateString,
+  getFileMeta,
+  isNarrowScreen,
+  getDocumentBaseUrl,
+  getRemoteApiBaseUrl,
+  buildAttachmentDownloadUrl,
+  buildAttachmentRawUrl,
+  buildDocViewerUrl,
+  flagHTML,
+  flagImg,
+  flagText,
+  catLabel,
+  COUNTRY_CODES,
+  safeMapsUrl,
+  safeExternalUrl,
+  wazeUrl,
+  genId,
+} from './core/utils.js';
+
+import {
+  fmtDate,
+  fmtTime,
+  formatDuration,
+  parseDuration,
+  getScheduleTimes,
+  detectScheduleConflicts,
+  checkTimeConflict,
+  formatFlightTime,
+  formatFlightDate,
+  formatFlightDateTime,
+} from './core/date-utils.js';
+
+import { toast, showToast } from './core/toast.js';
+import { api } from './core/api.js';
+import { renderSummary, renderCountryFilter } from './components/summary-banner.js';
+
 
 // ============================================================
 // STATE
@@ -162,212 +204,6 @@ const CATEGORY_ICONS = {
 
 const TRANSPORT_SUBCATEGORIES = ['transport_flight', 'transport_train', 'transport_bus', 'transport_car', 'transport_boat'];
 const VALID_CATEGORIES = Object.keys(CATEGORY_ICONS);
-
-function catLabel(c) {
-  return c.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-}
-
-function getDocumentBaseUrl() {
-  const isCapacitor = !!(window.Capacitor && window.Capacitor.Plugins);
-  const locOrigin = (window.location && window.location.origin) ? window.location.origin : '';
-  const locHost = (window.location && window.location.hostname) ? window.location.hostname : '';
-  const locProto = (window.location && window.location.protocol) ? window.location.protocol : '';
-
-  // 1. Native Capacitor / Android WebView wrapper:
-  // In native Android wrapper, origin is typically "https://localhost" or "capacitor://localhost".
-  // Because localhost is unreachable outside the app (e.g. Chrome, PDF viewers, share intents),
-  // derive the remote server URL from configuration or fallback to official production origin.
-  if (isCapacitor || locOrigin === 'https://localhost' || locOrigin === 'http://localhost' || locProto === 'capacitor:') {
-    let sUrl = '';
-    try {
-      const saved = localStorage.getItem('eurotrip_mobile_config');
-      if (saved) {
-        const cfg = JSON.parse(saved);
-        if (cfg && cfg.serverUrl) sUrl = cfg.serverUrl.trim();
-      }
-    } catch (_) { }
-    if (!sUrl && typeof window.getRemoteServerUrl === 'function') {
-      sUrl = window.getRemoteServerUrl() || '';
-    }
-    // Prevent using localhost inside native app for external actions
-    if (!sUrl || sUrl.includes('localhost') || sUrl.includes('127.0.0.1')) {
-      sUrl = 'https://trip.modo24.ro';
-    }
-    sUrl = sUrl.replace(/\/+$/, '');
-    if (!sUrl.startsWith('http://') && !sUrl.startsWith('https://')) {
-      sUrl = 'https://' + sUrl;
-    }
-    return sUrl;
-  }
-
-  // 2. Production / Public Application:
-  // When loaded in a browser/PWA over HTTPS or on a public domain,
-  // document URLs MUST ALWAYS resolve against the current HTTPS origin.
-  // Never resolve against localhost or HTTP when running in production.
-  if (locProto === 'https:' || (!['localhost', '127.0.0.1', '0.0.0.0', ''].includes(locHost))) {
-    return locOrigin.replace(/\/+$/, '');
-  }
-
-  // 3. Local development:
-  // When running locally on http://localhost:... or http://127.0.0.1:...,
-  // preserve the local origin so development continues to work normally.
-  return locOrigin.replace(/\/+$/, '');
-}
-
-function getRemoteApiBaseUrl() {
-  return getDocumentBaseUrl();
-}
-
-function buildAttachmentDownloadUrl(locationId, filename, token = '') {
-  const base = getDocumentBaseUrl();
-  let url = `${base}/api/locations/${encodeURIComponent(locationId)}/attachments/${encodeURIComponent(filename)}?download=1`;
-  if (token) {
-    url += `&token=${encodeURIComponent(token)}`;
-  }
-  return url;
-}
-
-function buildAttachmentRawUrl(locationId, filename, token = '') {
-  const base = getDocumentBaseUrl();
-  let url = `${base}/api/locations/${encodeURIComponent(locationId)}/attachments/${encodeURIComponent(filename)}`;
-  if (token) {
-    url += `?token=${encodeURIComponent(token)}`;
-  }
-  return url;
-}
-
-function buildDocViewerUrl(locationId, filename, token = '') {
-  const base = getDocumentBaseUrl();
-  let url = `${base}/doc-viewer/${encodeURIComponent(locationId)}/${encodeURIComponent(filename)}`;
-  if (token) {
-    url += `?token=${encodeURIComponent(token)}`;
-  }
-  return url;
-}
-
-window.getDocumentBaseUrl = getDocumentBaseUrl;
-window.getRemoteApiBaseUrl = getRemoteApiBaseUrl;
-window.buildAttachmentDownloadUrl = buildAttachmentDownloadUrl;
-window.buildAttachmentRawUrl = buildAttachmentRawUrl;
-window.buildDocViewerUrl = buildDocViewerUrl;
-
-function getFileMeta(filename) {
-  const ext = (filename || '').split('.').pop().toLowerCase();
-  const isPdf = ext === 'pdf';
-  const isImage = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'svg', 'bmp'].includes(ext);
-  let icon = '📎';
-  if (isPdf) icon = '📄';
-  else if (isImage) icon = '🖼️';
-  else if (['xls', 'xlsx', 'csv'].includes(ext)) icon = '📊';
-  else if (['doc', 'docx', 'txt', 'rtf'].includes(ext)) icon = '📝';
-  return { ext, isPdf, isImage, icon };
-}
-
-function formatFileSize(bytes) {
-  if (!bytes || isNaN(bytes)) return '';
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-// ISO-3166-1 alpha-2 codes — used to fetch real flag images
-const COUNTRY_CODES = {
-  'Germany': 'de', 'Spain': 'es', 'Romania': 'ro',
-  'France': 'fr', 'Italy': 'it', 'Netherlands': 'nl',
-  'Belgium': 'be', 'Austria': 'at', 'Switzerland': 'ch',
-  'Czech Republic': 'cz', 'Poland': 'pl', 'Hungary': 'hu',
-  'Portugal': 'pt', 'Greece': 'gr', 'Croatia': 'hr',
-  'Slovenia': 'si', 'Slovakia': 'sk', 'Denmark': 'dk',
-  'Sweden': 'se', 'Norway': 'no', 'Finland': 'fi',
-  'United Kingdom': 'gb', 'Ireland': 'ie', 'Serbia': 'rs',
-  'Bulgaria': 'bg', 'Moldova': 'md', 'Ukraine': 'ua',
-  'Latvia': 'lv', 'Lithuania': 'lt', 'Estonia': 'ee',
-  'Luxembourg': 'lu', 'Malta': 'mt', 'Cyprus': 'cy',
-  'Iceland': 'is', 'Bosnia': 'ba', 'Montenegro': 'me',
-  'Albania': 'al', 'North Macedonia': 'mk', 'Andorra': 'ad',
-};
-
-/**
- * Returns an <img> flag from flagcdn.com for HTML contexts.
- * Falls back to globe emoji if the code is unknown or image fails.
- */
-function flagHTML(country, countryCode) {
-  const code = ((countryCode && countryCode.length === 2 ? countryCode : null)
-    || COUNTRY_CODES[country] || '').toLowerCase();
-  if (!code) return '<span class="flag-fallback">🌍</span>';
-  return `<img src="https://flagcdn.com/20x15/${code}.png"
-       srcset="https://flagcdn.com/40x30/${code}.png 2x"
-       alt="${code.toUpperCase()}" class="flag-img"
-       onerror="this.outerHTML='<span class=flag-fallback>🌍</span>'">`;
-}
-
-/** Plain text code for <select> options (no HTML tags allowed). */
-function flagText(country, countryCode) {
-  const code = ((countryCode && countryCode.length === 2 ? countryCode : null)
-    || COUNTRY_CODES[country] || '').toUpperCase();
-  return code ? `[${code}]` : '';
-}
-
-// ============================================================
-// API
-// ============================================================
-const api = {
-  async getTrips() {
-    const res = await fetch('/api/trips');
-    if (!res.ok) throw new Error('Failed to load trips');
-    return res.json();
-  },
-  async createTrip(name) {
-    const res = await fetch('/api/trips', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Could not create trip');
-    return data;
-  },
-  async selectTrip(id) {
-    const res = await fetch('/api/trips/select', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id }),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Could not switch trip');
-    return data;
-  },
-  async deleteTrip(id) {
-    const res = await fetch(`/api/trips/${encodeURIComponent(id)}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Could not delete trip');
-    return data;
-  },
-  async getTrip() {
-    const res = await fetch('/api/trip');
-    if (!res.ok) throw new Error('Failed to load trip data');
-    return res.json();
-  },
-  async saveTrip(trip) {
-    const res = await fetch('/api/trip', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(trip),
-    });
-    if (!res.ok) throw new Error('Save failed');
-    return res.json();
-  },
-  async uploadFile(file) {
-    const fd = new FormData();
-    fd.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', body: fd });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || 'Upload failed');
-    }
-    return res.json();
-  },
-};
 
 // ============================================================
 // MUTATIONS
@@ -608,81 +444,6 @@ function render() {
 
 function renderStats() {
   // Toate statisticile sunt afișate exclusiv în summary-banner
-}
-
-function renderSummary() {
-  const locs = state.trip?.locations ?? [];
-  const enabled = locs.filter(l => l.enabled);
-  const totalCost = enabled.reduce((s, l) => s + (l.cost || 0), 0);
-  const countries = [...new Set(enabled.map(l => l.country).filter(Boolean))];
-  const scheduled = enabled.filter(l => l.visit_date).length;
-  const days = [...new Set(enabled.map(l => l.visit_date).filter(Boolean))].sort();
-  const firstDay = days[0] ? fmtDate(days[0], { day: 'numeric', month: 'short' }) : '—';
-  const lastDay = days[days.length - 1] ? fmtDate(days[days.length - 1], { day: 'numeric', month: 'short' }) : '—';
-
-  const isFullyScheduled = enabled.length > 0 && scheduled === enabled.length;
-  const schedClass = isFullyScheduled ? ' is-scheduled' : '';
-  const schedTitle = isFullyScheduled
-    ? `All ${enabled.length} active locations are scheduled`
-    : `${scheduled} of ${enabled.length} active locations scheduled`;
-
-  const el = document.getElementById('summaryBanner');
-  if (el) {
-    el.innerHTML = `
-      <div class="banner-metrics">
-        <div class="banner-item${schedClass}" title="${schedTitle}"><div class="banner-value">${scheduled}/${enabled.length}</div><div class="banner-label">Scheduled</div></div>
-        <div class="banner-item"><div class="banner-value">${days.length}</div><div class="banner-label">Days</div></div>
-        <div class="banner-item"><div class="banner-value">${formatCurrency(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
-      </div>
-      ${(days.length > 0 || countries.length > 0) ? `
-          ${days.length > 0 ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
-          ${countries.length > 0 ? `
-            <div class="banner-item banner-item-countries">
-              <div class="banner-countries-flags">
-                ${countries.map(c => `
-                  <button type="button" class="country-button" data-action="goToCountry" data-country="${esc(c)}" title="View ${esc(c)} in Countries">
-                    ${flagHTML(c)}
-                  </button>
-                `).join('')}
-              </div>
-              <div class="banner-label">Countries</div>
-            </div>
-          ` : ''}
-        </div>
-      ` : ''}
-    `;
-  }
-
-  let headerDatesEl = document.getElementById('tripHeaderDates');
-  if (!headerDatesEl) {
-    const brandDetails = document.querySelector('.trip-brand-details');
-    if (brandDetails) {
-      headerDatesEl = document.createElement('div');
-      headerDatesEl.id = 'tripHeaderDates';
-      headerDatesEl.className = 'trip-header-dates';
-      brandDetails.appendChild(headerDatesEl);
-    }
-  }
-  if (headerDatesEl) {
-    if (days.length > 0 && firstDay !== '—') {
-      headerDatesEl.innerHTML = `<span class="banner-value banner-dates-val trip-header-dates-val">${firstDay} → ${lastDay}</span>`;
-      headerDatesEl.style.display = '';
-    } else {
-      headerDatesEl.innerHTML = '';
-      headerDatesEl.style.display = 'none';
-    }
-  }
-}
-
-function renderCountryFilter() {
-  const countries = [...new Set((state.trip?.locations ?? []).map(l => l.country).filter(Boolean))].sort();
-  const cur = state.filter.country;
-  const optionsHtml = `<option value="all">All Countries</option>` +
-    countries.map(c => `<option value="${esc(c)}"${c === cur ? ' selected' : ''}>${flagText(c)} ${esc(c)}</option>`).join('');
-  const sel = document.getElementById('countryFilter');
-  if (sel) sel.innerHTML = optionsHtml;
-  const selMobile = document.getElementById('countryFilterMobile');
-  if (selMobile) selMobile.innerHTML = optionsHtml;
 }
 
 function syncSearchInputPlacement() {
@@ -7204,100 +6965,6 @@ function registerServiceWorker() {
 }
 
 // ============================================================
-// UTILS
-// ============================================================
-function esc(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-}
-
-function safeMapsUrl(url) {
-  if (!url) return '';
-  let s = String(url).trim();
-  // Upgrade old HTTP CID format to modern HTTPS format that browsers follow reliably
-  s = s.replace(/^http:\/\/maps\.google\.com\/\?cid=(.+)$/i, 'https://www.google.com/maps?cid=$1');
-  return (s.startsWith('http://') || s.startsWith('https://')) ? esc(s) : '';
-}
-
-function safeExternalUrl(url) {
-  if (!url) return '';
-  const value = String(url).trim();
-  return /^https?:\/\//i.test(value) ? esc(value) : '';
-}
-
-function wazeUrl(loc) {
-  const c = loc.coordinates;
-  if (c && c[0] != null && c[1] != null) {
-    // GeoJSON stores [longitude, latitude]
-    return `https://waze.com/ul?ll=${c[1]},${c[0]}&navigate=yes`;
-  }
-  const q = loc.address || loc.name;
-  return q ? `https://waze.com/ul?q=${encodeURIComponent(q)}&navigate=yes` : '';
-}
-
-function formatCurrency(amount, currency = 'EUR') {
-  if (amount == null) return '€0';
-  try {
-    return new Intl.NumberFormat('de-DE', {
-      style: 'currency', currency: currency || 'EUR',
-      minimumFractionDigits: 0, maximumFractionDigits: 2,
-    }).format(amount);
-  } catch {
-    return `€${amount}`;
-  }
-}
-
-function formatBytes(bytes) {
-  if (!bytes) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB'];
-  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${(bytes / (1024 ** index)).toFixed(index ? 1 : 0)} ${units[index]}`;
-}
-
-function getCurrencySymbol(currency = 'EUR') {
-  const map = { EUR: '€', USD: '$', GBP: '£', CHF: '₣', PLN: 'zł', RON: 'lei' };
-  return map[currency] || '€';
-}
-
-function getTodayDateString() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, '0');
-  const d = String(now.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-function fmtDate(dateStr, opts) {
-  try {
-    return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', opts);
-  } catch {
-    return dateStr;
-  }
-}
-
-function genId() {
-  return 'loc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
-}
-
-function toast(message, type = 'info') {
-
-  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
-  const container = document.getElementById('toastContainer');
-  if (!container) return;
-  const el = document.createElement('div');
-  el.className = `toast toast-${type}`;
-  el.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span>${message}</span>`;
-  el.addEventListener('click', () => el.remove());
-  container.appendChild(el);
-  setTimeout(() => {
-    el.classList.add('toast-out');
-    el.addEventListener('animationend', () => el.remove(), { once: true });
-  }, 3500);
-}
-
-// ============================================================
 // INIT
 // ============================================================
 function updateDocumentTitle(name) {
@@ -7551,6 +7218,9 @@ function openLocationModal(locationOrId, isNew = false, initialTab = 'general') 
 const openNotificationLocation = openLocationModal;
 
 async function init() {
+  if (!document.getElementById('locationsContainer') && !document.getElementById('summaryBanner') && !document.getElementById('app')) {
+    return;
+  }
   if (document.querySelector('.settings-page')) {
     // Settings page has its own dedicated lifecycle and handlers
     return;
