@@ -33,6 +33,11 @@
   /* Category accent colours */
   --cat-hotel: #5c73f2;
   --cat-transport: #a855f7;
+  --cat-transport_flight: #6366f1;
+  --cat-transport_train: #0ea5e9;
+  --cat-transport_bus: #a855f7;
+  --cat-transport_car: #14b8a6;
+  --cat-transport_boat: #3b82f6;
   --cat-restaurant: #f97316;
   --cat-attraction: #10b981;
   --cat-education: #06b6d4;
@@ -649,6 +654,7 @@ body::before {
   flex: 1 1 auto;
   max-height: none !important;
   overflow-y: auto !important;
+  overscroll-behavior: contain;
   padding: 16px 20px;
 }
 
@@ -658,10 +664,10 @@ body::before {
     padding: 12px 14px;
   }
 
-  .location-modal-body .card-fields,
-  .notification-location-body .card-fields {
+  .location-modal-body .modal-tab-pane.active,
+  .notification-location-body .modal-tab-pane.active {
     grid-template-columns: 1fr !important;
-    gap: 8px !important;
+    gap: 10px !important;
   }
 }
 
@@ -684,7 +690,155 @@ body::before {
 
 .location-modal-body .card-fields,
 .notification-location-body .card-fields {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  border-top: none !important;
+  margin-top: 6px !important;
+  padding-top: 2px !important;
+}
+
+/* Modal Category Tabs Navigation */
+.modal-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 6px 2px 10px 2px;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  position: sticky;
+  top: 0;
+  background: var(--bg-card, #121526);
+  z-index: 10;
+}
+.modal-tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.modal-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-surface, #1a1e36) 70%, transparent);
+  color: var(--text-secondary, #94a3b8);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.modal-tab-btn:hover {
+  background: color-mix(in srgb, var(--accent, #6366f1) 15%, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary, #f8fafc);
+  border-color: color-mix(in srgb, var(--accent, #6366f1) 40%, var(--border));
+  transform: translateY(-1px);
+}
+
+.modal-tab-btn:active {
+  transform: translateY(0);
+}
+
+.modal-tab-btn.active {
+  background: color-mix(in srgb, var(--accent, #6366f1) 25%, rgba(255, 255, 255, 0.08));
+  color: #fff;
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent, #6366f1) 35%, transparent);
+  font-weight: 600;
+}
+
+.modal-tab-btn .tab-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.modal-tab-btn.tab-flight-btn {
+  border-color: color-mix(in srgb, var(--cat-transport_flight, #6366f1) 40%, var(--border));
+}
+
+.modal-tab-btn.tab-flight-btn.active {
+  background: color-mix(in srgb, var(--cat-transport_flight, #6366f1) 28%, transparent);
+  border-color: var(--cat-transport_flight, #6366f1);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--cat-transport_flight, #6366f1) 40%, transparent);
+}
+
+.modal-tab-btn.is-hidden {
+  display: none !important;
+}
+
+.modal-tab-panes {
+  width: 100%;
+}
+
+.modal-tab-pane {
+  display: none !important;
+}
+
+.modal-tab-pane.active {
   display: grid !important;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 16px;
+  animation: modalTabFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-tab-pane .field-group.full-width {
+  grid-column: 1 / -1;
+}
+
+.modal-tab-pane .field-input-lg {
+  font-size: 0.96rem;
+  font-weight: 500;
+}
+
+@keyframes modalTabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.flight-category-hint {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: #818cf8;
+  background: rgba(99, 102, 241, 0.1);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inline-tab-switch-btn {
+  background: rgba(99, 102, 241, 0.25);
+  border: 1px solid #818cf8;
+  color: #fff;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.inline-tab-switch-btn:hover {
+  background: #6366f1;
+  color: #fff;
 }
 
 .location-modal-body .card-overflow-menu-wrap,
@@ -1487,15 +1641,44 @@ body.map-is-fullscreen .toast-container {
 /* Hide top header and bottom navigation when any modal or document viewer is open */
 html.doc-viewer-open,
 body.doc-viewer-open,
+html.modal-open,
+body.modal-open,
+html:has(.modal-overlay.open),
 body:has(.modal-overlay.open) {
   overflow: hidden !important;
+  overscroll-behavior: none !important;
 }
 
 body.doc-viewer-open .app-header,
 body.doc-viewer-open .mobile-nav,
+body.modal-open .app-header,
+body.modal-open .mobile-nav,
 body:has(.modal-overlay.open) .app-header,
 body:has(.modal-overlay.open) .mobile-nav {
   display: none !important;
+}
+
+/* Completely freeze background elements from mouse interactions, dragging, selection, and scrolling when any modal is open */
+body.modal-open #mainContent,
+body.modal-open .main-content,
+body.modal-open .controls-bar,
+body.modal-open .sub-bar,
+body.modal-open #tripMap,
+body.modal-open .leaflet-container,
+body.modal-open .leaflet-pane,
+body.modal-open .leaflet-control-container,
+body:has(.modal-overlay.open) #mainContent,
+body:has(.modal-overlay.open) .main-content,
+body:has(.modal-overlay.open) .controls-bar,
+body:has(.modal-overlay.open) .sub-bar,
+body:has(.modal-overlay.open) #tripMap,
+body:has(.modal-overlay.open) .leaflet-container,
+body:has(.modal-overlay.open) .leaflet-pane,
+body:has(.modal-overlay.open) .leaflet-control-container {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: none !important;
 }
 
 .leaflet-container {
@@ -3533,6 +3716,31 @@ body.single-col-cards .card-notes-row,
   color: var(--cat-transport);
   border-color: var(--cat-transport);
   background: color-mix(in srgb, var(--cat-transport) 15%, transparent);
+}
+.strip-cat.cat-transport_flight {
+  color: var(--cat-transport_flight);
+  border-color: var(--cat-transport_flight);
+  background: color-mix(in srgb, var(--cat-transport_flight) 15%, transparent);
+}
+.strip-cat.cat-transport_train {
+  color: var(--cat-transport_train);
+  border-color: var(--cat-transport_train);
+  background: color-mix(in srgb, var(--cat-transport_train) 15%, transparent);
+}
+.strip-cat.cat-transport_bus {
+  color: var(--cat-transport_bus);
+  border-color: var(--cat-transport_bus);
+  background: color-mix(in srgb, var(--cat-transport_bus) 15%, transparent);
+}
+.strip-cat.cat-transport_car {
+  color: var(--cat-transport_car);
+  border-color: var(--cat-transport_car);
+  background: color-mix(in srgb, var(--cat-transport_car) 15%, transparent);
+}
+.strip-cat.cat-transport_boat {
+  color: var(--cat-transport_boat);
+  border-color: var(--cat-transport_boat);
+  background: color-mix(in srgb, var(--cat-transport_boat) 15%, transparent);
 }
 
 .strip-cat.cat-restaurant {
@@ -6134,6 +6342,8 @@ select option,
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.22s, visibility 0.22s;
+  overscroll-behavior: contain;
+  touch-action: none;
 }
 
 .modal-overlay.open {
@@ -6160,6 +6370,9 @@ select option,
   box-shadow: var(--shadow-lg);
   transform: scale(0.95) translateY(8px);
   transition: transform 0.22s;
+  pointer-events: auto !important;
+  overscroll-behavior: contain;
+  touch-action: auto;
 }
 
 .modal-box.doc-viewer-modal-box,
@@ -10478,3 +10691,696 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
 .single-col-cards .location-card .card-info-strip:empty + .card-actions {
   margin-top: auto !important;
 }
+
+/* ============================================================
+   FLIGHT STATUS CARD
+   ============================================================ */
+.flight-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.flight-input-row .flight-number-input {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.check-flight-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.flight-status-card-wrap {
+  margin: 4px 0 8px 0;
+}
+
+/* Loading */
+.flight-status-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.flight-loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(99,102,241,0.3);
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  animation: flt-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes flt-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Error */
+.flight-status-error {
+  padding: 12px 16px;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 10px;
+  font-size: 0.85rem;
+  color: #f87171;
+}
+
+/* Main card */
+.flight-status-card {
+  background: rgba(15, 20, 40, 0.7);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 0.83rem;
+}
+
+/* Header */
+.fsc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.fsc-flight-id {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.fsc-airline {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.fsc-flight-num {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  letter-spacing: 0.04em;
+}
+
+/* Status badge */
+.fsc-status-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.fsc-status-badge.status-scheduled { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+.fsc-status-badge.status-active    { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
+.fsc-status-badge.status-landed    { background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3); }
+.fsc-status-badge.status-cancelled { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.fsc-status-badge.status-diverted  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+.fsc-status-badge.status-incident  { background: rgba(239,68,68,0.2);   color: #f87171; border: 1px solid rgba(239,68,68,0.4); }
+
+/* Route row */
+.fsc-route {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 14px 10px;
+  gap: 8px;
+}
+.fsc-endpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+.fsc-endpoint-right {
+  text-align: right;
+}
+.fsc-iata {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.fsc-time {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--accent-light);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.fsc-endpoint-right .fsc-time { justify-content: flex-end; }
+.fsc-city {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+.fsc-date {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.fsc-arrow {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+.fsc-duration-line {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fsc-line {
+  position: absolute;
+  left: 0; right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(99,102,241,0.3);
+}
+.fsc-plane-icon {
+  position: relative;
+  color: #6366f1;
+  background: var(--bg-card, #111827);
+  padding: 0 4px;
+}
+
+/* Details row */
+.fsc-details-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding: 8px 14px 10px;
+  gap: 6px 16px;
+}
+.fsc-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 60px;
+}
+.fsc-detail-label {
+  font-size: 0.67rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.fsc-detail-val {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Delay badge */
+.flight-delay-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(245,158,11,0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245,158,11,0.35);
+  padding: 1px 6px;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+
+/* Live row */
+.flight-live-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: rgba(16,185,129,0.06);
+  border-top: 1px solid rgba(16,185,129,0.15);
+  font-size: 0.78rem;
+  color: #34d399;
+  flex-wrap: wrap;
+}
+.flight-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 6px #34d399;
+  flex-shrink: 0;
+  animation: flt-pulse 1.5s ease-in-out infinite;
+}
+@keyframes flt-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.3); }
+}
+.flight-live-sep { color: rgba(52,211,153,0.4); }
+
+/* ============================================================
+   UNIFIED CARD DETAILS DRAWER & INTELLIGENT FLIGHT INTEGRATION
+   ============================================================ */
+
+/* Compact Flight Button Chip on Itinerary Card */
+.strip-flight-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.45), rgba(37, 99, 235, 0.25));
+  color: #93c5fd;
+  border: 1px solid rgba(96, 165, 250, 0.4);
+  padding: 3px 9px;
+  border-radius: 12px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.strip-flight-btn:hover {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.6), rgba(59, 130, 246, 0.4));
+  color: #ffffff;
+  border-color: rgba(147, 197, 253, 0.8);
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.strip-flight-status-dot {
+  font-size: 0.72rem;
+  line-height: 1;
+  margin-left: 2px;
+}
+
+/* Card Actions Details Button */
+.loc-nav-btn.card-details-btn {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.loc-nav-btn.card-details-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ============================================================
+   FLIGHT CARD STYLING (USED IN MODAL FLIGHT TAB & CARDS)
+   ============================================================ */
+
+.drawer-flight-card {
+  background: linear-gradient(180deg, rgba(20, 27, 45, 0.85) 0%, rgba(15, 23, 42, 0.95) 100%);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 0 20px rgba(59, 130, 246, 0.08);
+}
+
+.drawer-flight-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: rgba(59, 130, 246, 0.08);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.15);
+}
+
+.drawer-flight-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.drawer-flight-airline {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.drawer-flight-code {
+  font-family: monospace;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: #60a5fa;
+  background: rgba(37, 99, 235, 0.15);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Flight Status Badges */
+.drawer-flight-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.flight-status-scheduled {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+}
+
+.flight-status-active {
+  background: rgba(59, 130, 246, 0.18);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+.flight-status-landed {
+  background: rgba(168, 85, 247, 0.16);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+}
+
+.flight-status-delayed {
+  background: rgba(234, 179, 8, 0.18);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.4);
+}
+
+.flight-status-cancelled {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.45);
+}
+
+.flight-status-incident,
+.flight-status-diverted {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fb923c;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+}
+
+.flight-status-unknown {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+/* Route Board Graphic */
+.drawer-flight-route {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 16px 14px;
+  position: relative;
+}
+
+.flight-route-col {
+  display: flex;
+  flex-direction: column;
+  max-width: 150px;
+}
+
+.flight-route-col.arrival {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.flight-route-iata {
+  font-size: 1.8rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.flight-route-time {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #38bdf8;
+  margin-top: 4px;
+}
+
+.flight-route-airport {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.flight-route-date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.flight-route-graphic {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 12px;
+  position: relative;
+}
+
+.flight-route-duration {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.flight-route-vector {
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vector-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(56, 189, 248, 0.2), rgba(56, 189, 248, 0.8), rgba(56, 189, 248, 0.2));
+}
+
+.vector-plane {
+  position: relative;
+  font-size: 1.15rem;
+  color: #38bdf8;
+  background: #0f172a;
+  padding: 0 6px;
+  transform: rotate(45deg);
+  text-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+}
+
+/* Flight Details Grid */
+.flight-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.25);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.flight-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.flight-detail-label {
+  font-size: 0.67rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.flight-detail-value {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Live Telemetry Banner */
+.flight-live-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(16, 185, 129, 0.07);
+  border-bottom: 1px solid rgba(16, 185, 129, 0.15);
+  font-size: 0.78rem;
+  color: #34d399;
+  flex-wrap: wrap;
+}
+
+.flight-live-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+  animation: flt-pulse 1.5s ease-in-out infinite;
+}
+
+/* Drawer Flight Footer & Cache Indicator */
+.drawer-flight-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.02);
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.drawer-flight-cache-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cache-shield-icon {
+  font-size: 1.1rem;
+}
+
+.cache-text-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.cache-source-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.cache-time-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.drawer-flight-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+}
+
+.drawer-flight-refresh-btn.is-loading .btn-refresh-icon {
+  display: inline-block;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.drawer-flight-refresh-notice {
+  padding: 8px 14px;
+  font-size: 0.78rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.drawer-flight-refresh-notice.notice-warning {
+  background: rgba(234, 179, 8, 0.1);
+  color: #facc15;
+  border-color: rgba(234, 179, 8, 0.25);
+}
+
+.flight-unavailable-box {
+  padding: 24px 16px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+}
+
+.unavail-icon {
+  font-size: 2.2rem;
+  margin-bottom: 6px;
+  opacity: 0.6;
+}
+
+.unavail-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.unavail-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+.flight-drawer-loading {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.flight-loading-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+
+
+/* ============================================================
+   SETTINGS -> CARDS FLIGHT CACHE BANNER
+   ============================================================ */
+
+.flight-cache-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+
+.info-banner-icon {
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.info-banner-text {
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.info-banner-text strong {
+  display: block;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+

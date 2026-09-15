@@ -22,6 +22,10 @@ from werkzeug.utils import secure_filename
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.http import parse_etags, parse_date
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
+from dotenv import load_dotenv
+load_dotenv()
+import flight_service
+
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -195,21 +199,36 @@ def persist_api_logs_throttled(force=False):
 load_initial_api_logs()
 
 CATEGORY_KEYWORDS = {
-    'hotel':      ['hotel', 'b&b', 'hostel', 'inn', 'motel', 'resort'],
-    'transport':  ['airport', 'station', 'car', 'europcar', 'rental', 'bus', 'train', 'metro'],
-    'education':  ['school', 'university', 'liceu', 'liceul', 'college', 'spectrum'],
-    'club':       ['club', 'nightclub', 'night club', 'disco', 'discotheque', 'lounge'],
-    'restaurant': ['restaurant', 'café', 'cafe', 'bar', 'bistro', 'kitchen', 'spartan',
-                   'pizza', 'eden', 'rusticwood', 'imperium', 'take and eat', 'barin'],
-    'attraction': ['museum', 'park', 'church', 'cathedral', 'monument', 'athenaeum',
-                   'atheneum', 'national', 'exhibition', 'tower', 'towers', 'palace',
-                   'castle', 'garden', 'beach', 'bridge', 'lookout', 'viewpoint',
-                   'landmark', 'square', 'plaza', 'basilica', 'temple', 'zoo'],
-    'shopping':   ['mall', 'market', 'shop', 'store', 'carrefour', 'felicia', 'family market'],
-    'services':   ['service', 'auto', 'photography', 'pasapoarte', 'peco'],
+    'hotel':            ['hotel', 'b&b', 'hostel', 'inn', 'motel', 'resort'],
+    'transport_flight': ['flight', 'zbor', 'aeroport', 'airport', 'terminal', 'airline', 'aviation'],
+    'transport_train':  ['train', 'tren', 'gara', 'railway', 'rail', 'station', 'cfr'],
+    'transport_bus':    ['bus', 'autobuz', 'autocar', 'coach'],
+    'transport_car':    ['car rental', 'inchiriere auto', 'rent-a-car', 'europcar', 'sixt', 'hertz', 'avis'],
+    'transport_boat':   ['ferry', 'boat', 'port', 'harbor', 'ferryboat', 'nava', 'vapor'],
+    'transport':        ['transport', 'metro'],
+    'education':        ['school', 'university', 'liceu', 'liceul', 'college', 'spectrum'],
+    'club':             ['club', 'nightclub', 'night club', 'disco', 'discotheque', 'lounge'],
+    'restaurant':       ['restaurant', 'café', 'cafe', 'bar', 'bistro', 'kitchen', 'spartan',
+                         'pizza', 'eden', 'rusticwood', 'imperium', 'take and eat', 'barin'],
+    'attraction':       ['museum', 'park', 'church', 'cathedral', 'monument', 'athenaeum',
+                         'atheneum', 'national', 'exhibition', 'tower', 'towers', 'palace',
+                         'castle', 'garden', 'beach', 'bridge', 'lookout', 'viewpoint',
+                         'landmark', 'square', 'plaza', 'basilica', 'temple', 'zoo'],
+    'shopping':         ['mall', 'market', 'shop', 'store', 'carrefour', 'felicia', 'family market'],
+    'services':         ['service', 'auto', 'photography', 'pasapoarte', 'peco'],
 }
 
-ALLOWED_CATEGORIES = list(CATEGORY_KEYWORDS.keys()) + ['other']
+ALLOWED_CATEGORIES = list(dict.fromkeys(
+    list(CATEGORY_KEYWORDS.keys()) + [
+        'transport',
+        'transport_flight',
+        'transport_train',
+        'transport_bus',
+        'transport_car',
+        'transport_boat',
+        'other',
+    ]
+))
 
 
 def guess_category(name):
@@ -1885,7 +1904,11 @@ def save_trip():
     if not data or not isinstance(data, dict):
         return jsonify({'error': 'Invalid data'}), 400
 
-    # Sanitize categories
+    # Sanitize categories and preserve flight_data if already cached
+    trip_id = active_trip_id()
+    existing_trip = load_trip_data(trip_id)
+    existing_map = {l.get('id'): l for l in existing_trip.get('locations', [])}
+
     for loc in data.get('locations', []):
         if loc.get('category') not in ALLOWED_CATEGORIES:
             loc['category'] = 'other'
@@ -1893,6 +1916,17 @@ def save_trip():
             for idx, att in enumerate(loc['attachments'], start=1):
                 if isinstance(att, dict):
                     att['order'] = idx
+
+        loc_id = loc.get('id')
+        if loc_id:
+            if not loc.get('flight_data'):
+                prev = existing_map.get(loc_id)
+                if prev and prev.get('flight_data'):
+                    loc['flight_data'] = prev['flight_data']
+                else:
+                    disk_cache = flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc_id)
+                    if disk_cache:
+                        loc['flight_data'] = disk_cache
 
     create_trip_version('save', data)
     write_trip_data_atomic(data)
@@ -2833,13 +2867,210 @@ def place_info():
 
 
 
+@app.route('/manifest.json')
 def manifest():
     return send_from_directory('static', 'manifest.json')
+
+
+@app.route('/api/locations/<loc_id>/flight-data', methods=['GET'])
+@require_auth
+def get_location_flight_data(loc_id):
+    trip_id = active_trip_id()
+    trip = load_trip_data(trip_id)
+    loc = next((l for l in trip.get('locations', []) if l.get('id') == loc_id), None)
+    if not loc:
+        return jsonify({'error': 'Location not found'}), 404
+
+    flight_num = (loc.get('flight_number') or '').strip()
+    if not flight_num and loc.get('category') != 'transport_flight':
+        return jsonify({'error': 'Locația nu are specificat un număr de zbor'}), 400
+
+    # 1. Local cache check: NEVER query API if cached locally!
+    cached = loc.get('flight_data') or flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc_id)
+    if cached:
+        if not loc.get('flight_data'):
+            loc['flight_data'] = cached
+            write_trip_data_atomic(trip, trip_id)
+        return jsonify({'flight': cached, 'from_cache': True, 'status': 'ok'})
+
+    # 2. First-time fetch: only when flight data requested for the first time
+    if not flight_num:
+        return jsonify({'error': 'Numărul de zbor nu este completat'}), 400
+
+    normalized, err = flight_service.query_aviationstack_api(flight_num, loc)
+    if err or not normalized:
+        return jsonify({'error': err or 'Nu s-au putut prelua datele zborului', 'flight': None, 'status': 'error'}), 200
+
+    flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, normalized)
+    loc['flight_data'] = normalized
+    write_trip_data_atomic(trip, trip_id)
+    return jsonify({'flight': normalized, 'from_cache': False, 'status': 'ok'})
+
+
+@app.route('/api/locations/<loc_id>/flight-refresh', methods=['POST'])
+@require_auth
+@require_role('admin')
+def refresh_location_flight(loc_id):
+    trip_id = active_trip_id()
+    trip = load_trip_data(trip_id)
+    loc = next((l for l in trip.get('locations', []) if l.get('id') == loc_id), None)
+    if not loc:
+        return jsonify({'error': 'Location not found'}), 404
+
+    flight_num = (loc.get('flight_number') or '').strip()
+    if not flight_num:
+        return jsonify({'error': 'Numărul zborului lipsește'}), 400
+
+    # Query API explicitly requested by user
+    normalized, err = flight_service.query_aviationstack_api(flight_num, loc)
+    existing_cached = loc.get('flight_data') or flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc_id)
+
+    if err or not normalized:
+        # Preserve cached data on failure per Requirement 9
+        return jsonify({
+            'status': 'error',
+            'error': err or 'Actualizarea a eșuat',
+            'flight': existing_cached,
+            'message': f"Datele nu au putut fi actualizate: {err}. Se păstrează datele salvate anterior."
+        }), 200
+
+    flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, normalized)
+    loc['flight_data'] = normalized
+    write_trip_data_atomic(trip, trip_id)
+    return jsonify({'status': 'ok', 'flight': normalized, 'message': 'Datele zborului au fost actualizate.'})
+
+
+@app.route('/api/flights/refresh-all', methods=['POST'])
+@require_auth
+@require_role('admin')
+def refresh_all_flights():
+    """Batch refresh all flights in the active trip for Settings -> Cards."""
+    trip_id = active_trip_id()
+    trip = load_trip_data(trip_id)
+    locations = trip.get('locations', [])
+
+    flight_locs = [
+        l for l in locations
+        if (l.get('flight_number') or '').strip() or l.get('category') == 'transport_flight'
+    ]
+
+    refreshed = []
+    failed = []
+
+    for loc in flight_locs:
+        loc_id = loc.get('id')
+        flight_num = (loc.get('flight_number') or '').strip()
+        if not flight_num:
+            continue
+
+        normalized, err = flight_service.query_aviationstack_api(flight_num)
+        if err:
+            existing = loc.get('flight_data') or flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc_id)
+            failed.append({
+                'id': loc_id,
+                'name': loc.get('name'),
+                'flight_number': flight_num,
+                'error': err,
+                'has_cache': existing is not None
+            })
+        else:
+            flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, normalized)
+            loc['flight_data'] = normalized
+            refreshed.append({
+                'id': loc_id,
+                'name': loc.get('name'),
+                'flight_number': flight_num,
+                'status': normalized.get('status'),
+                'last_updated': normalized.get('last_updated')
+            })
+
+    if refreshed:
+        write_trip_data_atomic(trip, trip_id)
+
+    return jsonify({
+        'status': 'ok',
+        'refreshed_count': len(refreshed),
+        'failed_count': len(failed),
+        'refreshed': refreshed,
+        'failed': failed,
+        'total': len(flight_locs)
+    })
+
+
+@app.route('/api/flights/summary', methods=['GET'])
+@require_auth
+def get_flights_summary():
+    """Summary of all flights for Settings -> Cards."""
+    trip_id = active_trip_id()
+    trip = load_trip_data(trip_id)
+    locations = trip.get('locations', [])
+
+    summary = []
+    for loc in locations:
+        fnum = (loc.get('flight_number') or '').strip()
+        is_flight = bool(fnum or loc.get('category') == 'transport_flight')
+        if not is_flight:
+            continue
+
+        cached = loc.get('flight_data') or flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc.get('id'))
+        summary.append({
+            'id': loc.get('id'),
+            'name': loc.get('name'),
+            'flight_number': fnum,
+            'category': loc.get('category'),
+            'visit_date': loc.get('visit_date'),
+            'cached': bool(cached),
+            'status': (cached or {}).get('status', 'not_cached'),
+            'airline': (cached or {}).get('airline'),
+            'departure': (cached or {}).get('departure', {}).get('iata') or (cached or {}).get('departure', {}).get('airport'),
+            'arrival': (cached or {}).get('arrival', {}).get('iata') or (cached or {}).get('arrival', {}).get('airport'),
+            'scheduled_departure': (cached or {}).get('departure', {}).get('scheduled'),
+            'scheduled_arrival': (cached or {}).get('arrival', {}).get('scheduled'),
+            'last_updated': (cached or {}).get('last_updated')
+        })
+
+    return jsonify({'status': 'ok', 'flights': summary})
+
+
+@app.route('/api/flight-status', methods=['GET', 'OPTIONS'])
+def flight_status():
+    if request.method == 'OPTIONS':
+        resp = make_response('', 204)
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return resp
+
+    flight_iata = (request.args.get('flight_iata') or '').strip().upper().replace(' ', '')
+    if not flight_iata:
+        return jsonify({'error': 'Parametrul flight_iata este obligatoriu'}), 400
+
+    normalized, err = flight_service.query_aviationstack_api(flight_iata)
+    if err or not normalized:
+        return jsonify({'error': err or 'Zbor negăsit', 'flight': None, 'normalized': None}), 200
+
+    return jsonify({'flight': normalized.get('raw') or normalized, 'normalized': normalized})
+
 
 
 @app.route('/sw.js')
 def sw():
     return send_from_directory('static', 'sw.js', mimetype='application/javascript')
+
+
+@app.after_request
+def add_security_headers(response):
+    csp = (
+        "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; "
+        "style-src 'self' 'unsafe-inline' https:; "
+        "img-src 'self' data: blob: https:; "
+        "font-src 'self' https: data:; "
+        "connect-src 'self' https: wss:; "
+        "frame-src 'self' blob: data:;"
+    )
+    response.headers['Content-Security-Policy'] = csp
+    return response
 
 
 if __name__ == '__main__':

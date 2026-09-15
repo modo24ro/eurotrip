@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https:; font-src 'self' https: data:; connect-src 'self' https: wss:; frame-src 'self' blob: data:;">
   <meta name="theme-color" content="#5c73f2">
   <meta name="description" content="Plan and manage your European trip locations">
   <meta name="mobile-web-app-capable" content="yes">
@@ -16,17 +17,28 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260914_06">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=20260915_05">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.min.css">
   <script>
-    // Safeguard against upstream Chromium/DevTools web-vitals soft-navigation bug (issues #792, #793)
+    // Safeguard against upstream Chromium/DevTools web-vitals soft-navigation bug
     window.addEventListener('error', function(e) {
-      if (e && e.message && e.message.includes("Cannot read properties of undefined (reading 'startTime')")) {
+      if (e && e.message && (
+        e.message.includes("Cannot read properties of undefined (reading 'startTime')") ||
+        e.message.includes("message channel closed before a response was received")
+      )) {
         var stack = (e.error && e.error.stack) || '';
         if (stack.includes('reportAllChanges') || stack.includes('VM') || !e.filename) {
           e.preventDefault();
         }
+      }
+    });
+    // Safeguard against Chrome Extensions unhandled promise rejections (message port closed)
+    window.addEventListener('unhandledrejection', function(e) {
+      var reasonStr = (e && e.reason && (e.reason.message || String(e.reason))) || '';
+      if (reasonStr.includes("message channel closed before a response was received") ||
+          reasonStr.includes("A listener indicated an asynchronous response")) {
+        e.preventDefault();
       }
     });
     if ('serviceWorker' in navigator) {
@@ -48,7 +60,7 @@
 <body>
   {% block body %}{% endblock %}
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="{{ url_for('static', filename='js/app.js') }}?v=20260914_07" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=20260915_05" defer></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
   {% block scripts %}{% endblock %}
 </body>

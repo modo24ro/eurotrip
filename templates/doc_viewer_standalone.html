@@ -1051,7 +1051,7 @@
       pdfContainer?.addEventListener('pointerup', stopPdfPan);
       pdfContainer?.addEventListener('pointercancel', stopPdfPan);
 
-      window.pdfjsLib.getDocument({ url: rawUrl, withCredentials: true }).promise
+      window.pdfjsLib.getDocument({ url: rawUrl, withCredentials: true, isEvalSupported: false }).promise
         .then(doc => {
           pdfDoc = doc;
           renderAllPages(doc);

@@ -36,8 +36,7 @@
           <span class="menu-category-title">Trips</span>
         </div>
         <div class="menu-subgroup">
-          <div class="trip-selector-wrap menu-item-wrap" id="tripSelectorWrap" {% if trip_count is defined and
-            trip_count <=1 %} style="display: none;" {% endif %}>
+          <div class="trip-selector-wrap menu-item-wrap" id="tripSelectorWrap"{% if trip_count is defined and trip_count <= 1 %} style="display: none;"{% endif %}>
             <button id="tripSelector" class="hdr-btn menu-btn trip-selector-btn" type="button" aria-label="Select trip"
               title="Select trip">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -204,7 +203,12 @@
         <select id="categoryFilter" class="filter-select">
           <option value="all">All Categories</option>
           <option value="hotel">🏨 Hotel</option>
-          <option value="transport">✈️ Transport</option>
+          <option value="transport">🚌 Transport (All)</option>
+          <option value="transport_flight">&nbsp;&nbsp;✈️ Transport Flight</option>
+          <option value="transport_train">&nbsp;&nbsp;🚂 Transport Train</option>
+          <option value="transport_bus">&nbsp;&nbsp;🚌 Transport Bus</option>
+          <option value="transport_car">&nbsp;&nbsp;🚗 Transport Car</option>
+          <option value="transport_boat">&nbsp;&nbsp;⛴️ Transport Boat</option>
           <option value="restaurant">🍽️ Restaurant</option>
           <option value="attraction">🏛️ Attraction</option>
           <option value="education">📚 Education</option>
@@ -225,7 +229,7 @@
           <option value="city">By City</option>
         </select>
 
-        <label class="toggle-pill toggle-pill--visited">
+        <label class="toggle-pill toggle-pill--visited" for="hideVisited">
           <input type="checkbox" id="hideVisited">
           <span>Hide visited</span>
         </label>
@@ -281,7 +285,7 @@
       </div>
       <div class="modal-body">
         <div class="backup-list-toolbar">
-          <label class="backup-select-all"><input type="checkbox" id="selectAllBackups"> <span>Select all</span></label>
+          <label class="backup-select-all" for="selectAllBackups"><input type="checkbox" id="selectAllBackups"> <span>Select all</span></label>
           <button class="btn-danger backup-bulk-delete" id="deleteSelectedBackups" type="button" disabled>Delete
             selected</button>
         </div>
@@ -503,8 +507,8 @@
         <div class="route-option-group">
           <span class="route-option-label">De unde pornește traseul?</span>
           <div class="route-radio-cards">
-            <label class="route-radio-card" id="originCurrentCard">
-              <input type="radio" name="routeOriginChoice" value="current" checked>
+            <label class="route-radio-card" id="originCurrentCard" for="routeOriginCurrentChoice">
+              <input type="radio" id="routeOriginCurrentChoice" name="routeOriginChoice" value="current" checked>
               <div class="route-card-content">
                 <span class="route-card-icon">📍</span>
                 <div class="route-card-texts">
@@ -513,8 +517,8 @@
                 </div>
               </div>
             </label>
-            <label class="route-radio-card" id="originItineraryCard">
-              <input type="radio" name="routeOriginChoice" value="itinerary">
+            <label class="route-radio-card" id="originItineraryCard" for="routeOriginItineraryChoice">
+              <input type="radio" id="routeOriginItineraryChoice" name="routeOriginChoice" value="itinerary">
               <div class="route-card-content">
                 <span class="route-card-icon">📌</span>
                 <div class="route-card-texts">
@@ -529,8 +533,8 @@
         <div class="route-option-group">
           <span class="route-option-label">Ce dorești să calculezi?</span>
           <div class="route-radio-cards">
-            <label class="route-radio-card">
-              <input type="radio" name="routeScopeChoice" value="next" checked>
+            <label class="route-radio-card" for="routeScopeNextChoice">
+              <input type="radio" id="routeScopeNextChoice" name="routeScopeChoice" value="next" checked>
               <div class="route-card-content">
                 <span class="route-card-icon">🎯</span>
                 <div class="route-card-texts">
@@ -539,8 +543,8 @@
                 </div>
               </div>
             </label>
-            <label class="route-radio-card">
-              <input type="radio" name="routeScopeChoice" value="all">
+            <label class="route-radio-card" for="routeScopeAllChoice">
+              <input type="radio" id="routeScopeAllChoice" name="routeScopeChoice" value="all">
               <div class="route-card-content">
                 <span class="route-card-icon">🗺️</span>
                 <div class="route-card-texts">
@@ -555,16 +559,16 @@
         <div class="route-option-group">
           <span class="route-option-label">Mod de transport:</span>
           <div class="route-mode-pills">
-            <label class="route-mode-pill">
-              <input type="radio" name="routeModeChoice" value="transit" checked>
+            <label class="route-mode-pill" for="routeModeTransitChoice">
+              <input type="radio" id="routeModeTransitChoice" name="routeModeChoice" value="transit" checked>
               <span>🚌 Transport public</span>
             </label>
-            <label class="route-mode-pill">
-              <input type="radio" name="routeModeChoice" value="walking">
+            <label class="route-mode-pill" for="routeModeWalkingChoice">
+              <input type="radio" id="routeModeWalkingChoice" name="routeModeChoice" value="walking">
               <span>🚶 Pe jos</span>
             </label>
-            <label class="route-mode-pill">
-              <input type="radio" name="routeModeChoice" value="driving">
+            <label class="route-mode-pill" for="routeModeDrivingChoice">
+              <input type="radio" id="routeModeDrivingChoice" name="routeModeChoice" value="driving">
               <span>🚗 Mașină</span>
             </label>
           </div>
@@ -816,12 +820,12 @@
         <div class="upload-preview" id="uploadPreview" style="display:none">
           <div class="preview-info" id="previewInfo"></div>
           <div class="merge-options">
-            <label class="radio-option">
-              <input type="radio" name="mergeMode" value="merge" checked>
+            <label class="radio-option" for="mergeModeOptionMerge">
+              <input type="radio" id="mergeModeOptionMerge" name="mergeMode" value="merge" checked>
               <span>Add to existing locations</span>
             </label>
-            <label class="radio-option">
-              <input type="radio" name="mergeMode" value="replace">
+            <label class="radio-option" for="mergeModeOptionReplace">
+              <input type="radio" id="mergeModeOptionReplace" name="mergeMode" value="replace">
               <span>Replace all locations</span>
             </label>
           </div>
@@ -914,7 +918,12 @@
           <select id="categoryFilterMobile" class="filter-modal-select">
             <option value="all">All Categories</option>
             <option value="hotel">🏨 Hotel</option>
-            <option value="transport">✈️ Transport</option>
+            <option value="transport">🚌 Transport (All)</option>
+            <option value="transport_flight">&nbsp;&nbsp;✈️ Transport Flight</option>
+            <option value="transport_train">&nbsp;&nbsp;🚂 Transport Train</option>
+            <option value="transport_bus">&nbsp;&nbsp;🚌 Transport Bus</option>
+            <option value="transport_car">&nbsp;&nbsp;🚗 Transport Car</option>
+            <option value="transport_boat">&nbsp;&nbsp;⛴️ Transport Boat</option>
             <option value="restaurant">🍽️ Restaurant</option>
             <option value="attraction">🏛️ Attraction</option>
             <option value="education">📚 Education</option>
@@ -945,13 +954,13 @@
         </div>
 
         <div class="filter-modal-group">
-          <label class="filter-modal-label">View Preferences</label>
+          <div class="filter-modal-label">View Preferences</div>
           <div class="filter-modal-toggles">
-            <label class="filter-modal-toggle-row">
+            <label class="filter-modal-toggle-row" for="hideVisitedMobile">
               <input type="checkbox" id="hideVisitedMobile">
               <span>Hide visited locations</span>
             </label>
-            <label class="filter-modal-toggle-row single-col-toggle-row-mobile" id="singleColToggleRowMobile">
+            <label class="filter-modal-toggle-row single-col-toggle-row-mobile" id="singleColToggleRowMobile" for="singleColToggleMobile">
               <input type="checkbox" id="singleColToggleMobile">
               <span>1 card per row (Large cards)</span>
             </label>
@@ -1000,5 +1009,7 @@
     </div>
   </div>
 
+
+
 </div>
-{% endblock %}
+{% endblock %}

@@ -144,12 +144,28 @@ const state = {
 window.state = state;
 
 const CATEGORY_ICONS = {
-  hotel: '🏨', transport: '✈️', restaurant: '🍽️',
-  attraction: '🏛️', education: '📚', shopping: '🛍️',
-  services: '🔧', club: '🎵', other: '📍',
+  hotel: '🏨',
+  transport: '🚌',
+  transport_flight: '✈️',
+  transport_train: '🚂',
+  transport_bus: '🚌',
+  transport_car: '🚗',
+  transport_boat: '⛴️',
+  restaurant: '🍽️',
+  attraction: '🏛️',
+  education: '📚',
+  shopping: '🛍️',
+  services: '🔧',
+  club: '🎵',
+  other: '📍',
 };
 
+const TRANSPORT_SUBCATEGORIES = ['transport_flight', 'transport_train', 'transport_bus', 'transport_car', 'transport_boat'];
 const VALID_CATEGORIES = Object.keys(CATEGORY_ICONS);
+
+function catLabel(c) {
+  return c.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
 
 function getDocumentBaseUrl() {
   const isCapacitor = !!(window.Capacitor && window.Capacitor.Plugins);
@@ -169,7 +185,7 @@ function getDocumentBaseUrl() {
         const cfg = JSON.parse(saved);
         if (cfg && cfg.serverUrl) sUrl = cfg.serverUrl.trim();
       }
-    } catch (_) {}
+    } catch (_) { }
     if (!sUrl && typeof window.getRemoteServerUrl === 'function') {
       sUrl = window.getRemoteServerUrl() || '';
     }
@@ -402,12 +418,40 @@ function deleteLocation(id) {
   closeLocationModal();
 }
 
+function updateModalOpenState() {
+  const hasOpenModal = !!document.querySelector('.modal-overlay.open');
+  document.body.classList.toggle('modal-open', hasOpenModal);
+  document.documentElement.classList.toggle('modal-open', hasOpenModal);
+  if (state?.map) {
+    if (hasOpenModal) {
+      try {
+        state.map.dragging?.disable();
+        state.map.scrollWheelZoom?.disable();
+        state.map.touchZoom?.disable();
+        state.map.doubleClickZoom?.disable();
+        state.map.boxZoom?.disable();
+        state.map.keyboard?.disable();
+      } catch (_) { }
+    } else {
+      try {
+        state.map.dragging?.enable();
+        state.map.scrollWheelZoom?.enable();
+        state.map.touchZoom?.enable();
+        state.map.doubleClickZoom?.enable();
+        state.map.boxZoom?.enable();
+        state.map.keyboard?.enable();
+      } catch (_) { }
+    }
+  }
+}
+
 function closeLocationModal() {
   const locModal = document.getElementById('locationModal');
   const notifModal = document.getElementById('notificationLocationModal');
   const wasOpen = locModal?.classList.contains('open') || notifModal?.classList.contains('open');
   locModal?.classList.remove('open');
   notifModal?.classList.remove('open');
+  updateModalOpenState();
   if (state.pendingNewLocation) {
     state.pendingNewLocation = null;
     const body = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
@@ -506,7 +550,13 @@ function getFilteredLocations() {
 
   if (!showDisabled) locs = locs.filter(l => l.enabled);
   if (state.hideVisited) locs = locs.filter(l => !l.visited);
-  if (category !== 'all') locs = locs.filter(l => l.category === category);
+  if (category !== 'all') {
+    if (category === 'transport') {
+      locs = locs.filter(l => l.category === 'transport' || TRANSPORT_SUBCATEGORIES.includes(l.category));
+    } else {
+      locs = locs.filter(l => l.category === category);
+    }
+  }
   if (country !== 'all') locs = locs.filter(l => l.country === country);
 
   if (search.trim()) {
@@ -699,7 +749,7 @@ function renderMain() {
   if (isSearchFocused && searchInput) {
     searchInput.focus();
     if (selStart !== null && selEnd !== null) {
-      try { searchInput.setSelectionRange(selStart, selEnd); } catch (_) {}
+      try { searchInput.setSelectionRange(selStart, selEnd); } catch (_) { }
     }
   }
 
@@ -767,7 +817,7 @@ function renderMapView() {
     <div class="map-toolbar">
       <div class="map-toolbar-row map-toolbar-controls">
         <div id="mapSearchSlot" class="map-search-slot"></div>
-        <label class="map-day-label" title="Selectează ziua">
+        <label class="map-day-label" for="mapDaySelect" title="Selectează ziua">
           <span class="toolbar-label-txt">Zi:</span>
           <select id="mapDaySelect" class="filter-select">
             <option value="all"${state.mapDay === 'all' ? ' selected' : ''}>Toate</option>
@@ -903,7 +953,7 @@ function renderRouteView() {
       </div>
 
       <div class="route-toolbar-row route-toolbar-controls">
-        <label class="map-day-label" title="Selectează ziua">
+        <label class="map-day-label" for="routeDaySelect" title="Selectează ziua">
           <span class="toolbar-label-txt">Zi:</span>
           <select id="routeDaySelect" class="filter-select">
             <option value="all"${currentDay === 'all' ? ' selected' : ''}>Toate zilele</option>
@@ -911,7 +961,7 @@ function renderRouteView() {
           </select>
         </label>
 
-        <label class="map-mode-label" title="Mod de transport">
+        <label class="map-mode-label" for="routeModeSelect" title="Mod de transport">
           <span class="toolbar-label-txt">Mod:</span>
           <select id="routeModeSelect" class="filter-select">
             <option value="transit"${currentMode === 'transit' ? ' selected' : ''}>🚌 Transit</option>
@@ -920,7 +970,7 @@ function renderRouteView() {
           </select>
         </label>
 
-        <label class="map-origin-label" title="Punct de plecare">
+        <label class="map-origin-label" for="routeOriginSelect" title="Punct de plecare">
           <span class="toolbar-label-txt">Origine:</span>
           <select id="routeOriginSelect" class="filter-select">
             <option value="itinerary"${currentOrigin === 'itinerary' ? ' selected' : ''}>📌 Anterior</option>
@@ -928,7 +978,7 @@ function renderRouteView() {
           </select>
         </label>
 
-        <label class="route-scope-label" title="Destinație traseu">
+        <label class="route-scope-label" for="routeScopeSelect" title="Destinație traseu">
           <span class="toolbar-label-txt">Destinație:</span>
           <select id="routeScopeSelect" class="filter-select">
             <option value="next"${currentScope === 'next' ? ' selected' : ''}>${esc(nextOptionLabel)}</option>
@@ -1576,6 +1626,7 @@ function renderMap() {
   state.map = L.map(mapElement, { scrollWheelZoom: true });
   state.userGpsMarker = null;
   state.mapRouteLine = null;
+  updateModalOpenState();
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19, attribution: '&copy; OpenStreetMap contributors',
@@ -1996,8 +2047,23 @@ function detectScheduleConflicts(locations) {
 }
 
 function getCategoryColor(category) {
-  const colors = { hotel: '#5c73f2', transport: '#a855f7', restaurant: '#f97316', attraction: '#10b981', education: '#06b6d4', shopping: '#ec4899', services: '#84cc16', club: '#f59e0b', other: '#64748b' };
-  return colors[category] || colors.other;
+  const colors = {
+    hotel: '#5c73f2',
+    transport: '#a855f7',
+    transport_flight: '#6366f1',
+    transport_train: '#0ea5e9',
+    transport_bus: '#a855f7',
+    transport_car: '#14b8a6',
+    transport_boat: '#0284c7',
+    restaurant: '#f97316',
+    attraction: '#10b981',
+    education: '#06b6d4',
+    shopping: '#ec4899',
+    services: '#84cc16',
+    club: '#f59e0b',
+    other: '#64748b'
+  };
+  return colors[category] || (category && category.startsWith('transport') ? colors.transport : colors.other);
 }
 
 function renderListView() {
@@ -2229,6 +2295,322 @@ if (typeof window !== 'undefined') {
   window.handleAppDeepLink = handleAppDeepLink;
 }
 
+// ============================================================
+// INTELLIGENT FLIGHT DATA & UNIFIED CARD DRAWER
+// ============================================================
+
+function getFlightStatusVisual(status, delay) {
+  const s = (status || 'unknown').toLowerCase();
+  const delayMin = Number(delay) || 0;
+
+  if (s === 'cancelled') {
+    return { icon: '🔴', label: 'Anulat', className: 'flight-status-cancelled', textClass: 'text-red-400' };
+  }
+  if (s === 'diverted') {
+    return { icon: '↩️', label: 'Deviat', className: 'flight-status-diverted', textClass: 'text-amber-400' };
+  }
+  if (s === 'incident') {
+    return { icon: '⚠️', label: 'Incident', className: 'flight-status-incident', textClass: 'text-orange-400' };
+  }
+  if (delayMin > 10 && (s === 'scheduled' || s === 'active')) {
+    return { icon: '🟡', label: `Întârziat (+${delayMin} min)`, className: 'flight-status-delayed', textClass: 'text-amber-400' };
+  }
+
+  const map = {
+    scheduled: { icon: '🟢', label: 'Programat / La timp', className: 'flight-status-scheduled', textClass: 'text-emerald-400' },
+    active: { icon: '🔵', label: 'În zbor', className: 'flight-status-active', textClass: 'text-blue-400' },
+    landed: { icon: '✓', label: 'Aterizat', className: 'flight-status-landed', textClass: 'text-purple-400' },
+    unknown: { icon: '⚪', label: 'Status necunoscut', className: 'flight-status-unknown', textClass: 'text-slate-400' }
+  };
+
+  return map[s] || { icon: '⚪', label: status || 'Necunoscut', className: 'flight-status-unknown', textClass: 'text-slate-400' };
+}
+
+function formatFlightTime(iso, tz) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+    if (tz) opts.timeZone = tz;
+    return d.toLocaleTimeString([], opts);
+  } catch {
+    return iso.slice(11, 16) || '—';
+  }
+}
+
+function formatFlightDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short' });
+  } catch {
+    return iso.slice(0, 10) || '';
+  }
+}
+
+function formatFlightDateTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return iso.slice(0, 16);
+  }
+}
+
+function renderFlightCardHTML(container, loc, flight, fromCache = true) {
+  if (!container || !flight) return;
+
+  const dep = flight.departure || {};
+  const arr = flight.arrival || {};
+  const depTime = dep.actual || dep.estimated || dep.scheduled;
+  const arrTime = arr.actual || arr.estimated || arr.scheduled;
+  const delayVal = flight.delay != null ? flight.delay : dep.delay;
+  const visual = getFlightStatusVisual(flight.status, delayVal);
+  const live = flight.live;
+
+  const lastUpdatedStr = flight.last_updated ? formatFlightDateTime(flight.last_updated) : 'Recent';
+  const durationStr = flight.duration ? `<span class="flight-route-duration" title="Durată estimată">⏱️ ${esc(flight.duration)}</span>` : '';
+
+  // Non-empty details list only
+  const detailsItems = [];
+  if (flight.airline) detailsItems.push({ label: 'Companie', val: flight.airline });
+  if (flight.flight_number || flight.flight_iata) detailsItems.push({ label: 'Număr Zbor', val: (flight.flight_number || flight.flight_iata).toUpperCase() });
+  if (dep.terminal) detailsItems.push({ label: 'Terminal Plecare', val: dep.terminal });
+  if (dep.gate) detailsItems.push({ label: 'Poartă Plecare', val: dep.gate });
+  if (arr.terminal) detailsItems.push({ label: 'Terminal Sosire', val: arr.terminal });
+  if (arr.gate) detailsItems.push({ label: 'Poartă Sosire', val: arr.gate });
+  if (arr.baggage) detailsItems.push({ label: 'Bandă Bagaje', val: arr.baggage });
+  if (flight.aircraft) detailsItems.push({ label: 'Aeronava', val: flight.aircraft });
+  if (delayVal) detailsItems.push({ label: 'Întârziere', val: `${delayVal} min` });
+
+  const detailsGridHTML = detailsItems.length ? `
+    <div class="flight-details-grid">
+      ${detailsItems.map(item => `
+        <div class="flight-detail-item">
+          <span class="flight-detail-label">${esc(item.label)}</span>
+          <span class="flight-detail-value">${esc(item.val)}</span>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  // Live telemetry row if active
+  const liveRowHTML = live ? `
+    <div class="flight-live-banner">
+      <span class="flight-live-pulse-dot"></span>
+      <span class="flight-live-title">Radar Live:</span>
+      <span>${live.is_ground ? 'La sol' : 'În aer'}</span>
+      ${live.altitude != null ? `<span class="live-sep">·</span><span>Alt: ${live.altitude} m</span>` : ''}
+      ${live.speed_horizontal != null ? `<span class="live-sep">·</span><span>Viteză: ${Math.round(live.speed_horizontal)} km/h</span>` : ''}
+    </div>
+  ` : '';
+
+  container.innerHTML = `
+    <div class="drawer-flight-card">
+      <!-- Flight Header: Airline & Status -->
+      <div class="drawer-flight-header">
+        <div class="drawer-flight-meta">
+          <span class="drawer-flight-airline">${esc(flight.airline || 'Zbor')}</span>
+          <span class="drawer-flight-code">${esc((flight.flight_number || flight.flight_iata || loc.flight_number || '').toUpperCase())}</span>
+        </div>
+        <div class="drawer-flight-badge ${visual.className}">
+          <span class="status-badge-icon">${visual.icon}</span>
+          <span class="status-badge-label">${esc(visual.label)}</span>
+        </div>
+      </div>
+
+      <!-- Route Board: IAS ──✈── BCN -->
+      <div class="drawer-flight-route">
+        <div class="flight-route-col departure">
+          <div class="flight-route-iata">${esc(dep.iata || 'DEP')}</div>
+          <div class="flight-route-time">${formatFlightTime(depTime, dep.timezone)}</div>
+          <div class="flight-route-airport" title="${esc(dep.airport || '')}">${esc(dep.airport || 'Plecare')}</div>
+          <div class="flight-route-date">${formatFlightDate(dep.scheduled || loc.visit_date)}</div>
+        </div>
+
+        <div class="flight-route-graphic">
+          ${durationStr}
+          <div class="flight-route-vector">
+            <span class="vector-line"></span>
+            <span class="vector-plane">✈</span>
+          </div>
+        </div>
+
+        <div class="flight-route-col arrival">
+          <div class="flight-route-iata">${esc(arr.iata || 'ARR')}</div>
+          <div class="flight-route-time">${formatFlightTime(arrTime, arr.timezone)}</div>
+          <div class="flight-route-airport" title="${esc(arr.airport || '')}">${esc(arr.airport || 'Sosire')}</div>
+          <div class="flight-route-date">${formatFlightDate(arr.scheduled || loc.visit_date)}</div>
+        </div>
+      </div>
+
+      <!-- Details Grid -->
+      ${detailsGridHTML}
+
+      <!-- Live Telemetry -->
+      ${liveRowHTML}
+
+      <!-- Cache Snapshot & Refresh Action Footer -->
+      <div class="drawer-flight-footer">
+        <div class="drawer-flight-cache-info">
+          <span class="cache-shield-icon" title="Date salvate local, fără consum API">🛡️</span>
+          <div class="cache-text-wrap">
+            <span class="cache-source-label">Snapshot local JSON</span>
+            <span class="cache-time-label">Actualizat: ${lastUpdatedStr}</span>
+          </div>
+        </div>
+        <button type="button" class="btn-secondary btn-sm drawer-flight-refresh-btn" data-loc-id="${esc(loc.id)}" title="Interoghează API AviationStack pentru date proaspete">
+          <span class="btn-refresh-icon">🔄</span>
+          <span class="btn-refresh-text">Actualizează de la API</span>
+        </button>
+      </div>
+
+      <div class="drawer-flight-refresh-notice" style="display:none;"></div>
+    </div>
+  `;
+
+  // Attach refresh button listener
+  const refreshBtn = container.querySelector('.drawer-flight-refresh-btn');
+  const noticeEl = container.querySelector('.drawer-flight-refresh-notice');
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', async () => {
+      refreshBtn.disabled = true;
+      const originalText = refreshBtn.querySelector('.btn-refresh-text')?.textContent;
+      if (refreshBtn.querySelector('.btn-refresh-text')) {
+        refreshBtn.querySelector('.btn-refresh-text').textContent = 'Se preia din API…';
+      }
+      refreshBtn.classList.add('is-loading');
+
+      try {
+        const res = await fetch(`/api/locations/${encodeURIComponent(loc.id)}/flight-refresh`, { method: 'POST' });
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok' && data.flight) {
+          loc.flight_data = data.flight;
+          // Synchronize cached card in main state
+          const stateLoc = getLocation(loc.id);
+          if (stateLoc) stateLoc.flight_data = data.flight;
+          renderFlightCardHTML(container, loc, data.flight, false);
+          updateCardSubcard(document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`), loc);
+          showToast('Datele zborului au fost actualizate de la API!', 'success');
+        } else {
+          // Requirement 9: Keep displaying last successfully cached flight data!
+          if (noticeEl) {
+            noticeEl.style.display = 'block';
+            noticeEl.className = 'drawer-flight-refresh-notice notice-warning';
+            noticeEl.innerHTML = `⚠️ <strong>Nu s-a putut actualiza:</strong> ${esc(data.message || data.error || 'Eroare API')}. Se afișează datele din cache-ul local salvat la ${lastUpdatedStr}.`;
+          }
+          showToast(data.message || data.error || 'Nu s-a putut actualiza zborul', 'warning');
+        }
+      } catch (err) {
+        if (noticeEl) {
+          noticeEl.style.display = 'block';
+          noticeEl.className = 'drawer-flight-refresh-notice notice-warning';
+          noticeEl.innerHTML = `⚠️ <strong>Eroare rețea:</strong> ${esc(err.message)}. Se afișează datele din cache-ul local salvat la ${lastUpdatedStr}.`;
+        }
+        showToast('Eroare rețea la actualizarea zborului', 'warning');
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.classList.remove('is-loading');
+        if (refreshBtn.querySelector('.btn-refresh-text') && originalText) {
+          refreshBtn.querySelector('.btn-refresh-text').textContent = originalText;
+        }
+      }
+    });
+  }
+}
+
+function renderFlightUnavailableHTML(container, loc, errMsg) {
+  if (!container) return;
+  const fNum = (loc.flight_number || '').toUpperCase();
+  container.innerHTML = `
+    <div class="flight-unavailable-box">
+      <div class="unavail-icon">✈️</div>
+      <div class="unavail-title">Date de zbor indisponibile</div>
+      <p class="unavail-desc">${esc(errMsg || `Nu s-au putut prelua automat datele pentru zborul ${fNum}.`)}</p>
+      <button type="button" class="btn-primary btn-sm retry-flight-btn" data-loc-id="${esc(loc.id)}">
+        🔄 Reîncearcă interogarea API
+      </button>
+    </div>
+  `;
+
+  const retryBtn = container.querySelector('.retry-flight-btn');
+  retryBtn?.addEventListener('click', () => {
+    retryBtn.disabled = true;
+    retryBtn.textContent = 'Se verifică…';
+    fetch(`/api/locations/${encodeURIComponent(loc.id)}/flight-refresh`, { method: 'POST' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok' && data.flight) {
+          loc.flight_data = data.flight;
+          const stateLoc = getLocation(loc.id);
+          if (stateLoc) stateLoc.flight_data = data.flight;
+          renderFlightCardHTML(container, loc, data.flight, false);
+          updateCardSubcard(document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`), loc);
+          showToast('Datele zborului au fost preluate și salvate local!', 'success');
+        } else {
+          renderFlightUnavailableHTML(container, loc, data.message || data.error);
+        }
+      })
+      .catch(err => {
+        renderFlightUnavailableHTML(container, loc, err.message);
+      });
+  });
+}
+
+function openCardDrawer(locId, options = {}) {
+  const initialTab = options?.initialTab || 'general';
+  openLocationModal(locId, false, initialTab);
+}
+
+function closeCardDrawer() {
+  closeLocationModal();
+}
+
+function initCardDrawer() {
+  // Drawer overlay removed - modal workflow in use
+}
+
+
+async function fetchFlightStatus(card, flightIata, forceRefresh = false) {
+  const wrap = card.querySelector('.flight-status-card-wrap');
+  if (!wrap) return;
+  const locId = card.dataset.id;
+  const loc = getLocation(locId);
+
+  // Requirement 2: Do NOT query API if already cached locally, unless explicit refresh requested
+  if (!forceRefresh && loc && loc.flight_data) {
+    wrap.style.display = '';
+    renderFlightCardHTML(wrap, loc, loc.flight_data, true);
+    return;
+  }
+
+  wrap.style.display = '';
+  wrap.innerHTML = `<div class="flight-status-loading"><span class="flight-loading-spinner"></span> Se verifică zborul ${flightIata}…</div>`;
+
+  try {
+    const endpoint = forceRefresh
+      ? `/api/locations/${encodeURIComponent(locId)}/flight-refresh`
+      : `/api/locations/${encodeURIComponent(locId)}/flight-data`;
+    const opts = forceRefresh ? { method: 'POST' } : {};
+    const res = await fetch(endpoint, opts);
+    const data = await res.json();
+
+    if (!res.ok || (data.error && !data.flight)) {
+      wrap.innerHTML = `<div class="flight-status-error">❌ ${esc(data.error || 'Eroare la verificarea zborului')}</div>`;
+      return;
+    }
+
+    if (loc) loc.flight_data = data.flight;
+    renderFlightCardHTML(wrap, loc || { id: locId, flight_number: flightIata }, data.flight, data.from_cache !== false);
+  } catch (err) {
+    wrap.innerHTML = `<div class="flight-status-error">❌ Eroare rețea: ${esc(err.message)}</div>`;
+  }
+}
+
+
+
 function renderConfirmationLinkHTML(rawUrl, rawLabel, options = {}) {
   const url = cleanUrlString(rawUrl);
   if (!url || !isValidHttpUrl(url)) return '';
@@ -2384,7 +2766,7 @@ function renderTimelineView() {
             ${conflict ? `<div class="timeline-conflict-alert">⚠️ Schedule conflict: Overlaps by ${conflict.overlapMinutes} min with ${conflict.conflictingWith.map(c => esc(c.name)).join(', ')}</div>` : ''}
             <div class="timeline-card-footer">
               <div class="timeline-chips">
-                ${safecat === 'transport' ? '' : `<span class="strip-chip strip-cat cat-${safecat}">${CATEGORY_ICONS[safecat]} ${safecat.charAt(0).toUpperCase() + safecat.slice(1)}</span>`}
+                ${TRANSPORT_SUBCATEGORIES.includes(safecat) || safecat === 'transport' ? '' : `<span class="strip-chip strip-cat cat-${safecat}">${CATEGORY_ICONS[safecat]} ${catLabel(safecat)}</span>`}
                 ${loc.cost > 0 ? `<span class="strip-chip strip-cost">${sym}${loc.cost}</span>` : ''}
                 ${loc.reservation_status ? `<span class="strip-chip strip-booking">${loc.reservation_status === 'confirmed' ? '✓ Confirmed' : 'Reserved'}</span>` : ''}
                 ${renderAttachmentChipHTML(loc)}
@@ -2543,12 +2925,19 @@ function titlebarMetaHTML(loc, sym) {
           Remove
         </button>` : '';
 
+  const detailsItem = `
+        <button class="card-overflow-item" data-action="openLocationModal" data-loc-id="${esc(loc.id)}" role="menuitem" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+          Detalii card
+        </button>`;
+
   const overflowMenu = `
     <div class="card-overflow-menu-wrap">
       <button class="card-overflow-btn" data-action="cardOverflowMenu" aria-label="More actions" title="More actions" type="button">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
       </button>
       <div class="card-overflow-dropdown" role="menu">
+${detailsItem}
 ${routeItem}
 ${adminItems}
       </div>
@@ -2583,9 +2972,23 @@ function renderCardSubcardHTML(loc) {
     conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}"><span class="chip-icon">⚠️</span><span class="chip-label">${esc(chipText)}</span></span>`;
   }
 
+  // Compact intelligent flight chip (opens modal on flight tab)
+  const isFlight = !!(loc.flight_number || loc.category === 'transport_flight');
+  let flightChip = '';
+  if (isFlight) {
+    const flightCode = (loc.flight_number || 'Zbor').toUpperCase();
+    const flightStatus = loc.flight_data?.status;
+    const visual = getFlightStatusVisual(flightStatus, loc.flight_data?.delay);
+    flightChip = `<button type="button" class="strip-chip strip-flight-btn" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" title="Deschide detaliile pentru zborul ${esc(flightCode)}">
+      <span class="chip-icon">✈️</span>
+      <span class="chip-label"><strong>${esc(flightCode)}</strong></span>
+      ${flightStatus ? `<span class="strip-flight-status-dot" title="${esc(visual.label)}">${visual.icon}</span>` : ''}
+    </button>`;
+  }
+
   const notesBlock = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
-  const hasChips = !!(confirmationLink || attachmentChip || conflictChip);
-  const chipsBlock = hasChips ? `<div class="card-info-strip">${confirmationLink}${attachmentChip}${conflictChip}</div>` : '';
+  const hasChips = !!(flightChip || confirmationLink || attachmentChip || conflictChip);
+  const chipsBlock = hasChips ? `<div class="card-info-strip">${flightChip}${confirmationLink}${attachmentChip}${conflictChip}</div>` : '';
 
   return `${notesBlock}${chipsBlock}`;
 }
@@ -2616,6 +3019,19 @@ function updateCardSubcard(card, loc) {
     notesRow = null;
   }
 
+  const isFlight = !!(loc.flight_number || loc.category === 'transport_flight');
+  let flightChip = '';
+  if (isFlight) {
+    const flightCode = (loc.flight_number || 'Zbor').toUpperCase();
+    const flightStatus = loc.flight_data?.status;
+    const visual = getFlightStatusVisual(flightStatus, loc.flight_data?.delay);
+    flightChip = `<button type="button" class="strip-chip strip-flight-btn" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" title="Deschide detaliile pentru zborul ${esc(flightCode)}">
+      <span class="chip-icon">✈️</span>
+      <span class="chip-label"><strong>${esc(flightCode)}</strong></span>
+      ${flightStatus ? `<span class="strip-flight-status-dot" title="${esc(visual.label)}">${visual.icon}</span>` : ''}
+    </button>`;
+  }
+
   const confirmationLink = renderConfirmationLinkHTML(loc.confirmation_url, loc.confirmation_label);
   const attachmentChip = renderAttachmentChipHTML(loc);
   const conflict = checkTimeConflict(loc, state.trip?.locations || []);
@@ -2627,7 +3043,7 @@ function updateCardSubcard(card, loc) {
     const titleText = withStr ? `Schedule conflict: overlaps by ${conflict.overlapMinutes} min with ${withStr}` : `Schedule conflict (${conflict.overlapMinutes} min overlap)`;
     conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}"><span class="chip-icon">⚠️</span><span class="chip-label">${esc(chipText)}</span></span>`;
   }
-  const chipsHTML = `${confirmationLink}${attachmentChip}${conflictChip}`;
+  const chipsHTML = `${flightChip}${confirmationLink}${attachmentChip}${conflictChip}`;
   let infoStrip = card.querySelector('.card-info-strip');
   if (chipsHTML) {
     if (infoStrip) {
@@ -2657,7 +3073,7 @@ function cardHTML(loc) {
   const titleMarkup = `<span class="card-name-text">${esc(loc.name)}</span>`;
 
   const catOptions = VALID_CATEGORIES.map(c =>
-    `<option value="${c}"${c === safecat ? ' selected' : ''}>${CATEGORY_ICONS[c]} ${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
+    `<option value="${c}"${c === safecat ? ' selected' : ''}>${CATEGORY_ICONS[c]} ${catLabel(c)}</option>`
   ).join('');
 
   const mapsHref = safeMapsUrl(loc.google_maps_url);
@@ -2670,6 +3086,7 @@ function cardHTML(loc) {
   // Nav buttons in card-actions (equal dimensions with static SVG assets)
   const MAPS_ICON_URL = (window.location.protocol === 'file:') ? 'icons/maps-icon.svg' : '/static/icons/maps-icon.svg';
   const WAZE_ICON_URL = (window.location.protocol === 'file:') ? 'icons/waze-icon.svg' : '/static/icons/waze-icon.svg';
+  const detailsBtn = `<button type="button" class="loc-nav-btn card-details-btn" data-action="openLocationModal" data-loc-id="${esc(loc.id)}" title="Deschide detalii locație"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg><span class="nav-btn-text">Detalii</span></button>`;
   const mapsBtn = mapsHref ? `<a href="${mapsHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn maps-btn" title="Open in Maps"><img src="${MAPS_ICON_URL}" class="nav-btn-icon maps-icon" alt="" width="14" height="14"><span class="nav-btn-text">Maps</span></a>` : '';
   const wazeBtn = wazeHref ? `<a href="${wazeHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn waze-btn waze" title="Waze"><img src="${WAZE_ICON_URL}" class="nav-btn-icon waze-icon" alt="" width="14" height="14"><span class="nav-btn-text">Waze</span></a>` : '';
   const navGpsBtn = `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" fill="currentColor"/></svg><span class="nav-btn-text">Go To</span></button>`;
@@ -2682,104 +3099,164 @@ function cardHTML(loc) {
         <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>
       </button>
     </div>`;
+  const locId = loc.id || ('temp_' + Math.random().toString(36).slice(2, 9));
+  const safeId = String(locId).replace(/[^a-zA-Z0-9_-]/g, '_');
   const cardFields = isAdmin ? `
     <div class="card-fields">
-      <div class="field-group full-width">
-        <label class="field-label">Name</label>
-        <input type="text" class="field-input" data-field="name" value="${esc(loc.name || '')}" placeholder="Location name">
+      <div class="modal-tabs-nav" role="tablist">
+        <button type="button" class="modal-tab-btn active" data-tab="general" role="tab" aria-selected="true">
+          <span class="tab-icon">ℹ️</span>
+          <span class="tab-label">General</span>
+        </button>
+        <button type="button" class="modal-tab-btn" data-tab="schedule" role="tab" aria-selected="false">
+          <span class="tab-icon">🗓️</span>
+          <span class="tab-label">Program</span>
+        </button>
+        <button type="button" class="modal-tab-btn" data-tab="budget" role="tab" aria-selected="false">
+          <span class="tab-icon">💳</span>
+          <span class="tab-label">Buget &amp; Rezervare</span>
+        </button>
+        <button type="button" class="modal-tab-btn tab-flight-btn${safecat === 'transport_flight' ? '' : ' is-hidden'}" data-tab="flight" role="tab" aria-selected="false">
+          <span class="tab-icon">✈️</span>
+          <span class="tab-label">Zbor</span>
+        </button>
+        <button type="button" class="modal-tab-btn" data-tab="notes" role="tab" aria-selected="false">
+          <span class="tab-icon">📎</span>
+          <span class="tab-label">Notițe &amp; Fișiere</span>
+        </button>
       </div>
-      <div class="field-group">
-        <label class="field-label">Country</label>
-        <input type="text" class="field-input" data-field="country" value="${esc(loc.country || '')}" placeholder="Country">
-      </div>
-      <div class="field-group">
-        <label class="field-label">City</label>
-        <input type="text" class="field-input" data-field="city" value="${esc(loc.city || '')}" placeholder="City">
-      </div>
-      <div class="field-group">
-        <label class="field-label">Visit Date</label>
-        <input type="date" class="field-input" data-field="visit_date" value="${esc(loc.visit_date || '')}">
-      </div>
-      <div class="field-group">
-        <label class="field-label">Time &amp; Duration</label>
-        <div class="time-dur-row">
-          <input type="time" class="field-input" data-field="visit_time" value="${esc(loc.visit_time || '')}">
-          <div class="dur-input-wrap">
-            <input type="number" class="field-input dur-input" data-field="duration_minutes" value="${loc.duration_minutes || 60}" min="5" max="720" step="5" placeholder="60">
-            <span class="dur-unit">min</span>
+
+      <div class="modal-tab-panes">
+        <!-- TAB 1: GENERAL -->
+        <div class="modal-tab-pane active" data-pane="general" role="tabpanel">
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_name">Nume locație</label>
+            <input type="text" id="loc_${safeId}_name" class="field-input field-input-lg" data-field="name" value="${esc(loc.name || '')}" placeholder="ex: Hotel Arts, Sagrada Família, Aeroport...">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_category">Categorie</label>
+            <select id="loc_${safeId}_category" class="field-select" data-field="category">${catOptions}</select>
+            <div class="flight-category-hint" style="${safecat === 'transport_flight' ? '' : 'display:none'}">
+              ✈️ Zbor selectat: mergi la tab-ul <button type="button" class="inline-tab-switch-btn" data-switch-tab="flight">✈️ Zbor</button> pentru orar și număr zbor
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_country">Țară</label>
+            <input type="text" id="loc_${safeId}_country" class="field-input" data-field="country" value="${esc(loc.country || '')}" placeholder="ex: Spania, România...">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_city">Oraș</label>
+            <input type="text" id="loc_${safeId}_city" class="field-input" data-field="city" value="${esc(loc.city || '')}" placeholder="ex: Barcelona, Iași...">
+          </div>
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_address">Adresă</label>
+            <input type="text" id="loc_${safeId}_address" class="field-input" data-field="address" value="${esc(loc.address || '')}" placeholder="Strada, număr, reper...">
+          </div>
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_maps">Link Google Maps</label>
+            <div class="maps-field-row">
+              <input type="url" id="loc_${safeId}_maps" class="field-input" data-field="google_maps_url"
+                value="${esc(loc.google_maps_url || '')}"
+                placeholder="https://www.google.com/maps/place/…">
+              <button class="btn-secondary maps-details-btn" data-action="findMapsDetails" type="button" title="Preluare detalii automate din Google Maps">🔍 Găsește detalii</button>
+            </div>
           </div>
         </div>
-        <div class="dur-presets">
-          <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="30">30m</button>
-          <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="60">1h</button>
-          <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="90">1.5h</button>
-          <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="120">2h</button>
-          <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="180">3h</button>
-        </div>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Reservation</label>
-        <select class="field-select" data-field="reservation_status">
-          <option value=""${!loc.reservation_status ? ' selected' : ''}>Not reserved</option>
-          <option value="reserved"${loc.reservation_status === 'reserved' ? ' selected' : ''}>Reserved</option>
-          <option value="confirmed"${loc.reservation_status === 'confirmed' ? ' selected' : ''}>Confirmed</option>
-        </select>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Payment</label>
-        <label class="field-checkbox"><input type="checkbox" data-field="paid"${loc.paid ? ' checked' : ''}> Paid</label>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Cost</label>
-        <div class="cost-wrap">
-          <span class="cost-symbol">${sym}</span>
-          <input type="number" class="field-input cost-input" data-field="cost"
-            value="${loc.cost || 0}" min="0" step="0.01" placeholder="0">
-        </div>
-      </div>
-      <div class="field-group">
-        <label class="field-label">Category</label>
-        <select class="field-select" data-field="category">${catOptions}</select>
-      </div>
-      <div class="field-group full-width">
-        <label class="field-label">Address</label>
-        <input type="text" class="field-input" data-field="address" value="${esc(loc.address || '')}" placeholder="Street address">
-      </div>
-      <div class="field-group full-width">
-        <label class="field-label">Notes</label>
-        <textarea class="field-textarea" data-field="notes" placeholder="Add notes, booking refs…">${esc(loc.notes || '')}</textarea>
-      </div>
-      <div class="field-group full-width doc-link-field-group">
-        <div class="doc-link-header-row">
-          <label class="field-label">Confirmation / document link</label>
-          <div class="doc-label-input-wrap">
-            <span class="doc-label-prefix">Label:</span>
-            <input type="text" class="field-input doc-label-input" data-field="confirmation_label" value="${esc(loc.confirmation_label || '')}" placeholder="e.g. Bilete, Voucher…">
+
+        <!-- TAB 2: PROGRAM -->
+        <div class="modal-tab-pane" data-pane="schedule" role="tabpanel">
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_date">Data vizitei</label>
+            <input type="date" id="loc_${safeId}_date" class="field-input" data-field="visit_date" value="${esc(loc.visit_date || '')}">
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_time">Ora vizitei &amp; Durată</label>
+            <div class="time-dur-row">
+              <input type="time" id="loc_${safeId}_time" class="field-input" data-field="visit_time" value="${esc(loc.visit_time || '')}">
+              <div class="dur-input-wrap">
+                <input type="number" id="loc_${safeId}_dur" class="field-input dur-input" data-field="duration_minutes" value="${loc.duration_minutes || 60}" min="5" max="720" step="5" placeholder="60" aria-label="Durată în minute">
+                <span class="dur-unit">min</span>
+              </div>
+            </div>
+            <div class="dur-presets">
+              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="30">30m</button>
+              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="60">1h</button>
+              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="90">1.5h</button>
+              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="120">2h</button>
+              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="180">3h</button>
+            </div>
           </div>
         </div>
-        <div class="doc-link-input-wrapper">
-          <input type="url" id="docUrlInput" class="field-input" data-field="confirmation_url" value="${esc(loc.confirmation_url || '')}" placeholder="https://…">
-          <button type="button" class="btn-secondary" id="openAppBtn" data-action="openDocLink">Deschide</button>
+
+        <!-- TAB 3: BUGET & REZERVARE -->
+        <div class="modal-tab-pane" data-pane="budget" role="tabpanel">
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_res_status">Status rezervare</label>
+            <select id="loc_${safeId}_res_status" class="field-select" data-field="reservation_status">
+              <option value=""${!loc.reservation_status ? ' selected' : ''}>Fără rezervare</option>
+              <option value="reserved"${loc.reservation_status === 'reserved' ? ' selected' : ''}>Rezervat (în așteptare)</option>
+              <option value="confirmed"${loc.reservation_status === 'confirmed' ? ' selected' : ''}>Confirmat</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_cost">Cost</label>
+            <div class="cost-wrap">
+              <span class="cost-symbol">${sym}</span>
+              <input type="number" id="loc_${safeId}_cost" class="field-input cost-input" data-field="cost"
+                value="${loc.cost || 0}" min="0" step="0.01" placeholder="0">
+            </div>
+          </div>
+          <div class="field-group">
+            <span class="field-label">Status plată</span>
+            <label class="field-checkbox" for="loc_${safeId}_paid"><input type="checkbox" id="loc_${safeId}_paid" data-field="paid"${loc.paid ? ' checked' : ''}> Plătit integral</label>
+          </div>
+          <div class="field-group full-width doc-link-field-group">
+            <div class="doc-link-header-row">
+              <label class="field-label" for="loc_${safeId}_doc_url">Link document / confirmare / bilet</label>
+              <div class="doc-label-input-wrap">
+                <label class="doc-label-prefix" for="loc_${safeId}_doc_label">Etichetă:</label>
+                <input type="text" id="loc_${safeId}_doc_label" class="field-input doc-label-input" data-field="confirmation_label" value="${esc(loc.confirmation_label || '')}" placeholder="ex: Bilete, Voucher, Rezervare…">
+              </div>
+            </div>
+            <div class="doc-link-input-wrapper">
+              <input type="url" id="loc_${safeId}_doc_url" class="field-input" data-field="confirmation_url" value="${esc(loc.confirmation_url || '')}" placeholder="https://… sau link aplicație">
+              <button type="button" class="btn-secondary" id="openAppBtn" data-action="openDocLink">Deschide</button>
+            </div>
+          </div>
         </div>
-      </div>
-      <div class="field-group full-width">
-        <label class="field-label">Attachments</label>
-        <input type="file" class="field-input attachment-input" data-attachment-location="${esc(loc.id)}" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx">
-        <div class="card-attachment-links">
-        ${(loc.attachments || []).map(file => {
+
+        <!-- TAB 4: ZBOR -->
+        <div class="modal-tab-pane" data-pane="flight" role="tabpanel">
+          <div class="field-group full-width flight-number-field-group"> 
+            <label class="field-label" for="loc_${safeId}_flight">✈️ Număr zbor (IATA)</label>
+            <div class="flight-input-row">
+              <input type="text" id="loc_${safeId}_flight" class="field-input flight-number-input" data-field="flight_number"
+                value="${esc(loc.flight_number || '')}" placeholder="ex: W4 3685, RO 371..." style="text-transform:uppercase">
+              <button type="button" class="btn-secondary check-flight-btn" data-action="checkFlight"
+                title="Verifică statusul zborului live">🔍 Verifică status zbor</button>
+            </div>
+            <span class="field-hint">Introdu compania și numărul zborului pentru preluare orar live, terminal, poartă și status ca pe Google.</span>
+          </div>
+          <div class="flight-status-card-wrap" style="${loc.flight_number ? '' : 'display:none'}"></div>
+        </div>
+
+        <!-- TAB 5: NOTIȚE & FIȘIERE -->
+        <div class="modal-tab-pane" data-pane="notes" role="tabpanel">
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_notes">Notițe &amp; Detalii utile</label>
+            <textarea id="loc_${safeId}_notes" class="field-textarea" data-field="notes" rows="4" placeholder="Adaugă notițe, coduri de acces, ponturi sau recomandări…">${esc(loc.notes || '')}</textarea>
+          </div>
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_files">Fișiere &amp; Documente atașate</label>
+            <input type="file" id="loc_${safeId}_files" class="field-input attachment-input" data-attachment-location="${esc(loc.id)}" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx">
+            <div class="card-attachment-links">
+            ${(loc.attachments || []).map(file => {
     const fileUrl = `/api/locations/${encodeURIComponent(loc.id)}/attachments/${encodeURIComponent(file.name)}`;
     const meta = getFileMeta(file.name);
     return `<a class="attachment-link" href="${fileUrl}" data-action="viewAttachment" data-location-id="${esc(loc.id)}" data-attachment-name="${esc(file.name)}" data-attachment-url="${esc(fileUrl)}" title="${esc(file.name)}">${meta.icon} ${esc(file.name)}</a>`;
   }).join('')}
-        </div>
-      </div>
-      <div class="field-group full-width">
-        <label class="field-label">Maps Link</label>
-        <div class="maps-field-row">
-          <input type="url" class="field-input" data-field="google_maps_url"
-            value="${esc(loc.google_maps_url || '')}"
-            placeholder="https://www.google.com/maps/place/…">
-          <button class="btn-secondary maps-details-btn" data-action="findMapsDetails" type="button">Find details</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>` : '';
@@ -2813,7 +3290,7 @@ function cardHTML(loc) {
         ${renderCardSubcardHTML(loc)}
         <div class="card-actions">
           ${topButtons}
-          ${(mapsBtn || wazeBtn || navGpsBtn) ? `<div class="card-nav-btns">${mapsBtn}${wazeBtn}${navGpsBtn}</div>` : ''}
+          ${(detailsBtn || mapsBtn || wazeBtn || navGpsBtn) ? `<div class="card-nav-btns">${detailsBtn}${mapsBtn}${wazeBtn}${navGpsBtn}</div>` : ''}
         </div>
         ${cardFields}
       </div>
@@ -2828,7 +3305,7 @@ function renderTableView() {
   const sym = getCurrencySymbol(cur);
 
   const catOptions = sel => VALID_CATEGORIES.map(c =>
-    `<option value="${c}"${c === sel ? ' selected' : ''}>${CATEGORY_ICONS[c]} ${c.charAt(0).toUpperCase() + c.slice(1)}</option>`
+    `<option value="${c}"${c === sel ? ' selected' : ''}>${CATEGORY_ICONS[c]} ${catLabel(c)}</option>`
   ).join('');
 
   const rows = locs.map(loc => {
@@ -2843,10 +3320,10 @@ function renderTableView() {
           </button>
         </td>
         <td class="td-date" data-label="Date">
-          <input type="date" class="tbl-input" data-field="visit_date" value="${esc(loc.visit_date || '')}">
+          <input type="date" class="tbl-input" data-field="visit_date" value="${esc(loc.visit_date || '')}" aria-label="Visit date">
         </td>
         <td class="td-time" data-label="Time">
-          <input type="time" class="tbl-input" data-field="visit_time" value="${esc(loc.visit_time || '')}">
+          <input type="time" class="tbl-input" data-field="visit_time" value="${esc(loc.visit_time || '')}" aria-label="Visit time">
         </td>
         <td class="td-name" data-label="Name">
           <div class="cell-name">
@@ -2860,28 +3337,28 @@ function renderTableView() {
           </div>
         </td>
         <td class="td-country" data-label="Country">
-          <input class="tbl-input" data-field="country" value="${esc(loc.country || '')}" placeholder="Country">
+          <input class="tbl-input" data-field="country" value="${esc(loc.country || '')}" placeholder="Country" aria-label="Country">
         </td>
         <td class="td-city" data-label="City">
-          <input class="tbl-input" data-field="city" value="${esc(loc.city || '')}" placeholder="City">
+          <input class="tbl-input" data-field="city" value="${esc(loc.city || '')}" placeholder="City" aria-label="City">
         </td>
         <td class="td-cost" data-label="Cost">
           <div class="cost-cell">
             <span class="cost-sym">${sym}</span>
-            <input type="number" class="tbl-input" data-field="cost" value="${loc.cost || 0}" min="0" step="0.01">
+            <input type="number" class="tbl-input" data-field="cost" value="${loc.cost || 0}" min="0" step="0.01" aria-label="Cost">
           </div>
         </td>
         <td class="td-cat" data-label="Category">
-          <select class="tbl-select" data-field="category">${catOptions(cat)}</select>
+          <select class="tbl-select" data-field="category" aria-label="Category">${catOptions(cat)}</select>
         </td>
         <td class="td-notes" data-label="Notes">
-          <input class="tbl-input" data-field="notes" value="${esc(loc.notes || '')}" placeholder="Notes…">
+          <input class="tbl-input" data-field="notes" value="${esc(loc.notes || '')}" placeholder="Notes…" aria-label="Notes">
         </td>
         <td class="td-address" data-label="Address">
-          <input class="tbl-input" data-field="address" value="${esc(loc.address || '')}" placeholder="Address…">
+          <input class="tbl-input" data-field="address" value="${esc(loc.address || '')}" placeholder="Address…" aria-label="Address">
         </td>
         <td class="td-mapsurl" data-label="Maps URL">
-          <input type="url" class="tbl-input" data-field="google_maps_url" value="${esc(loc.google_maps_url || '')}" placeholder="https://…">
+          <input type="url" class="tbl-input" data-field="google_maps_url" value="${esc(loc.google_maps_url || '')}" placeholder="https://…" aria-label="Google Maps URL">
         </td>
         <td class="td-actions td-ctrl">
           <div class="tbl-actions-wrap">
@@ -3170,7 +3647,7 @@ function bindEvents() {
     // 2. Try window.close() (browser tab/window)
     try {
       window.close();
-    } catch (err) {}
+    } catch (err) { }
 
     // 3. Web browser / server session logout & exit
     if (window.location.protocol.startsWith('http')) {
@@ -3387,6 +3864,24 @@ function bindEvents() {
   document.getElementById('closeNotificationLocation')?.addEventListener('click', closeLocationModal);
   const locationModalEl = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
   locationModalEl?.addEventListener('click', event => {
+    const tabBtn = event.target.closest('.modal-tab-btn');
+    if (tabBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const targetTab = tabBtn.dataset.tab;
+      const card = tabBtn.closest('.card-fields') || tabBtn.closest('.location-card');
+      if (card && targetTab) switchModalTab(card, targetTab);
+      return;
+    }
+    const switchBtn = event.target.closest('[data-switch-tab]');
+    if (switchBtn) {
+      event.preventDefault();
+      event.stopPropagation();
+      const targetTab = switchBtn.dataset.switchTab;
+      const card = switchBtn.closest('.card-fields') || switchBtn.closest('.location-card');
+      if (card && targetTab) switchModalTab(card, targetTab);
+      return;
+    }
     if (event.target === locationModalEl) closeLocationModal();
     else if (event.target.closest('[data-action], .confirmation-link')) handleCardClick(event);
   });
@@ -3409,6 +3904,41 @@ function bindEvents() {
     }
   };
   locationModalBodyEl?.addEventListener('input', handleNameInput);
+
+  // Freeze background and map when any modal is open
+  const modalObserver = new MutationObserver(() => {
+    updateModalOpenState();
+  });
+  modalObserver.observe(document.body, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class'],
+  });
+  updateModalOpenState();
+
+  // Prevent wheel and touch dragging on modal overlays from leaking to the underlying page or map
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('wheel', e => {
+      const scrollable = e.target.closest('.modal-body, .location-modal-body, .doc-viewer-content');
+      if (!scrollable) {
+        e.preventDefault();
+        return;
+      }
+      const { scrollTop, scrollHeight, clientHeight } = scrollable;
+      const isAtTop = scrollTop <= 0 && e.deltaY < 0;
+      const isAtBottom = scrollTop + clientHeight >= scrollHeight - 1 && e.deltaY > 0;
+      if (isAtTop || isAtBottom) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    overlay.addEventListener('touchmove', e => {
+      const scrollable = e.target.closest('.modal-body, .location-modal-body, .doc-viewer-content');
+      if (!scrollable) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+  });
 
   // Global delegation for opening location card in modal or launching confirmation links
   document.addEventListener('click', event => {
@@ -3928,7 +4458,7 @@ function bindEvents() {
     backups.sort((a, b) => new Date(b.created) - new Date(a.created));
     list.innerHTML = backups.map(backup => `
       <div class="backup-row${backup.protected ? ' backup-row-protected' : ''}">
-        <input class="backup-select" type="checkbox" data-backup-select="${esc(backup.file)}"${backup.protected ? ' disabled title="Protected latest backup with records"' : ''}>
+        <input class="backup-select" type="checkbox" data-backup-select="${esc(backup.file)}" aria-label="Select backup ${esc(backup.file)}"${backup.protected ? ' disabled title="Protected latest backup with records"' : ''}>
         <div class="backup-row-info">
           <div class="backup-row-name">${esc(backup.file)}${backup.protected ? '<span class="backup-protected">Protected</span>' : ''}</div>
           <div class="backup-row-meta">${new Date(backup.created).toLocaleString('ro-RO')} · ${formatBytes(backup.size)}</div>
@@ -4452,8 +4982,8 @@ function bindEvents() {
     const fullViewerUrl = (linkEl?.href && linkEl.href !== '#' && !linkEl.href.endsWith('#'))
       ? linkEl.href
       : (docViewer.locationId && docViewer.files[docViewer.currentIndex]
-          ? buildAttachmentRawUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken)
-          : '');
+        ? buildAttachmentRawUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken)
+        : '');
     if (!fullViewerUrl) return;
 
     // 1. Native Capacitor wrapper
@@ -4526,7 +5056,7 @@ function bindEvents() {
       if (shareFile && typeof navigator.canShare === 'function') {
         try {
           canShareFile = navigator.canShare({ files: [shareFile] });
-        } catch (_) {}
+        } catch (_) { }
       }
 
       if (canShareFile && shareFile) {
@@ -4606,7 +5136,7 @@ function bindEvents() {
       } catch (_) { }
     }
 
-        toast('Descărcare fișier…', 'info');
+    toast('Descărcare fișier…', 'info');
   };
 
   document.getElementById('docShareBtn')?.addEventListener('click', (e) => {
@@ -4984,6 +5514,25 @@ function handleCardClick(e) {
     e.stopPropagation();
     const loc = getLocation(id);
     if (loc) openDirectNavigation(loc);
+    return;
+  }
+
+  if (actionEl.dataset.action === 'openCardDrawer' || actionEl.dataset.action === 'openFlightDrawer' || actionEl.dataset.action === 'openLocationModal' || actionEl.dataset.action === 'openFlightModal') {
+    e.preventDefault();
+    e.stopPropagation();
+    const locId = actionEl.dataset.locId || id;
+    const initialTab = actionEl.dataset.drawerTab || ((actionEl.dataset.action === 'openFlightDrawer' || actionEl.dataset.action === 'openFlightModal') ? 'flight' : 'general');
+    if (locId) openLocationModal(locId, false, initialTab);
+    return;
+  }
+
+  if (actionEl.dataset.action === 'checkFlight') {
+    e.preventDefault();
+    e.stopPropagation();
+    const flightInput = card.querySelector('.flight-number-input');
+    const flightNum = (flightInput?.value || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!flightNum) { showToast('Introdu numărul zborului (ex: W43685)', 'warning'); return; }
+    fetchFlightStatus(card, flightNum, true);
     return;
   }
 
@@ -5914,7 +6463,7 @@ async function loadViewerAttachment(index) {
         }
         return tok;
       }
-    } catch (_) {}
+    } catch (_) { }
     return '';
   })();
 
@@ -5999,7 +6548,7 @@ async function loadViewerAttachment(index) {
             } else {
               img.src = fileUrl;
             }
-          } catch(e) {
+          } catch (e) {
             img.src = fileUrl;
           }
         })();
@@ -6024,6 +6573,7 @@ async function loadViewerAttachment(index) {
           data: pdfArrayBuffer,
           cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
           cMapPacked: true,
+          isEvalSupported: false,
         });
         const pdfDoc = await loadingTask.promise;
         docViewer.pdfDoc = pdfDoc;
@@ -6046,7 +6596,7 @@ async function loadViewerAttachment(index) {
             } else {
               fallbackFrame.src = fileUrl;
             }
-          } catch(e) {
+          } catch (e) {
             fallbackFrame.src = fileUrl;
           }
         }
@@ -6067,7 +6617,7 @@ async function loadViewerAttachment(index) {
           } else {
             fallbackFrame.src = fileUrl;
           }
-        } catch(e) {
+        } catch (e) {
           fallbackFrame.src = fileUrl;
         }
       }
@@ -6428,8 +6978,25 @@ function handleCardChange(e) {
     const catChip = card.querySelector('.strip-cat');
     if (catChip) {
       catChip.className = `strip-chip strip-cat cat-${safecat}`;
-      catChip.textContent = `${CATEGORY_ICONS[safecat]} ${safecat.charAt(0).toUpperCase() + safecat.slice(1)}`;
+      catChip.textContent = `${CATEGORY_ICONS[safecat]} ${catLabel(safecat)}`;
     }
+    // Show/hide flight tab button and category hint
+    const flightTabBtn = card.querySelector('.tab-flight-btn');
+    const flightHint = card.querySelector('.flight-category-hint');
+    if (flightTabBtn) {
+      if (safecat === 'transport_flight') {
+        flightTabBtn.classList.remove('is-hidden');
+        if (flightHint) flightHint.style.display = '';
+      } else {
+        flightTabBtn.classList.add('is-hidden');
+        if (flightHint) flightHint.style.display = 'none';
+        if (flightTabBtn.classList.contains('active')) {
+          switchModalTab(card, 'general');
+        }
+      }
+    }
+    const flightWrap = card.querySelector('.flight-status-card-wrap');
+    if (flightWrap) flightWrap.style.display = safecat === 'transport_flight' ? '' : 'none';
   }
 
   // Update titlebar meta (booking badge, paid badge, cost) live
@@ -6989,7 +7556,29 @@ function renderNotifications() {
   }
 }
 
-function openLocationModal(locationOrId, isNew = false) {
+function switchModalTab(cardOrContainer, targetTabName) {
+  if (!cardOrContainer) return;
+  const container = cardOrContainer.classList?.contains('card-fields')
+    ? cardOrContainer
+    : cardOrContainer.querySelector?.('.card-fields');
+  if (!container) return;
+
+  const tabBtns = container.querySelectorAll('.modal-tab-btn');
+  const tabPanes = container.querySelectorAll('.modal-tab-pane');
+
+  tabBtns.forEach(btn => {
+    const isActive = btn.dataset.tab === targetTabName;
+    btn.classList.toggle('active', isActive);
+    btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+  });
+
+  tabPanes.forEach(pane => {
+    const isActive = pane.dataset.pane === targetTabName;
+    pane.classList.toggle('active', isActive);
+  });
+}
+
+function openLocationModal(locationOrId, isNew = false, initialTab = 'general') {
   if (!locationOrId) return;
   const location = (typeof locationOrId === 'object' && locationOrId !== null)
     ? locationOrId
@@ -6999,14 +7588,32 @@ function openLocationModal(locationOrId, isNew = false) {
   state.pendingNewLocation = isNew ? location : null;
   body.innerHTML = cardHTML(location);
   const title = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
-  if (title) title.textContent = isNew ? (location.name || 'New Location') : (location.name || 'Location');
+  if (title) title.textContent = isNew ? (location.name || 'Adaugă locație') : (location.name || 'Detalii locație');
   const cancelBtn = document.getElementById('cancelLocationModal');
   if (cancelBtn) {
-    cancelBtn.textContent = (state.role === 'admin') ? 'Cancel' : 'Close';
+    cancelBtn.textContent = (state.role === 'admin') ? 'Anulează' : 'Închide';
+  }
+  const saveBtn = document.getElementById('locationModalSaveBtn');
+  if (saveBtn) {
+    saveBtn.style.display = (state.role === 'admin') ? 'inline-flex' : 'none';
   }
   document.getElementById('notificationsModal')?.classList.remove('open');
   const modal = document.getElementById('locationModal') || document.getElementById('notificationLocationModal');
   modal?.classList.add('open');
+  updateModalOpenState();
+
+  // Initialize on requested tab
+  const targetTab = initialTab || 'general';
+  switchModalTab(body, targetTab);
+
+  // If this is a flight with flight number, fetch live flight status
+  const safecat = VALID_CATEGORIES.includes(location.category) ? location.category : 'other';
+  if (safecat === 'transport_flight' && location.flight_number) {
+    const cardEl = body.querySelector('.location-card');
+    if (cardEl) {
+      fetchFlightStatus(cardEl, location.flight_number);
+    }
+  }
 
   if (isNew) {
     setTimeout(() => {
@@ -7039,7 +7646,7 @@ async function init() {
         if (localSaved && Array.isArray(localSaved.locations) && localSaved.locations.length > 0) {
           trip = localSaved;
         }
-      } catch (e) {}
+      } catch (e) { }
     }
     if (!trip) {
       trip = { id: 'my_trip', trip_name: 'Euro Trip', currency: 'EUR', locations: [] };
