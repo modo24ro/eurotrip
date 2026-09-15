@@ -11587,3 +11587,40 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   margin-bottom: 3px;
 }
 
+/* ===== FLIGHT DETAILS MODAL ===== */
+.modal-box.flight-modal-box,
+#flightModal .modal-box {
+  width: min(580px, 94vw);
+  max-width: 580px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xl);
+  overflow: hidden;
+}
+
+.flight-modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.flight-modal-body .subcard-inner.subcard-flight-content {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  padding: 12px 14px;
+}
+
+.flight-modal-radar-wrap {
+  width: 100%;
+}
+
+.flight-modal-radar-wrap:empty {
+  display: none;
+}
+
+

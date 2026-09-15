@@ -74,7 +74,7 @@
 
     return `
       <div class="subcard-slide subcard-slide-flight" data-subcard-type="flight">
-        <div class="subcard-inner subcard-flight-content" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" role="button" tabindex="0" title="Vezi detaliile complete pentru zborul ${esc(flightCode)}">
+        <div class="subcard-inner subcard-flight-content flight-status-card-wrap" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" role="button" tabindex="0" title="Vezi detaliile complete pentru zborul ${esc(flightCode)}">
           <div class="subcard-flight-main">
             <span class="subcard-icon">✈️</span>
             <span class="subcard-flight-code">${esc(flightCode)}</span>

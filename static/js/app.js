@@ -40,6 +40,7 @@ import {
 import { toast, showToast } from './core/toast.js';
 import { api } from './core/api.js';
 import { renderSummary, renderCountryFilter } from './components/summary-banner.js';
+import { openFlightModal, closeFlightModal } from './components/flight-card.js';
 
 
 // ============================================================
@@ -56,9 +57,9 @@ function savePrefs(patch) {
 
 const _prefs = loadPrefs();
 
-function isNarrowScreen() {
-  return typeof window !== 'undefined' && window.innerWidth <= 768;
-}
+// function isNarrowScreen() {
+//   return typeof window !== 'undefined' && window.innerWidth <= 768;
+// }
 
 function getInitialView() {
   if (typeof window !== 'undefined') {
@@ -1768,57 +1769,57 @@ function addMinutesToTime(timeStr, mins) {
   return minutesToTime(startMins + (Number(mins) || 0));
 }
 
-function formatDuration(minutes) {
-  const mins = Number(minutes);
-  if (!mins || isNaN(mins) || mins <= 0) return '1h';
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  if (h > 0 && m > 0) return `${h}h ${m}m`;
-  if (h > 0) return `${h}h`;
-  return `${m}m`;
-}
+// function formatDuration(minutes) {
+//   const mins = Number(minutes);
+//   if (!mins || isNaN(mins) || mins <= 0) return '1h';
+//   const h = Math.floor(mins / 60);
+//   const m = mins % 60;
+//   if (h > 0 && m > 0) return `${h}h ${m}m`;
+//   if (h > 0) return `${h}h`;
+//   return `${m}m`;
+// }
 
-function getScheduleTimes(loc) {
-  if (!loc || !loc.visit_time) return null;
-  const duration = Number(loc.duration_minutes) > 0 ? Number(loc.duration_minutes) : 60;
-  const startMinutes = timeToMinutes(loc.visit_time);
-  if (startMinutes == null) return null;
-  const endMinutes = startMinutes + duration;
-  return {
-    start: loc.visit_time,
-    end: minutesToTime(endMinutes),
-    duration,
-    startMinutes,
-    endMinutes,
-  };
-}
+// function getScheduleTimes(loc) {
+//   if (!loc || !loc.visit_time) return null;
+//   const duration = Number(loc.duration_minutes) > 0 ? Number(loc.duration_minutes) : 60;
+//   const startMinutes = timeToMinutes(loc.visit_time);
+//   if (startMinutes == null) return null;
+//   const endMinutes = startMinutes + duration;
+//   return {
+//     start: loc.visit_time,
+//     end: minutesToTime(endMinutes),
+//     duration,
+//     startMinutes,
+//     endMinutes,
+//   };
+// }
 
-function detectScheduleConflicts(locations) {
-  const conflicts = new Map();
-  const scheduled = locations
-    .filter(l => l.enabled !== false && l.visit_time)
-    .map(l => ({ loc: l, times: getScheduleTimes(l) }))
-    .filter(item => item.times != null)
-    .sort((a, b) => a.times.startMinutes - b.times.startMinutes);
+// function detectScheduleConflicts(locations) {
+//   const conflicts = new Map();
+//   const scheduled = locations
+//     .filter(l => l.enabled !== false && l.visit_time)
+//     .map(l => ({ loc: l, times: getScheduleTimes(l) }))
+//     .filter(item => item.times != null)
+//     .sort((a, b) => a.times.startMinutes - b.times.startMinutes);
 
-  for (let i = 0; i < scheduled.length - 1; i++) {
-    const current = scheduled[i];
-    const next = scheduled[i + 1];
-    if (next.times.startMinutes < current.times.endMinutes) {
-      const overlap = current.times.endMinutes - next.times.startMinutes;
-      const curConflict = conflicts.get(current.loc.id) || { conflictingWith: [], overlapMinutes: 0 };
-      curConflict.conflictingWith.push(next.loc);
-      curConflict.overlapMinutes = Math.max(curConflict.overlapMinutes, overlap);
-      conflicts.set(current.loc.id, curConflict);
+//   for (let i = 0; i < scheduled.length - 1; i++) {
+//     const current = scheduled[i];
+//     const next = scheduled[i + 1];
+//     if (next.times.startMinutes < current.times.endMinutes) {
+//       const overlap = current.times.endMinutes - next.times.startMinutes;
+//       const curConflict = conflicts.get(current.loc.id) || { conflictingWith: [], overlapMinutes: 0 };
+//       curConflict.conflictingWith.push(next.loc);
+//       curConflict.overlapMinutes = Math.max(curConflict.overlapMinutes, overlap);
+//       conflicts.set(current.loc.id, curConflict);
 
-      const nextConflict = conflicts.get(next.loc.id) || { conflictingWith: [], overlapMinutes: 0 };
-      nextConflict.conflictingWith.push(current.loc);
-      nextConflict.overlapMinutes = Math.max(nextConflict.overlapMinutes, overlap);
-      conflicts.set(next.loc.id, nextConflict);
-    }
-  }
-  return conflicts;
-}
+//       const nextConflict = conflicts.get(next.loc.id) || { conflictingWith: [], overlapMinutes: 0 };
+//       nextConflict.conflictingWith.push(current.loc);
+//       nextConflict.overlapMinutes = Math.max(nextConflict.overlapMinutes, overlap);
+//       conflicts.set(next.loc.id, nextConflict);
+//     }
+//   }
+//   return conflicts;
+// }
 
 function getCategoryColor(category) {
   const colors = {
@@ -2100,27 +2101,27 @@ function getFlightStatusVisual(status, delay) {
   return map[s] || { icon: '⚪', label: status || 'Necunoscut', className: 'flight-status-unknown', textClass: 'text-slate-400' };
 }
 
-function formatFlightTime(iso, tz) {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
-    if (tz) opts.timeZone = tz;
-    return d.toLocaleTimeString([], opts);
-  } catch {
-    return iso.slice(11, 16) || '—';
-  }
-}
+// function formatFlightTime(iso, tz) {
+//   if (!iso) return '—';
+//   try {
+//     const d = new Date(iso);
+//     const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
+//     if (tz) opts.timeZone = tz;
+//     return d.toLocaleTimeString([], opts);
+//   } catch {
+//     return iso.slice(11, 16) || '—';
+//   }
+// }
 
-function formatFlightDate(iso) {
-  if (!iso) return '';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short' });
-  } catch {
-    return iso.slice(0, 10) || '';
-  }
-}
+// function formatFlightDate(iso) {
+//   if (!iso) return '';
+//   try {
+//     const d = new Date(iso);
+//     return d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short' });
+//   } catch {
+//     return iso.slice(0, 10) || '';
+//   }
+// }
 
 function formatFlightDateTime(iso) {
   if (!iso) return '—';
@@ -2688,7 +2689,7 @@ function titlebarMetaHTML(loc, sym) {
   const adminItems = isAdmin ? `
         <button class="card-overflow-item" data-action="edit" role="menuitem" type="button">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          Edit
+          Edit card
         </button>
         <button class="card-overflow-item" data-action="duplicate" role="menuitem" type="button">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
@@ -2698,12 +2699,6 @@ function titlebarMetaHTML(loc, sym) {
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
           Remove
         </button>` : '';
-
-  const detailsItem = `
-        <button class="card-overflow-item" data-action="openLocationModal" data-loc-id="${esc(loc.id)}" role="menuitem" type="button">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
-          Detalii card
-        </button>`;
 
   const overflowMenu = `
     <div class="card-overflow-menu-wrap">
@@ -3460,6 +3455,12 @@ function bindEvents() {
   });
   document.getElementById('closeLocationModal')?.addEventListener('click', closeLocationModal);
   document.getElementById('cancelLocationModal')?.addEventListener('click', closeLocationModal);
+  document.getElementById('closeFlightModal')?.addEventListener('click', closeFlightModal);
+  const flightModalEl = document.getElementById('flightModal');
+  flightModalEl?.addEventListener('click', event => {
+    if (event.target === flightModalEl) closeFlightModal();
+  });
+
   function syncLocationModalFields(locId) {
     const modalBody = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
     if (!modalBody) return;
@@ -5091,8 +5092,9 @@ function bindEvents() {
 }
 
 function handleCardClick(e) {
-  const actionEl = e.target.closest('[data-action], .confirmation-link');
+  const actionEl = e.target.closest('[data-action], .confirmation-link, .flight-status-card-wrap, .subcard-flight-content');
   if (!actionEl) return;
+
 
   // Three-dot overflow menu toggle
   if (actionEl.dataset.action === 'cardOverflowMenu') {
@@ -5200,14 +5202,30 @@ function handleCardClick(e) {
     return;
   }
 
-  if (actionEl.dataset.action === 'openCardDrawer' || actionEl.dataset.action === 'openFlightDrawer' || actionEl.dataset.action === 'openLocationModal' || actionEl.dataset.action === 'openFlightModal') {
+  if (
+    actionEl.dataset.action === 'openFlightDrawer' ||
+    actionEl.dataset.action === 'openFlightModal' ||
+    actionEl.classList.contains('flight-status-card-wrap') ||
+    actionEl.classList.contains('subcard-flight-content') ||
+    actionEl.closest('.flight-status-card-wrap') ||
+    actionEl.closest('.subcard-flight-content')
+  ) {
+    e.preventDefault();
+    e.stopPropagation();
+    const locId = actionEl.dataset.locId || id || actionEl.closest('[data-id]')?.dataset.id;
+    if (locId) openFlightModal(locId);
+    return;
+  }
+
+  if (actionEl.dataset.action === 'openCardDrawer' || actionEl.dataset.action === 'openLocationModal') {
     e.preventDefault();
     e.stopPropagation();
     const locId = actionEl.dataset.locId || id;
-    const initialTab = actionEl.dataset.drawerTab || ((actionEl.dataset.action === 'openFlightDrawer' || actionEl.dataset.action === 'openFlightModal') ? 'flight' : 'general');
+    const initialTab = actionEl.dataset.drawerTab || 'general';
     if (locId) openLocationModal(locId, false, initialTab);
     return;
   }
+
 
   if (actionEl.dataset.action === 'checkFlight') {
     e.preventDefault();

@@ -263,3 +263,95 @@ export async function fetchFlightStatus(card, flightIata, forceRefresh = false) 
     wrap.innerHTML = `<div class="flight-status-error">❌ Eroare rețea: ${esc(err.message)}</div>`;
   }
 }
+
+export function openFlightModal(locId) {
+  const loc = (typeof window !== 'undefined' && window.state)
+    ? window.state.trip?.locations?.find(l => l.id === locId)
+    : getLocation(locId);
+  if (!loc) return;
+
+  const modal = document.getElementById('flightModal');
+  const titleEl = document.getElementById('flightModalTitle');
+  const bodyEl = document.getElementById('flightModalBody');
+  if (!modal || !bodyEl) return;
+
+  const flightCode = (loc.flight_number || loc.flight_data?.flight_number || loc.flight_data?.flight_iata || 'Zbor').toUpperCase();
+  if (titleEl) {
+    titleEl.textContent = `Detalii Zbor · ${flightCode}`;
+  }
+
+  // Render subcard-inner subcard-flight-content inside the modal
+  const f = loc.flight_data || null;
+  const dep = f?.departure || {};
+  const arr = f?.arrival || {};
+  const depIata = dep.iata || (loc.departure_airport || '').toUpperCase() || 'DEP';
+  const arrIata = arr.iata || (loc.arrival_airport || '').toUpperCase() || 'ARR';
+  const depTime = dep.scheduled ? dep.scheduled.slice(11, 16) : (loc.visit_time || '');
+  const arrTime = arr.scheduled ? arr.scheduled.slice(11, 16) : '';
+  const status = f?.status || '';
+  const delay = f?.delay != null ? f.delay : dep.delay;
+
+  let statusBadge = '';
+  if (status) {
+    const isLanded = status === 'landed';
+    const isCancelled = status === 'cancelled';
+    const isDelayed = delay > 0;
+    const dotColor = isCancelled ? '#ef4444' : isDelayed ? '#f59e0b' : isLanded ? '#3b82f6' : '#10b981';
+    const statusLabel = isCancelled ? 'Anulat' : isDelayed ? `+${delay}m` : isLanded ? 'Aterizat' : 'La timp';
+    statusBadge = `<span class="subcard-flight-status" style="--dot-color:${dotColor};"><span class="subcard-flight-dot"></span>${esc(statusLabel)}</span>`;
+  }
+  const durationStr = f?.duration ? `<span class="subcard-flight-dur">⏱️ ${esc(f.duration)}</span>` : '';
+  const gateInfo = (dep.gate || arr.gate) ? `<span class="subcard-flight-gate">Gate ${esc(dep.gate || arr.gate)}</span>` : '';
+
+  bodyEl.innerHTML = `
+    <div class="subcard-inner subcard-flight-content flight-modal-subcard" style="cursor: default;">
+      <div class="subcard-flight-main">
+        <span class="subcard-icon">✈️</span>
+        <span class="subcard-flight-code">${esc(flightCode)}</span>
+        <span class="subcard-flight-route">${esc(depIata)} → ${esc(arrIata)}</span>
+        ${(depTime || arrTime) ? `<span class="subcard-flight-times">${esc(depTime)}${arrTime ? ` - ${esc(arrTime)}` : ''}</span>` : ''}
+      </div>
+      <div class="subcard-flight-meta">
+        ${statusBadge}
+        ${durationStr}
+        ${gateInfo}
+      </div>
+    </div>
+    <div class="flight-status-card-wrap flight-modal-radar-wrap" id="flightModalRadarWrap"></div>
+  `;
+
+  const radarWrap = document.getElementById('flightModalRadarWrap');
+  if (radarWrap) {
+    if (f) {
+      renderFlightCardHTML(radarWrap, loc, f, true);
+    } else if (loc.flight_number) {
+      fetchFlightStatus({ dataset: { id: loc.id }, querySelector: () => radarWrap }, loc.flight_number, false);
+    }
+  }
+
+  modal.classList.add('open');
+  document.body.classList.add('modal-open');
+  document.documentElement.classList.add('modal-open');
+}
+
+export function closeFlightModal() {
+  const modal = document.getElementById('flightModal');
+  if (modal) {
+    modal.classList.remove('open');
+    if (typeof window.updateModalOpenState === 'function') {
+      window.updateModalOpenState();
+    } else {
+      const hasOpenModal = !!document.querySelector('.modal-overlay.open');
+      document.body.classList.toggle('modal-open', hasOpenModal);
+      document.documentElement.classList.toggle('modal-open', hasOpenModal);
+    }
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.openFlightModal = openFlightModal;
+  window.closeFlightModal = closeFlightModal;
+  window.fetchFlightStatus = fetchFlightStatus;
+  window.renderFlightCardHTML = renderFlightCardHTML;
+}
+
