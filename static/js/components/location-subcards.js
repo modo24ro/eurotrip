@@ -30,7 +30,7 @@
       <div class="subcard-slide subcard-slide-notes" data-subcard-type="notes">
         <div class="subcard-inner subcard-notes-content" title="${esc(notes)}">
           <span class="subcard-icon">📝</span>
-          <span class="subcard-text subcard-notes-text">${esc(notes)}</span>
+          <span class="subcard-text subcard-notes-text">${(typeof window !== 'undefined' && window.renderFormattedNotes) ? window.renderFormattedNotes(notes) : esc(notes)}</span>
         </div>
       </div>
     `;
@@ -92,31 +92,39 @@
   }
 
   /**
-   * 3. Subcard: Attachments + Confirmation
+   * 3. Subcard: Attachments + Multi-Links / Confirmation
    */
   function renderAttachmentsAndConfCard(loc) {
     const hasAttachments = loc.attachments && loc.attachments.length > 0;
-    const confUrl = (loc.confirmation_url || '').trim();
-    const hasConf = confUrl && (confUrl.startsWith('http://') || confUrl.startsWith('https://'));
 
-    if (!hasAttachments && !hasConf) return null;
-
-    let confMarkup = '';
-    if (hasConf) {
-      const confLabel = (loc.confirmation_label || '').trim() || 'Confirmare';
-      confMarkup = `
+    let linksMarkup = '';
+    if (typeof window !== 'undefined' && typeof window.renderMultiLinksHTML === 'function') {
+      linksMarkup = window.renderMultiLinksHTML(loc, { extraClasses: 'subcard-chip' });
+    } else {
+      const rawLinks = Array.isArray(loc.links) ? loc.links.filter(l => l && l.url && l.url.trim()) : [];
+      if (rawLinks.length === 0 && loc.confirmation_url && loc.confirmation_url.trim()) {
+        rawLinks.push({ url: loc.confirmation_url, label: loc.confirmation_label || 'Confirmare' });
+      }
+      linksMarkup = rawLinks.slice(0, 3).map(link => {
+        const url = (link.url || '').trim();
+        const label = (link.label || '').trim() || 'Confirmare';
+        return `
         <a class="strip-chip strip-confirmation confirmation-link subcard-chip"
-           href="${esc(confUrl)}"
+           href="${esc(url)}"
            target="_blank"
            rel="noopener noreferrer"
            data-action="openConfirmationDoc"
-           data-canonical-url="${esc(confUrl)}"
-           title="${esc(confLabel)}">
-          <span class="chip-icon">📑</span>
-          <span class="chip-label">${esc(confLabel)}</span>
+           data-canonical-url="${esc(url)}"
+           title="${esc(label)}"
+           aria-label="${esc(label)}">
+          <span class="chip-icon">🔗</span>
+          <span class="chip-label">${esc(label)}</span>
         </a>
       `;
+      }).join('');
     }
+
+    if (!hasAttachments && !linksMarkup) return null;
 
     let attMarkup = '';
     if (hasAttachments) {
@@ -137,7 +145,7 @@
     return `
       <div class="subcard-slide subcard-slide-media" data-subcard-type="media">
         <div class="subcard-inner subcard-media-content">
-          ${confMarkup}
+          ${linksMarkup}
           ${attMarkup}
         </div>
       </div>

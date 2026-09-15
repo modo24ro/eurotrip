@@ -22,6 +22,7 @@ import {
   safeExternalUrl,
   wazeUrl,
   genId,
+  renderFormattedNotes,
 } from './core/utils.js';
 
 import {
@@ -327,7 +328,13 @@ function openDeleteLocationModal(id) {
 function duplicateLocation(id) {
   const idx = state.trip.locations.findIndex(l => l.id === id);
   if (idx === -1) return;
-  const copy = { ...state.trip.locations[idx], id: genId(), visited: false };
+  const orig = state.trip.locations[idx];
+  const copy = {
+    ...orig,
+    id: genId(),
+    visited: false,
+    links: Array.isArray(orig.links) ? orig.links.map(l => ({ ...l })) : []
+  };
   state.trip.locations.splice(idx + 1, 0, copy);
   markUnsaved();
   renderMain();
@@ -362,6 +369,7 @@ function addBlankLocation() {
     paid: false,
     confirmation_label: '',
     confirmation_url: '',
+    links: [],
     attachments: [],
   };
   state.pendingNewLocation = loc;
@@ -1452,8 +1460,14 @@ function renderMap() {
   });
   if (bounds.length === 1) state.map.setView(bounds[0], 13);
   else if (bounds.length > 1) state.map.fitBounds(bounds, { padding: [28, 28] });
-  else state.map.setView([48, 10], 5);
-  setTimeout(() => state.map?.invalidateSize(), 0);
+  setTimeout(() => state.map?.invalidateSize({ pan: false }), 0);
+  if (typeof window !== 'undefined' && window.ResizeObserver && mapElement) {
+    const ro = new ResizeObserver(() => {
+      if (state.map) state.map.invalidateSize({ pan: false });
+    });
+    ro.observe(mapElement);
+    _mapListenerAC?.signal.addEventListener('abort', () => ro.disconnect(), { once: true });
+  }
 }
 
 // Redesenează NUMAI markerii și liniile pe harta existentă (fără a distruge instanța Leaflet)
@@ -1974,7 +1988,7 @@ function launchConfirmationUrl(rawUrl) {
     if (typeof toast === 'function') {
       toast('Introduceți un link mai întâi.', 'warning');
     }
-    const input = document.querySelector('.doc-link-field-group [data-field="confirmation_url"]') || document.getElementById('docUrlInput');
+    const input = document.querySelector('.multi-links-field-group .multi-link-url-input') || document.querySelector('.doc-link-field-group [data-field="confirmation_url"]') || document.getElementById('docUrlInput');
     input?.focus();
     return;
   }
@@ -2018,6 +2032,10 @@ if (typeof window !== 'undefined') {
   window.extractPackageIdFromUrl = extractPackageIdFromUrl;
   window.launchConfirmationUrl = launchConfirmationUrl;
   window.handleAppDeepLink = handleAppDeepLink;
+  window.getLinkMeta = getLinkMeta;
+  window.getEffectiveLinks = getEffectiveLinks;
+  window.renderMultiLinksHTML = renderMultiLinksHTML;
+  window.renderConfirmationLinkHTML = renderConfirmationLinkHTML;
 }
 
 // ============================================================
@@ -2033,6 +2051,202 @@ function closeCardDrawer() {
   closeLocationModal();
 }
 
+
+// ── Link metadata detection ───────────────────────────────────────────────────
+function getLinkMeta(rawUrl) {
+  const url = (rawUrl || '').toLowerCase();
+  if (!url) return { icon: '🔗', label: 'Link', logoClass: '' };
+
+  // WhatsApp
+  if (url.includes('wa.me') || url.includes('whatsapp.com'))
+    return { icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.858L0 24l6.293-1.504A11.94 11.94 0 0 0 12 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.859 0-3.6-.503-5.098-1.378l-.368-.215-3.73.892.934-3.638-.24-.38A9.946 9.946 0 0 1 2 12c0-5.514 4.486-10 10-10s10 4.486 10 10-4.486 10-10 10z"/></svg>', label: 'WhatsApp', logoClass: 'link-whatsapp' };
+
+  // Wizz Air
+  if (url.includes('wizzair.com'))
+    return {
+      icon: '<svg viewBox="0 0 250 103" width="20" height="20" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<defs>' +
+        '<mask id="wizzMask">' +
+        '<image href="https://upload.wikimedia.org/wikipedia/commons/3/35/Wizz_Air_logo_2015.svg" width="250" height="103" filter="brightness(0) invert(1)"/>' +
+        '</mask>' +
+        '</defs>' +
+        '<rect width="250" height="103" fill="white" mask="url(#wizzMask)"/>' +
+        '<image href="https://upload.wikimedia.org/wikipedia/commons/3/35/Wizz_Air_logo_2015.svg" width="250" height="103"/>' +
+        '</svg>',
+      label: 'Wizz Air',
+      logoClass: 'link-wizzair'
+    };
+  // Ryanair
+  if (url.includes('ryanair.com'))
+    return {
+      icon: '<svg viewBox="0 0 256 256" width="15" height="15" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<image href="https://companieslogo.com/img/orig/RYAAY-66486679.png?t=1720244493" width="256" height="256" preserveAspectRatio="xMidYMid meet"/>' +
+        '</svg>',
+      label: 'Ryanair',
+      logoClass: 'link-ryanair'
+    };
+
+  // Google Play
+  if (url.includes('play.google.com'))
+    return {
+      icon:
+        '<svg viewBox="0 0 466 511.98" width="14" height="15" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" ' +
+        'preserveAspectRatio="xMidYMid meet" ' +
+        'shape-rendering="geometricPrecision" text-rendering="geometricPrecision" image-rendering="optimizeQuality" ' +
+        'fill-rule="evenodd" clip-rule="evenodd">' +
+        '<g>' +
+        '<path fill="#EA4335" fill-rule="nonzero" d="M199.9 237.8l-198.5 232.37c7.22,24.57 30.16,41.81 55.8,41.81 11.16,0 20.93,-2.79 29.3,-8.37l0 0 244.16 -139.46 -130.76 -126.35z"/>' +
+        '<path fill="#FBBC04" fill-rule="nonzero" d="M433.91 205.1l0 0 -104.65 -60 -111.61 110.22 113.01 108.83 104.64 -58.6c18.14,-9.77 30.7,-29.3 30.7,-50.23 -1.4,-20.93 -13.95,-40.46 -32.09,-50.22z"/>' +
+        '<path fill="#34A853" fill-rule="nonzero" d="M199.42 273.45l129.85 -128.35 -241.37 -136.73c-8.37,-5.58 -19.54,-8.37 -30.7,-8.37 -26.5,0 -50.22,18.14 -55.8,41.86 0,0 0,0 0,0l198.02 231.59z"/>' +
+        '<path fill="#4285F4" fill-rule="nonzero" d="M1.39 41.86c-1.39,4.18 -1.39,9.76 -1.39,15.34l0 397.64c0,5.57 0,9.76 1.4,15.34l216.27 -214.86 -216.28 -213.46z"/>' +
+        '</g>' +
+        '</svg>',
+      label: 'Google Play',
+      logoClass: 'link-gplay'
+    };
+
+  // App Store
+  if (url.includes('apps.apple.com') || url.includes('itunes.apple.com'))
+    return { icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98l-.09.06c-.22.15-2.22 1.3-2.2 3.88.03 3.02 2.65 4.03 2.68 4.04l-.03.2zM13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>', label: 'App Store', logoClass: 'link-appstore' };
+
+  // Booking.com
+  // Booking.com
+  if (url.includes('booking.com'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="#003B95" d="M4.2 4.5h6.1c3.1 0 5.1 1.7 5.1 4.3 0 1.5-.7 2.7-1.9 3.4 1.7.6 2.7 1.9 2.7 3.7 0 2.8-2.1 4.6-5.4 4.6H4.2V4.5zm3.2 2.8v3.8h2.5c1.4 0 2.3-.7 2.3-1.9 0-1.2-.9-1.9-2.3-1.9H7.4zm0 6.4v4h3c1.5 0 2.5-.7 2.5-2s-1-2-2.5-2h-3z"/>' +
+        '<path fill="#003B95" d="M19.2 7.5c.9 0 1.7.8 1.7 1.7s-.8 1.7-1.7 1.7-1.7-.8-1.7-1.7.8-1.7 1.7-1.7zM17.7 13.1h3v7.4h-3v-7.4z"/>' +
+        '</svg>',
+      label: 'Booking.com',
+      logoClass: 'link-booking'
+    };
+
+  // Airbnb
+  if (url.includes('airbnb.com') || url.includes('airbnb.'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="#FF385C" d="M12 2.2c-1.8 0-3.1 1.2-4.1 3.2L3.4 15c-1.5 3.1-.1 5.8 2.8 6.5 2.4.6 4.5-.8 5.8-3.3l.0-.1.0.1c1.3 2.5 3.4 3.9 5.8 3.3 2.9-.7 4.3-3.4 2.8-6.5l-4.5-9.6C15.1 3.4 13.8 2.2 12 2.2zm0 2.5c.6 0 1.2.6 1.8 1.8l4.5 9.7c.8 1.7.2 2.8-1.1 3.1-1.2.3-2.4-.7-3.2-2.3L12 14l-2 3c-.8 1.6-2 2.6-3.2 2.3-1.3-.3-1.9-1.4-1.1-3.1l4.5-9.7c.6-1.2 1.2-1.8 1.8-1.8z"/>' +
+        '</svg>',
+      label: 'Airbnb',
+      logoClass: 'link-airbnb'
+    };
+
+  // Google Maps
+  if (url.includes('maps.google') || url.includes('goo.gl') || url.includes('maps.app.goo'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="#4285F4" d="M12 1.8C7.9 1.8 4.6 5 4.6 9c0 5.2 7.4 13.2 7.4 13.2S19.4 14.2 19.4 9c0-4-3.3-7.2-7.4-7.2z"/>' +
+        '<path fill="#34A853" d="M12 1.8c-1.3 0-2.5.3-3.5.9l3.5 5.8 3.5-5.8c-1-.6-2.2-.9-3.5-.9z"/>' +
+        '<path fill="#FBBC04" d="M8.5 2.7C6.2 3.9 4.6 6.2 4.6 9c0 1.3.5 2.8 1.1 4.2l4.3-7.2-1.5-3.3z"/>' +
+        '<path fill="#EA4335" d="M15.5 2.7L12 8.5l4.3 7.2c1.7-2.7 3.1-5.4 3.1-6.7 0-2.8-1.6-5.1-3.9-6.3z"/>' +
+        '<circle cx="12" cy="9" r="2.6" fill="#fff"/>' +
+        '</svg>',
+      label: 'Google Maps',
+      logoClass: 'link-gmaps'
+    };
+
+  // Uber
+  if (url.includes('uber.com'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="currentColor" d="M5 5h4v8.3c0 1.7 1.2 2.8 3 2.8s3-1.1 3-2.8V5h4v8.3c0 4-2.9 6.3-7 6.3s-7-2.3-7-6.3V5z"/>' +
+        '<path fill="currentColor" d="M7 2h10v2H7z"/>' +
+        '</svg>',
+      label: 'Uber',
+      logoClass: 'link-uber'
+    };
+
+  // Bolt
+  if (url.includes('bolt.eu') || url.includes('taxify.eu'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="#34C759" d="M13.5 2 5 13h5l-1.5 9L19 10h-5l-.5-8z"/>' +
+        '</svg>',
+      label: 'Bolt',
+      logoClass: 'link-bolt'
+    };
+
+  // TripAdvisor
+  if (url.includes('tripadvisor'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="#34E0A1" d="M3 8.5C4.5 6.4 7.3 5 12 5s7.5 1.4 9 3.5l-2.1 1.4c.7.9 1.1 2 1.1 3.2 0 2.9-2.3 5.2-5.2 5.2-1.9 0-3.6-1-4.5-2.5-.9 1.5-2.6 2.5-4.5 2.5-2.9 0-5.2-2.3-5.2-5.2 0-1.2.4-2.3 1.1-3.2L3 8.5z"/>' +
+        '<circle cx="7.8" cy="13" r="2.1" fill="#fff"/>' +
+        '<circle cx="16.2" cy="13" r="2.1" fill="#fff"/>' +
+        '<circle cx="7.8" cy="13" r=".8" fill="#222"/>' +
+        '<circle cx="16.2" cy="13" r=".8" fill="#222"/>' +
+        '</svg>',
+      label: 'TripAdvisor',
+      logoClass: 'link-tripadvisor'
+    };
+
+  // Revolut
+  if (url.includes('revolut.com'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<rect x="2" y="5" width="20" height="14" rx="2.5" fill="#0075EB"/>' +
+        '<path fill="#fff" d="M7 8h5.3c2.1 0 3.4 1.1 3.4 2.9 0 1.3-.7 2.2-1.9 2.6L16.5 16h-2.9l-2.2-2.2H9.5V16H7V8zm2.5 2v1.8h2.5c.7 0 1.2-.3 1.2-.9s-.5-.9-1.2-.9H9.5z"/>' +
+        '</svg>',
+      label: 'Revolut',
+      logoClass: 'link-revolut'
+    };
+
+  // PDF / document
+  if (url.endsWith('.pdf') || url.includes('/pdf/'))
+    return {
+      icon: '<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">' +
+        '<path fill="#E53935" d="M6 2h8l5 5v15H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>' +
+        '<path fill="#fff" d="M14 2v6h5z"/>' +
+        '<path fill="#fff" d="M7 15h2.2c1.2 0 2-.7 2-1.8s-.8-1.8-2-1.8H7V15zm1.5-2.4h.6c.4 0 .7.2.7.6s-.3.6-.7.6h-.6v-1.2zm4.1-1.2v3.6h1.5c1.4 0 2.3-.7 2.3-1.8s-.9-1.8-2.3-1.8h-1.5zm1.5 1.2h.1c.5 0 .8.2.8.6s-.3.6-.8.6h-.1v-1.2z"/>' +
+        '</svg>',
+      label: 'Document PDF',
+      logoClass: 'link-pdf'
+    };
+
+  // Generic
+  try {
+    const validUrlStr = rawUrl.startsWith('http') ? rawUrl : ('https://' + rawUrl);
+    const host = new URL(validUrlStr).hostname.replace(/^www\./i, '');
+    const domainLabel = host.split('.')[0] || 'Link';
+    return { icon: '🔗', label: domainLabel.charAt(0).toUpperCase() + domainLabel.slice(1), logoClass: '' };
+  } catch {
+    return { icon: '🔗', label: 'Link', logoClass: '' };
+  }
+}
+
+// ── Get effective links array (supports legacy confirmation_url) ──────────────
+function getEffectiveLinks(loc) {
+  if (!loc) return [];
+  const links = Array.isArray(loc.links) ? loc.links.filter(l => l && l.url && l.url.trim()) : [];
+  // Backward compat: if no links but has confirmation_url, treat it as links[0]
+  if (links.length === 0 && loc.confirmation_url && loc.confirmation_url.trim()) {
+    const meta = getLinkMeta(loc.confirmation_url);
+    links.push({ url: loc.confirmation_url, label: loc.confirmation_label || meta.label });
+  }
+  return links.slice(0, 3);
+}
+
+// ── Render link chips for card strip ─────────────────────────────────────────
+function renderMultiLinksHTML(locOrLinks, options = {}) {
+  let links = [];
+  if (Array.isArray(locOrLinks)) {
+    links = locOrLinks.filter(l => l && l.url && l.url.trim()).slice(0, 3);
+  } else if (locOrLinks && typeof locOrLinks === 'object') {
+    links = getEffectiveLinks(locOrLinks);
+  }
+  if (!links.length) return '';
+  return links.map(link => {
+    const url = cleanUrlString(link.url);
+    if (!url || !isValidHttpUrl(url)) return '';
+    const meta = getLinkMeta(url);
+    const displayLabel = (link.label || '').trim() || meta.label;
+    const iconHTML = meta.icon.startsWith('<') ? meta.icon : `<span class="chip-icon-emoji">${meta.icon}</span>`;
+    const extraClasses = options.extraClasses ? ` ${options.extraClasses}` : '';
+    const logoClass = meta.logoClass ? ` ${meta.logoClass}` : '';
+    return `<a class="strip-chip strip-confirmation confirmation-link${extraClasses}${logoClass}" href="${esc(url)}" target="_blank" rel="noopener noreferrer" data-action="openConfirmationDoc" data-canonical-url="${esc(url)}" title="${esc(displayLabel)}" aria-label="${esc(displayLabel)}"><span class="chip-icon-wrap">${iconHTML}</span><span class="chip-label">${esc(displayLabel)}</span></a>`;
+  }).join('');
+}
+
 function renderConfirmationLinkHTML(rawUrl, rawLabel, options = {}) {
   const url = cleanUrlString(rawUrl);
   if (!url || !isValidHttpUrl(url)) return '';
@@ -2045,6 +2259,7 @@ function renderConfirmationLinkHTML(rawUrl, rawLabel, options = {}) {
 
   return `<a class="strip-chip strip-confirmation confirmation-link${extraClasses}" href="${safeUrl}" target="_blank" rel="noopener noreferrer" data-action="openConfirmationDoc" data-canonical-url="${safeUrl}" title="${displayTitle}" aria-label="${displayTitle}"><span class="chip-icon">📑</span>${label ? `<span class="chip-label">${esc(label)}</span>` : ''}</a>`;
 }
+
 
 function renderAttachmentChipHTML(loc) {
   if (!loc) return '';
@@ -2192,8 +2407,8 @@ function renderTimelineView() {
                 ${loc.cost > 0 ? `<span class="strip-chip strip-cost">${sym}${loc.cost}</span>` : ''}
                 ${loc.reservation_status ? `<span class="strip-chip strip-booking">${loc.reservation_status === 'confirmed' ? '✓ Confirmed' : 'Reserved'}</span>` : ''}
                 ${renderAttachmentChipHTML(loc)}
-                ${renderConfirmationLinkHTML(loc.confirmation_url, loc.confirmation_label)}
-                ${loc.notes ? `<span class="strip-chip strip-notes" title="${esc(loc.notes)}">${esc(loc.notes)}</span>` : ''}
+                ${renderMultiLinksHTML(loc)}
+                ${loc.notes ? `<span class="strip-chip strip-notes" title="${esc(loc.notes)}">${renderFormattedNotes(loc.notes)}</span>` : ''}
               </div>
               <div class="timeline-actions">
                 <button type="button" class="card-icon-btn${isVisited ? ' done-active' : ''}" data-action="markVisited" title="${isVisited ? 'Marchează ca nefăcut' : 'Marchează ca făcut'}">
@@ -2227,7 +2442,7 @@ function renderTimelineView() {
                   <strong>${CATEGORY_ICONS[safecat]} ${esc(loc.name)}</strong>
                   <span class="tag tag-city">${esc(loc.city || loc.country || '')}</span>
                 </div>
-                ${loc.notes ? `<div class="tflex-notes">${esc(loc.notes)}</div>` : ''}
+                ${loc.notes ? `<div class="tflex-notes">${renderFormattedNotes(loc.notes)}</div>` : ''}
                 <div class="tflex-actions">
                   <button type="button" class="btn-secondary tflex-btn" data-open-card-modal="${esc(loc.id)}">Set Time / View</button>
                 </div>
@@ -2366,15 +2581,182 @@ function renderCardSubcardHTML(loc) {
     return window.LocationSubcards.renderHTML(loc);
   }
   const notes = (loc.notes || '').trim();
-  const notesHtml = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
+  const notesHtml = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${renderFormattedNotes(notes)}</span></div>` : '';
   const addrHtml = loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '';
-  return `${notesHtml}${addrHtml}`;
+  const linksHtml = renderMultiLinksHTML(loc);
+  return `${notesHtml}${addrHtml}${linksHtml ? `<div class="card-links-row">${linksHtml}</div>` : ''}`;
 }
 
 function updateCardSubcard(card, loc) {
   if (!card) return;
   if (window.LocationSubcards) {
     window.LocationSubcards.updateCard(card, loc);
+  }
+}
+
+function applyTextFormatToTextarea(textarea, format) {
+  if (!textarea) return;
+  textarea.focus();
+  const start = textarea.selectionStart ?? 0;
+  const end = textarea.selectionEnd ?? 0;
+  const text = textarea.value || '';
+  const selectedText = text.substring(start, end);
+
+  let prefix = '';
+  let suffix = '';
+  let defaultPlaceholder = '';
+
+  switch (format) {
+    case 'bold':
+      prefix = '**';
+      suffix = '**';
+      defaultPlaceholder = 'text îngroșat';
+      break;
+    case 'italic':
+      prefix = '*';
+      suffix = '*';
+      defaultPlaceholder = 'text cursiv';
+      break;
+    case 'underline':
+      prefix = '<u>';
+      suffix = '</u>';
+      defaultPlaceholder = 'text subliniat';
+      break;
+    case 'strike':
+      prefix = '~~';
+      suffix = '~~';
+      defaultPlaceholder = 'text tăiat';
+      break;
+    default:
+      return;
+  }
+
+  // Toggle behavior: check if already wrapped
+  if (selectedText.startsWith(prefix) && selectedText.endsWith(suffix) && selectedText.length >= prefix.length + suffix.length) {
+    const unwrapped = selectedText.substring(prefix.length, selectedText.length - suffix.length);
+    textarea.setRangeText(unwrapped, start, end, 'select');
+  } else if (
+    start >= prefix.length &&
+    end + suffix.length <= text.length &&
+    text.substring(start - prefix.length, start) === prefix &&
+    text.substring(end, end + suffix.length) === suffix
+  ) {
+    const newText = text.substring(0, start - prefix.length) + selectedText + text.substring(end + suffix.length);
+    textarea.value = newText;
+    textarea.setSelectionRange(start - prefix.length, end - prefix.length);
+  } else {
+    const content = selectedText || defaultPlaceholder;
+    const replacement = prefix + content + suffix;
+    textarea.setRangeText(replacement, start, end, 'select');
+    if (!selectedText) {
+      textarea.setSelectionRange(start + prefix.length, start + prefix.length + defaultPlaceholder.length);
+    }
+  }
+
+  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  textarea.dispatchEvent(new Event('change', { bubbles: true }));
+}
+
+function renderAttachmentsTableHTML(locationId, attachments) {
+  if (!Array.isArray(attachments) || attachments.length === 0) {
+    return `
+      <div class="attachments-empty-state">
+        <div class="empty-icon-wrap">
+          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+            <polyline points="13 2 13 9 20 9"></polyline>
+          </svg>
+        </div>
+        <div class="empty-text-wrap">
+          <div class="empty-title">Niciun document atașat</div>
+          <div class="empty-desc">Apasă pe <strong>„Adaugă fișiere”</strong> sau trage fișiere aici (bilete, rezervări, PDF-uri, imagini).</div>
+        </div>
+      </div>
+    `;
+  }
+
+  const rows = attachments.map(file => {
+    const meta = getFileMeta(file.name);
+    const sizeStr = file.size ? formatBytes(file.size) : '—';
+    const rawUrl = buildAttachmentRawUrl(locationId, file.name);
+    const dlUrl = buildAttachmentDownloadUrl(locationId, file.name);
+    const ext = (meta.ext || '').toUpperCase();
+
+    return `
+      <div class="att-table-row" data-file-name="${esc(file.name)}">
+        <div class="att-col-file">
+          <span class="att-file-icon" aria-hidden="true">${meta.icon}</span>
+          <div class="att-file-info">
+            <a class="att-file-name-link" href="${esc(rawUrl)}" data-action="previewAttachment" data-loc-id="${esc(locationId)}" data-file-name="${esc(file.name)}" title="Previzualizează ${esc(file.name)}">
+              ${esc(file.name)}
+            </a>
+            ${ext ? `<span class="att-ext-badge att-ext-${esc(meta.ext)}">${esc(ext)}</span>` : ''}
+          </div>
+        </div>
+        <div class="att-col-size">${esc(sizeStr)}</div>
+        <div class="att-col-actions">
+          <button type="button" class="att-action-btn att-btn-preview" data-action="previewAttachment" data-loc-id="${esc(locationId)}" data-file-name="${esc(file.name)}" title="Previzualizează (Preview)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+          <button type="button" class="att-action-btn att-btn-share" data-action="shareAttachment" data-loc-id="${esc(locationId)}" data-file-name="${esc(file.name)}" title="Distribuie / Copiază link (Share)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="18" cy="5" r="3"></circle>
+              <circle cx="6" cy="12" r="3"></circle>
+              <circle cx="18" cy="19" r="3"></circle>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+            </svg>
+          </button>
+          <a class="att-action-btn att-btn-download" href="${esc(dlUrl)}" download="${esc(file.name)}" target="_blank" rel="noopener noreferrer" title="Descarcă (Download)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+          </a>
+          <button type="button" class="att-action-btn att-btn-delete" data-action="deleteAttachmentModalItem" data-loc-id="${esc(locationId)}" data-file-name="${esc(file.name)}" title="Șterge fișier (Delete)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              <line x1="10" y1="11" x2="10" y2="17"></line>
+              <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="modal-attachments-table">
+      <div class="att-table-header">
+        <div class="att-th att-col-file">Fișier</div>
+        <div class="att-th att-col-size">Mărime</div>
+        <div class="att-th att-col-actions">Acțiuni</div>
+      </div>
+      <div class="att-table-body">
+        ${rows}
+      </div>
+    </div>
+  `;
+}
+
+function refreshModalAttachments(locationId) {
+  const modalBody = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
+  if (!modalBody) return;
+  const loc = getLocation(locationId);
+  if (!loc) return;
+  const wrap = modalBody.querySelector('.modal-attachments-table-wrap');
+  if (wrap) {
+    wrap.innerHTML = renderAttachmentsTableHTML(loc.id, loc.attachments || []);
+  }
+  const countEl = modalBody.querySelector('.attachments-badge-count');
+  if (countEl) {
+    const count = (loc.attachments || []).length;
+    countEl.textContent = count > 0 ? `(${count})` : '';
   }
 }
 
@@ -2396,25 +2778,35 @@ function locationFormHTML(loc) {
     <div class="location-edit-form location-card card-fields" data-id="${esc(loc.id)}" style="--cat-color: var(--cat-${safecat});">
       <!-- Navigation Tabs -->
       <div class="modal-tabs-nav" role="tablist">
-        <button type="button" class="modal-tab-btn active" data-tab="general" role="tab" aria-selected="true">
-          <span class="tab-icon">ℹ️</span>
+        <button type="button" class="modal-tab-btn active" data-tab="general" role="tab" aria-selected="true" title="General">
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
           <span class="tab-label">General</span>
         </button>
-        <button type="button" class="modal-tab-btn" data-tab="schedule" role="tab" aria-selected="false">
-          <span class="tab-icon">🗓️</span>
+        <button type="button" class="modal-tab-btn" data-tab="schedule" role="tab" aria-selected="false" title="Program">
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5zm2 4h5v5H7v-5z"/>
+          </svg>
           <span class="tab-label">Program</span>
         </button>
-        <button type="button" class="modal-tab-btn" data-tab="budget" role="tab" aria-selected="false">
-          <span class="tab-icon">💳</span>
-          <span class="tab-label">Buget &amp; Rezervare</span>
+        <button type="button" class="modal-tab-btn" data-tab="budget" role="tab" aria-selected="false" title="Buget &amp; Rezervare">
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+          </svg>
+          <span class="tab-label">Buget</span>
         </button>
-        <button type="button" class="modal-tab-btn tab-flight-btn${safecat === 'transport_flight' ? '' : ' is-hidden'}" data-tab="flight" role="tab" aria-selected="false">
-          <span class="tab-icon">✈️</span>
+        <button type="button" class="modal-tab-btn tab-flight-btn${safecat === 'transport_flight' ? '' : ' is-hidden'}" data-tab="flight" role="tab" aria-selected="false" title="Zbor">
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+          </svg>
           <span class="tab-label">Zbor</span>
         </button>
-        <button type="button" class="modal-tab-btn" data-tab="notes" role="tab" aria-selected="false">
-          <span class="tab-icon">📝</span>
-          <span class="tab-label">Notițe &amp; Fișiere</span>
+        <button type="button" class="modal-tab-btn" data-tab="notes" role="tab" aria-selected="false" title="Notițe &amp; Fișiere">
+          <svg class="tab-svg-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+          </svg>
+          <span class="tab-label">Notițe</span>
           ${attachmentsCount > 0 ? `<span class="tab-badge">${attachmentsCount}</span>` : ''}
         </button>
       </div>
@@ -2429,11 +2821,8 @@ function locationFormHTML(loc) {
           </div>
 
           <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_category">Categorie</label>
-            <select id="loc_${safeId}_category" class="field-select" data-field="category">${catOptions}</select>
-            <div class="flight-category-hint" style="${safecat === 'transport_flight' ? '' : 'display:none'}">
-              ✈️ Zbor selectat: mergi la tab-ul <button type="button" class="inline-tab-switch-btn" data-switch-tab="flight">✈️ Zbor</button> pentru orar și număr zbor
-            </div>
+            <label class="field-label" for="loc_${safeId}_city">Oraș</label>
+            <input type="text" id="loc_${safeId}_city" class="field-input" data-field="city" value="${esc(loc.city || '')}" placeholder="ex: Barcelona, Iași...">
           </div>
 
           <div class="field-group">
@@ -2441,9 +2830,20 @@ function locationFormHTML(loc) {
             <input type="text" id="loc_${safeId}_country" class="field-input" data-field="country" value="${esc(loc.country || '')}" placeholder="ex: Spania, România...">
           </div>
 
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_city">Oraș</label>
-            <input type="text" id="loc_${safeId}_city" class="field-input" data-field="city" value="${esc(loc.city || '')}" placeholder="ex: Barcelona, Iași...">
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_category">Categorie</label>
+            <select id="loc_${safeId}_category" class="field-select" data-field="category">${catOptions}</select>
+          </div>
+
+          <div class="field-group full-width general-flight-iata-group${safecat === 'transport_flight' ? '' : ' is-hidden'}">
+            <label class="field-label" for="loc_${safeId}_flight_gen">✈️ Număr zbor (IATA)</label>
+            <div class="flight-input-row">
+              <input type="text" id="loc_${safeId}_flight_gen" class="field-input flight-number-input" data-field="flight_number"
+                value="${esc(loc.flight_number || '')}" placeholder="ex: W4 3685, RO 371..." style="text-transform:uppercase">
+              <button type="button" class="btn-primary check-and-preview-flight-btn" data-action="checkAndPreviewFlight" data-loc-id="${esc(loc.id)}"
+                title="Verifică zborul și deschide detaliile">✈️ Verifică &amp; Preview</button>
+            </div>
+            <span class="field-hint">Companie + număr zbor pentru preluare automată orar, terminal, poartă și status.</span>
           </div>
 
           <div class="field-group full-width">
@@ -2496,80 +2896,157 @@ function locationFormHTML(loc) {
 
         <!-- TAB 3: BUGET & REZERVARE -->
         <div class="modal-tab-pane" data-pane="budget" role="tabpanel">
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_res_status">Status rezervare</label>
-            <select id="loc_${safeId}_res_status" class="field-select" data-field="reservation_status">
-              <option value=""${!loc.reservation_status ? ' selected' : ''}>Fără rezervare</option>
-              <option value="reserved"${loc.reservation_status === 'reserved' ? ' selected' : ''}>Rezervat (în așteptare)</option>
-              <option value="confirmed"${loc.reservation_status === 'confirmed' ? ' selected' : ''}>Confirmat</option>
-            </select>
-          </div>
-
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_cost">Cost</label>
-            <div class="cost-wrap">
-              <span class="cost-symbol">${sym}</span>
-              <input type="number" id="loc_${safeId}_cost" class="field-input cost-input" data-field="cost"
-                value="${loc.cost || 0}" min="0" step="0.01" placeholder="0">
+          <div class="field-group full-width budget-controls-row">
+            <div class="budget-col budget-col-res">
+              <label class="field-label" for="loc_${safeId}_res_status">Status rezervare</label>
+              <select id="loc_${safeId}_res_status" class="field-select" data-field="reservation_status">
+                <option value=""${!loc.reservation_status ? ' selected' : ''}>Fără rezervare</option>
+                <option value="reserved"${loc.reservation_status === 'reserved' ? ' selected' : ''}>Rezervat (în așteptare)</option>
+                <option value="confirmed"${loc.reservation_status === 'confirmed' ? ' selected' : ''}>Confirmat</option>
+              </select>
             </div>
-          </div>
 
-          <div class="field-group full-width paid-field-group">
-            <label class="field-checkbox-pill" for="loc_${safeId}_paid">
-              <input type="checkbox" id="loc_${safeId}_paid" class="field-checkbox-input" data-field="paid"${loc.paid ? ' checked' : ''}>
-              <span class="checkbox-indicator">
-                <svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>
-              </span>
-              <span class="checkbox-label-text">Plătit integral</span>
-            </label>
-          </div>
-
-          <div class="field-group full-width doc-link-field-group">
-            <div class="doc-link-header-row">
-              <label class="field-label" for="loc_${safeId}_doc_url">Link document / confirmare / bilet</label>
-              <div class="doc-label-input-wrap">
-                <label class="doc-label-prefix" for="loc_${safeId}_doc_label">Etichetă:</label>
-                <input type="text" id="loc_${safeId}_doc_label" class="field-input doc-label-input" data-field="confirmation_label" value="${esc(loc.confirmation_label || '')}" placeholder="ex: Bilete, Voucher, Rezervare…">
+            <div class="budget-col budget-col-cost">
+              <label class="field-label" for="loc_${safeId}_cost">Cost</label>
+              <div class="cost-wrap">
+                <span class="cost-symbol">${sym}</span>
+                <input type="number" id="loc_${safeId}_cost" class="field-input cost-input" data-field="cost"
+                  value="${loc.cost || 0}" min="0" step="0.01" placeholder="0">
               </div>
             </div>
-            <div class="doc-link-input-wrapper">
-              <input type="url" id="loc_${safeId}_doc_url" class="field-input" data-field="confirmation_url" value="${esc(loc.confirmation_url || '')}" placeholder="https://… sau link aplicație">
-              <button type="button" class="btn-secondary" id="openAppBtn" data-action="openDocLink">Deschide</button>
+
+            <div class="budget-col budget-col-paid">
+              <label class="field-label">&nbsp;</label>
+              <label class="field-checkbox-pill" for="loc_${safeId}_paid">
+                <input type="checkbox" id="loc_${safeId}_paid" class="field-checkbox-input" data-field="paid"${loc.paid ? ' checked' : ''}>
+                <span class="checkbox-indicator">
+                  <svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>
+                </span>
+                <span class="checkbox-label-text">Plătit integral</span>
+              </label>
             </div>
+          </div>
+
+          <div class="field-group full-width multi-links-field-group">
+            <div class="multi-links-header-row">
+              <label class="field-label">🔗 Link-uri rapide <span class="multi-links-count-hint">(max 3)</span></label>
+            </div>
+            <div class="multi-links-list" data-multi-links>
+              ${(() => {
+      const links = getEffectiveLinks(loc);
+      const rows = links.length > 0 ? links : [{ url: '', label: '' }];
+      return rows.map((link, i) => {
+        const meta = link.url ? getLinkMeta(link.url) : null;
+        const autoLabel = meta ? meta.label : '';
+        const customLabel = (link.label || '').trim();
+        const displayVal = customLabel || (link.url ? autoLabel : '');
+        return `
+                  <div class="multi-link-row" data-link-index="${i}">
+                    <div class="multi-link-inputs">
+                      <input type="url" class="field-input multi-link-url-input" data-link-field="url" data-link-index="${i}"
+                        value="${esc(link.url || '')}" placeholder="https://… link util"
+                        autocomplete="off" spellcheck="false">
+                      <input type="text" class="field-input multi-link-label-input" data-link-field="label" data-link-index="${i}"
+                        value="${esc(displayVal)}" placeholder="${esc(autoLabel || 'Etichetă auto')}">
+                    </div>
+                    <button type="button" class="multi-link-remove-btn" data-action="removeLink" data-link-index="${i}" title="Șterge link" aria-label="Șterge link">
+                      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                  </div>`;
+      }).join('');
+    })()}
+            </div>
+            ${(() => {
+      const links = getEffectiveLinks(loc);
+      const rowCount = Math.max(links.length, 1);
+      if (rowCount >= 3) return '';
+      return `<button type="button" class="multi-link-add-btn" data-action="addLink" title="Adaugă un link nou">
+                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                Adaugă link
+              </button>`;
+    })()}
+            <div class="field-hint">WhatsApp, bilet Wizz/Ryanair, Google Play, App Store, Booking, etc. — iconul se detectează automat.</div>
           </div>
         </div>
 
         <!-- TAB 4: ZBOR -->
         <div class="modal-tab-pane" data-pane="flight" role="tabpanel">
-          <div class="field-group full-width flight-number-field-group">
-            <label class="field-label" for="loc_${safeId}_flight">✈️ Număr zbor (IATA)</label>
-            <div class="flight-input-row">
-              <input type="text" id="loc_${safeId}_flight" class="field-input flight-number-input" data-field="flight_number"
-                value="${esc(loc.flight_number || '')}" placeholder="ex: W4 3685, RO 371..." style="text-transform:uppercase">
-              <button type="button" class="btn-secondary check-flight-btn" data-action="checkFlight"
-                title="Verifică statusul zborului live">🔍 Verifică status zbor</button>
+          <div class="field-group full-width flight-tab-info-card">
+            <div class="flight-tab-redirect">
+              <span class="flight-tab-redirect-icon">✈️</span>
+              <div class="flight-tab-redirect-text">
+                <strong>Numărul zborului</strong> se setează în tab-ul <strong>General</strong>.
+              </div>
             </div>
-            <span class="field-hint">Introdu compania și numărul zborului pentru preluare orar live, terminal, poartă și status automat.</span>
+            ${loc.flight_number ? `
+  
+              <div class="flight-status-card-wrap" style="margin-top:10px;"></div>
+            ` : `
+              <p class="flight-tab-empty-hint">Introdu un număr de zbor în tab-ul <strong>General</strong> pentru a vedea statusul live.</p>
+            `}
           </div>
-          <div class="flight-status-card-wrap" style="${loc.flight_number ? '' : 'display:none'}"></div>
         </div>
 
         <!-- TAB 5: NOTIȚE & FIȘIERE -->
         <div class="modal-tab-pane" data-pane="notes" role="tabpanel">
-          <div class="field-group full-width">
-            <label class="field-label" for="loc_${safeId}_notes">Notițe &amp; Detalii utile</label>
-            <textarea id="loc_${safeId}_notes" class="field-textarea" data-field="notes" rows="4" placeholder="Adaugă notițe, coduri de acces, ponturi sau recomandări…">${esc(loc.notes || '')}</textarea>
+          <div class="field-group full-width modal-notes-group">
+            <div class="notes-header-row">
+              <label class="field-label" for="loc_${safeId}_notes" style="margin-bottom:0;">Notițe &amp; Detalii utile</label>
+              <div class="notes-toolbar" role="toolbar" aria-label="Formatare notițe">
+                <button type="button" class="notes-tool-btn" data-action="notesFormat" data-notes-format="bold" data-target-id="loc_${safeId}_notes" title="Bold / Îngroșat (Ctrl+B)">
+                  <strong>B</strong>
+                </button>
+                <button type="button" class="notes-tool-btn" data-action="notesFormat" data-notes-format="italic" data-target-id="loc_${safeId}_notes" title="Italic / Cursiv (Ctrl+I)">
+                  <em>I</em>
+                </button>
+                <button type="button" class="notes-tool-btn" data-action="notesFormat" data-notes-format="underline" data-target-id="loc_${safeId}_notes" title="Underline / Subliniat (Ctrl+U)">
+                  <u>U</u>
+                </button>
+                <button type="button" class="notes-tool-btn" data-action="notesFormat" data-notes-format="strike" data-target-id="loc_${safeId}_notes" title="Strikeout / Tăiat (~~text~~ sau Ctrl+Shift+X)">
+                  <del>S</del>
+                </button>
+                <span class="notes-tool-divider"></span>
+                <button type="button" class="notes-tool-btn notes-preview-btn" data-action="toggleNotesPreview" data-target-id="loc_${safeId}_notes" title="Comută previzualizarea formatată">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+                  <span class="preview-btn-text">Preview</span>
+                </button>
+              </div>
+            </div>
+            <div class="notes-editor-wrap">
+              <textarea id="loc_${safeId}_notes" class="field-textarea notes-textarea" data-field="notes" rows="4" placeholder="Adaugă notițe, coduri de acces, ponturi sau recomandări… (Selectează text și apasă B, I, U, S sau folosește Ctrl+B, Ctrl+I, Ctrl+U)">${esc(loc.notes || '')}</textarea>
+              <div class="notes-preview-pane" id="loc_${safeId}_notes_preview" style="display:none;"></div>
+            </div>
+            <div class="notes-hint-row">
+              <span class="notes-hint-item"><b>**bold**</b> (Ctrl+B)</span>
+              <span class="notes-hint-dot">•</span>
+              <span class="notes-hint-item"><i>*italic*</i> (Ctrl+I)</span>
+              <span class="notes-hint-dot">•</span>
+              <span class="notes-hint-item"><u>&lt;u&gt;subliniat&lt;/u&gt;</u> (Ctrl+U)</span>
+              <span class="notes-hint-dot">•</span>
+              <span class="notes-hint-item"><del>~~tăiat~~</del></span>
+            </div>
           </div>
 
-          <div class="field-group full-width">
-            <label class="field-label" for="loc_${safeId}_files">Fișiere &amp; Documente atașate</label>
-            <input type="file" id="loc_${safeId}_files" class="field-input attachment-input" data-attachment-location="${esc(loc.id)}" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx">
-            <div class="card-attachment-links">
-              ${attachments.map(file => {
-                const fileUrl = `/api/locations/${encodeURIComponent(loc.id)}/attachments/${encodeURIComponent(file.name)}`;
-                const meta = getFileMeta(file.name);
-                return `<a class="attachment-link" href="${fileUrl}" data-action="viewAttachment" data-location-id="${esc(loc.id)}" data-attachment-name="${esc(file.name)}" data-attachment-url="${esc(fileUrl)}" title="${esc(file.name)}">${meta.icon} ${esc(file.name)}</a>`;
-              }).join('')}
+          <div class="field-group full-width modal-attachments-group">
+            <div class="attachments-header-row">
+              <div class="field-label-wrap">
+                <span class="field-label" style="margin-bottom:0;">Fișiere &amp; Documente atașate</span>
+                <span class="attachments-badge-count">${attachmentsCount > 0 ? `(${attachmentsCount})` : ''}</span>
+              </div>
+              <label class="btn-upload-attachment" for="loc_${safeId}_files" title="Încarcă document / fișier">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M12 5v14M5 12h14"></path>
+                </svg>
+                <span>Adaugă fișiere</span>
+              </label>
+              <input type="file" id="loc_${safeId}_files" class="field-input attachment-input hidden-file-input" data-attachment-location="${esc(loc.id)}" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx">
+            </div>
+
+            <div class="modal-attachments-table-wrap">
+              ${renderAttachmentsTableHTML(loc.id, attachments)}
             </div>
           </div>
         </div>
@@ -2890,7 +3367,7 @@ function applySingleColMode() {
   applyCardsPerRowMode();
 }
 
-// Mobile filter active dot indicator
+// Filter active dot indicator
 function updateFilterActiveDot() {
   const isNarrow = isNarrowViewport();
   const isFiltered = (state.filter.category && state.filter.category !== 'all') ||
@@ -2900,6 +3377,8 @@ function updateFilterActiveDot() {
     (!isNarrow && (Boolean(state.singleCol) || (state.cardsPerRow && state.cardsPerRow !== 3)));
   const dot = document.getElementById('filterActiveDot');
   if (dot) dot.style.display = isFiltered ? 'inline-block' : 'none';
+  const btn = document.getElementById('openFilterModalBtn');
+  if (btn) btn.classList.toggle('has-active-filters', isFiltered);
 }
 
 // Narrow mobile nav Views toggle cycle (Days and Countries only)
@@ -3152,6 +3631,30 @@ function bindEvents() {
       if (field === 'duration_minutes') value = parseInt(value, 10) || 60;
       loc[field] = value;
     });
+
+    const multiLinksGroup = card.querySelector('.multi-links-field-group');
+    if (multiLinksGroup) {
+      const rows = multiLinksGroup.querySelectorAll('.multi-link-row');
+      const links = [];
+      rows.forEach(row => {
+        const url = (row.querySelector('.multi-link-url-input')?.value || '').trim();
+        const label = (row.querySelector('.multi-link-label-input')?.value || '').trim();
+        if (url) links.push({ url, label });
+      });
+      loc.links = links;
+      if (links.length > 0) {
+        loc.confirmation_url = links[0].url;
+        loc.confirmation_label = links[0].label;
+      } else {
+        loc.confirmation_url = '';
+        loc.confirmation_label = '';
+      }
+    } else if ((!loc.links || loc.links.length === 0) && loc.confirmation_url && loc.confirmation_url.trim()) {
+      loc.links = [{
+        url: loc.confirmation_url.trim(),
+        label: (loc.confirmation_label || '').trim()
+      }];
+    }
   }
 
   document.getElementById('locationModalSaveBtn')?.addEventListener('click', async () => {
@@ -3243,7 +3746,12 @@ function bindEvents() {
       return;
     }
     if (event.target === locationModalEl) closeLocationModal();
-    else if (event.target.closest('[data-action], .confirmation-link')) handleCardClick(event);
+    else if (event.target.closest('[data-action], .confirmation-link, [data-notes-format]')) handleCardClick(event);
+  });
+  locationModalEl?.addEventListener('mousedown', event => {
+    if (event.target.closest('.notes-tool-btn')) {
+      event.preventDefault();
+    }
   });
   const locationModalBodyEl = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
   locationModalBodyEl?.addEventListener('change', handleCardChange);
@@ -3264,6 +3772,18 @@ function bindEvents() {
         const modalTitle = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
         if (modalTitle && e.target.closest('#locationModal, #notificationLocationModal')) {
           modalTitle.textContent = e.target.value || 'Locație';
+        }
+      }
+    }
+    if (e.target?.dataset?.linkField === 'url') {
+      const row = e.target.closest('.multi-link-row');
+      const labelInput = row?.querySelector('.multi-link-label-input');
+      const url = (e.target.value || '').trim();
+      if (labelInput) {
+        const meta = url ? getLinkMeta(url) : null;
+        labelInput.placeholder = meta ? meta.label : 'Etichetă (auto-detectată)';
+        if (!labelInput.value && meta && meta.label !== 'Link') {
+          labelInput.value = meta.label;
         }
       }
     }
@@ -3605,7 +4125,8 @@ function bindEvents() {
     const cpMob = document.getElementById('cardsPerRowSelectMobile');
     if (cpMob) {
       updateCardsPerRowOptions();
-      cpMob.value = String(state.cardsPerRow || (state.singleCol ? 1 : Math.min(2, getMaxCardsPerRow())));
+      const defCards = isNarrowViewport() ? Math.min(2, getMaxCardsPerRow()) : Math.min(3, getMaxCardsPerRow());
+      cpMob.value = String(state.cardsPerRow || (state.singleCol ? 1 : defCards));
     }
     const cpGroup = document.getElementById('cardsPerRowModalGroup');
     if (cpGroup) cpGroup.style.display = '';
@@ -4479,11 +5000,11 @@ function bindEvents() {
   // Download Attachment: Native anchor download with Content-Disposition
   // For standard browsers/PWA, do not preventDefault! Only intercept in native Capacitor wrapper.
   const handleAttachmentDownloadClick = (e) => {
+    const linkEl = e.currentTarget;
+    const fullDlUrl = linkEl?.href || (docViewer.locationId && docViewer.files[docViewer.currentIndex] ? buildAttachmentDownloadUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken) : '');
     const isCapacitor = !!(window.Capacitor && window.Capacitor.Plugins);
     if (isCapacitor) {
       e.preventDefault();
-      const linkEl = e.currentTarget;
-      const fullDlUrl = linkEl?.href || (docViewer.locationId && docViewer.files[docViewer.currentIndex] ? buildAttachmentDownloadUrl(docViewer.locationId, docViewer.files[docViewer.currentIndex].name, docViewer.cachedViewToken) : '');
       if (!fullDlUrl) return;
       if (window.Capacitor.Plugins.Browser && window.Capacitor.Plugins.Browser.open) {
         window.Capacitor.Plugins.Browser.open({ url: fullDlUrl });
@@ -4691,12 +5212,69 @@ function bindEvents() {
       if (locModal?.classList.contains('open')) {
         closeLocationModal();
       }
+      const fModal = document.getElementById('filterModal');
+      if (fModal?.classList.contains('open')) {
+        fModal.classList.remove('open');
+      }
     }
   });
   mc?.addEventListener('keydown', e => {
     if ((e.key === 'Enter' || e.key === ' ') && e.target.matches?.('[data-action="toggleAddress"]')) {
       e.preventDefault();
       e.target.click();
+    }
+  });
+
+  // Location modal attachments table drag & drop
+  document.addEventListener('dragover', e => {
+    const wrap = e.target.closest?.('.modal-attachments-table-wrap');
+    if (wrap) {
+      e.preventDefault();
+      wrap.classList.add('is-dragover');
+    }
+  });
+  document.addEventListener('dragleave', e => {
+    const wrap = e.target.closest?.('.modal-attachments-table-wrap');
+    if (wrap && !wrap.contains(e.relatedTarget)) {
+      wrap.classList.remove('is-dragover');
+    }
+  });
+  document.addEventListener('drop', e => {
+    const wrap = e.target.closest?.('.modal-attachments-table-wrap');
+    if (wrap) {
+      e.preventDefault();
+      wrap.classList.remove('is-dragover');
+      const files = e.dataTransfer?.files;
+      const card = wrap.closest('.location-card');
+      const locId = card?.dataset?.id;
+      if (files?.length && locId) {
+        uploadLocationAttachments(locId, files);
+      }
+    }
+  });
+
+  // Notes textarea keyboard shortcuts: Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline), Ctrl+Shift+X / Ctrl+Shift+S (strike)
+  document.addEventListener('keydown', e => {
+    const target = e.target;
+    if (target?.matches?.('textarea[data-field="notes"]')) {
+      const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+      const mod = isMac ? e.metaKey : e.ctrlKey;
+      if (!mod) return;
+
+      const key = e.key.toLowerCase();
+      if (key === 'b') {
+        e.preventDefault();
+        applyTextFormatToTextarea(target, 'bold');
+      } else if (key === 'i') {
+        e.preventDefault();
+        applyTextFormatToTextarea(target, 'italic');
+      } else if (key === 'u') {
+        e.preventDefault();
+        applyTextFormatToTextarea(target, 'underline');
+      } else if ((key === 'x' || key === 's') && e.shiftKey) {
+        e.preventDefault();
+        applyTextFormatToTextarea(target, 'strike');
+      }
     }
   });
 
@@ -4782,8 +5360,8 @@ function bindEvents() {
   });
 }
 
-function handleCardClick(e) {
-  const actionEl = e.target.closest('[data-action], .confirmation-link, .flight-status-card-wrap, .subcard-flight-content');
+async function handleCardClick(e) {
+  const actionEl = e.target.closest('[data-action], .confirmation-link, .flight-status-card-wrap, .subcard-flight-content, [data-notes-format]');
   if (!actionEl) return;
 
 
@@ -4863,6 +5441,71 @@ function handleCardClick(e) {
   if (!card) return;
   const id = card.dataset.id;
 
+  if (actionEl.dataset.action === 'addLink') {
+    e.preventDefault();
+    e.stopPropagation();
+    const formEl = actionEl.closest('.multi-links-field-group');
+    if (!formEl) return;
+    const list = formEl.querySelector('.multi-links-list');
+    const rows = list?.querySelectorAll('.multi-link-row');
+    if (!list || rows.length >= 3) return;
+    const newIdx = rows.length;
+    const newRow = document.createElement('div');
+    newRow.className = 'multi-link-row';
+    newRow.dataset.linkIndex = newIdx;
+    newRow.innerHTML = `
+      <div class="multi-link-inputs">
+        <input type="url" class="field-input multi-link-url-input" data-link-field="url" data-link-index="${newIdx}"
+          value="" placeholder="https://… link util" autocomplete="off" spellcheck="false">
+        <input type="text" class="field-input multi-link-label-input" data-link-field="label" data-link-index="${newIdx}"
+          value="" placeholder="Etichetă auto">
+      </div>
+      <button type="button" class="multi-link-remove-btn" data-action="removeLink" data-link-index="${newIdx}" title="Șterge link" aria-label="Șterge link">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>`;
+    list.appendChild(newRow);
+    if (list.querySelectorAll('.multi-link-row').length >= 3) {
+      actionEl.style.display = 'none';
+    }
+    newRow.querySelector('.multi-link-url-input')?.focus();
+    return;
+  }
+
+  if (actionEl.dataset.action === 'removeLink') {
+    e.preventDefault();
+    e.stopPropagation();
+    const formEl = actionEl.closest('.multi-links-field-group');
+    const row = actionEl.closest('.multi-link-row');
+    const list = formEl?.querySelector('.multi-links-list');
+    if (!formEl || !row || !list) return;
+
+    const allRows = list.querySelectorAll('.multi-link-row');
+    if (allRows.length <= 1) {
+      const urlIn = row.querySelector('.multi-link-url-input');
+      const labelIn = row.querySelector('.multi-link-label-input');
+      if (urlIn) urlIn.value = '';
+      if (labelIn) { labelIn.value = ''; labelIn.placeholder = 'Etichetă auto'; }
+    } else {
+      row.remove();
+    }
+    list.querySelectorAll('.multi-link-row').forEach((r, i) => {
+      r.dataset.linkIndex = i;
+      r.querySelectorAll('[data-link-index]').forEach(el => el.dataset.linkIndex = i);
+    });
+    const addBtn = formEl.querySelector('.multi-link-add-btn');
+    if (addBtn && list.querySelectorAll('.multi-link-row').length < 3) addBtn.style.display = '';
+    const links = [];
+    list.querySelectorAll('.multi-link-row').forEach(r => {
+      const url = (r.querySelector('.multi-link-url-input')?.value || '').trim();
+      const label = (r.querySelector('.multi-link-label-input')?.value || '').trim();
+      if (url) links.push({ url, label });
+    });
+    const legacyUrl = links.length > 0 ? links[0].url : '';
+    const legacyLabel = links.length > 0 ? links[0].label : '';
+    updateLocation(id, { links, confirmation_url: legacyUrl, confirmation_label: legacyLabel });
+    return;
+  }
+
   if (actionEl.dataset.action === 'toggleAddress') {
     e.stopPropagation();
     const addrRow = card.querySelector('.card-address-row');
@@ -4925,6 +5568,36 @@ function handleCardClick(e) {
     const flightNum = (flightInput?.value || '').trim().toUpperCase().replace(/\s+/g, '');
     if (!flightNum) { showToast('Introdu numărul zborului (ex: W43685)', 'warning'); return; }
     fetchFlightStatus(card, flightNum, true);
+    return;
+  }
+
+  if (actionEl.dataset.action === 'checkAndPreviewFlight') {
+    e.preventDefault();
+    e.stopPropagation();
+    const flightInput = card.querySelector('.flight-number-input');
+    const flightNum = (flightInput?.value || '').trim().toUpperCase().replace(/\s+/g, '');
+    if (!flightNum) { showToast('Introdu numărul zborului (ex: W43685)', 'warning'); return; }
+    const btn = actionEl;
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="btn-spin">⟳</span> Se verifică…';
+    const locId = actionEl.dataset.locId || id;
+    try {
+      const res = await fetch(`/api/locations/${encodeURIComponent(locId)}/flight-refresh`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.status === 'ok' && data.flight) {
+        const stateLoc = getLocation(locId);
+        if (stateLoc) stateLoc.flight_data = data.flight;
+        openFlightModal(locId);
+      } else {
+        showToast(data.message || data.error || 'Nu s-au putut prelua datele zborului', 'warning');
+      }
+    } catch (err) {
+      showToast('Eroare rețea la verificarea zborului', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalHTML;
+    }
     return;
   }
 
@@ -5094,11 +5767,89 @@ function handleCardClick(e) {
     }
     return;
   }
-  if (actionEl.dataset.action === 'viewAttachment') {
+
+  const formatBtn = actionEl.closest('button[data-notes-format]') || actionEl.closest('[data-notes-format]');
+  if (formatBtn) {
     e.preventDefault();
-    const locId = actionEl.dataset.locationId || id;
-    const fileName = actionEl.dataset.attachmentName;
+    e.stopPropagation();
+    const targetId = formatBtn.dataset.targetId;
+    const format = formatBtn.dataset.notesFormat;
+    const textarea = (targetId ? document.getElementById(targetId) : null) || formatBtn.closest('.modal-notes-group')?.querySelector('textarea[data-field="notes"]');
+    if (textarea) {
+      applyTextFormatToTextarea(textarea, format);
+      const previewPane = formatBtn.closest('.modal-notes-group')?.querySelector('.notes-preview-pane');
+      if (previewPane && previewPane.style.display !== 'none') {
+        previewPane.innerHTML = renderFormattedNotes(textarea.value) || '<span class="notes-preview-empty">Previzualizare goală</span>';
+      }
+    }
+    return;
+  }
+  if (actionEl.dataset.action === 'toggleNotesPreview') {
+    e.preventDefault();
+    e.stopPropagation();
+    const group = actionEl.closest('.modal-notes-group');
+    const textarea = group?.querySelector('textarea[data-field="notes"]');
+    const previewPane = group?.querySelector('.notes-preview-pane');
+    const labelSpan = actionEl.querySelector('.preview-btn-text');
+    if (!textarea || !previewPane) return;
+
+    const isPreviewing = previewPane.style.display !== 'none';
+    if (isPreviewing) {
+      previewPane.style.display = 'none';
+      textarea.style.display = '';
+      actionEl.classList.remove('active');
+      if (labelSpan) labelSpan.textContent = 'Preview';
+      textarea.focus();
+    } else {
+      previewPane.innerHTML = renderFormattedNotes(textarea.value) || '<span class="notes-preview-empty">Previzualizare goală</span>';
+      textarea.style.display = 'none';
+      previewPane.style.display = 'block';
+      actionEl.classList.add('active');
+      if (labelSpan) labelSpan.textContent = 'Edit';
+    }
+    return;
+  }
+  if (actionEl.dataset.action === 'viewAttachment' || actionEl.dataset.action === 'previewAttachment') {
+    e.preventDefault();
+    e.stopPropagation();
+    const locId = actionEl.dataset.locId || actionEl.dataset.locationId || id;
+    const fileName = actionEl.dataset.fileName || actionEl.dataset.attachmentName;
     openDocumentViewer(locId, fileName);
+    return;
+  }
+  if (actionEl.dataset.action === 'shareAttachment') {
+    e.preventDefault();
+    e.stopPropagation();
+    const locId = actionEl.dataset.locId || id;
+    const fileName = actionEl.dataset.fileName;
+    const rawUrl = buildAttachmentRawUrl(locId, fileName);
+    const fullUrl = rawUrl.startsWith('http') ? rawUrl : window.location.origin + rawUrl;
+    if (navigator.share && /mobile|android|iphone|ipad/i.test(navigator.userAgent)) {
+      try {
+        await navigator.share({
+          title: fileName,
+          text: `Document atașat: ${fileName}`,
+          url: fullUrl
+        });
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(fullUrl);
+      toast('Link copiat în clipboard!', 'success');
+    } catch (_) {
+      window.prompt('Copiază link-ul fișierului:', fullUrl);
+    }
+    return;
+  }
+  if (actionEl.dataset.action === 'deleteAttachmentModalItem') {
+    e.preventDefault();
+    e.stopPropagation();
+    const locId = actionEl.dataset.locId || id;
+    const fileName = actionEl.dataset.fileName;
+    openDeleteAttachmentModal(locId, fileName);
     return;
   }
   if (actionEl.dataset.action === 'viewAttachments') {
@@ -5194,9 +5945,10 @@ async function uploadLocationAttachments(locationId, files) {
         updateCardSubcard(card, loc);
       }
     }
-    toast('Attachment(s) uploaded.', 'success');
+    refreshModalAttachments(locationId);
+    toast('Fișier(e) încărcate cu succes.', 'success');
   } catch (error) {
-    toast('Attachment upload failed: ' + error.message, 'error');
+    toast('Încărcarea fișierului a eșuat: ' + error.message, 'error');
   }
 }
 
@@ -5234,9 +5986,10 @@ async function performDeleteViewerAttachment(locationId, filename) {
       document.body.classList.remove('doc-viewer-open');
       document.documentElement.classList.remove('doc-viewer-open');
     }
-    toast('Attachment removed.', 'success');
+    refreshModalAttachments(locationId);
+    toast('Fișier șters cu succes.', 'success');
   } catch (err) {
-    toast('Could not delete attachment: ' + err.message, 'error');
+    toast('Nu s-a putut șterge fișierul: ' + err.message, 'error');
   }
 }
 
@@ -6291,8 +7044,37 @@ function handleCardChange(e) {
     target.value = '';
     return;
   }
-  if (!target.dataset.field) return;
   const id = card.dataset.id;
+  // Multi-link inputs: sync links[] array
+  if (target.dataset.linkField) {
+    const formEl = target.closest('.multi-links-field-group');
+    if (formEl) {
+      const rows = formEl.querySelectorAll('.multi-link-row');
+      const links = [];
+      rows.forEach(row => {
+        const urlEl = row.querySelector('.multi-link-url-input');
+        const labelEl = row.querySelector('.multi-link-label-input');
+        const url = (urlEl?.value || '').trim();
+        let label = (labelEl?.value || '').trim();
+        // Auto-update placeholder with detected meta label when URL changes
+        if (target.dataset.linkField === 'url' && target === urlEl && labelEl) {
+          const meta = url ? getLinkMeta(url) : null;
+          labelEl.placeholder = meta ? meta.label : 'Etichetă (auto-detectată)';
+          if (!label && meta && meta.label !== 'Link') {
+            label = meta.label;
+            labelEl.value = meta.label;
+          }
+        }
+        if (url) links.push({ url, label });
+      });
+      const legacyUrl = links.length > 0 ? links[0].url : '';
+      const legacyLabel = links.length > 0 ? links[0].label : '';
+      updateLocation(id, { links, confirmation_url: legacyUrl, confirmation_label: legacyLabel });
+    }
+    return;
+  }
+
+  if (!target.dataset.field) return;
   const field = target.dataset.field;
   let value = target.type === 'checkbox' ? target.checked : target.value;
   if (field === 'cost') value = parseFloat(value) || 0;
@@ -6374,16 +7156,16 @@ function handleCardChange(e) {
       catChip.className = `strip-chip strip-cat cat-${safecat}`;
       catChip.textContent = `${CATEGORY_ICONS[safecat]} ${catLabel(safecat)}`;
     }
-    // Show/hide flight tab button and category hint
+    // Show/hide flight tab button and general IATA field
     const flightTabBtn = card.querySelector('.tab-flight-btn');
-    const flightHint = card.querySelector('.flight-category-hint');
+    const flightIataGroup = card.querySelector('.general-flight-iata-group');
     if (flightTabBtn) {
       if (safecat === 'transport_flight') {
         flightTabBtn.classList.remove('is-hidden');
-        if (flightHint) flightHint.style.display = '';
+        if (flightIataGroup) flightIataGroup.classList.remove('is-hidden');
       } else {
         flightTabBtn.classList.add('is-hidden');
-        if (flightHint) flightHint.style.display = 'none';
+        if (flightIataGroup) flightIataGroup.classList.add('is-hidden');
         if (flightTabBtn.classList.contains('active')) {
           switchModalTab(card, 'general');
         }

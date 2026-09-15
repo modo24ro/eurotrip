@@ -224,9 +224,52 @@ export function catLabel(c) {
   return c.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
+export function renderFormattedNotes(text) {
+  if (!text) return '';
+  let s = String(text);
+
+  // Normalize allowed HTML tags to markdown tokens or safe tags:
+  s = s
+    .replace(/<strong\b[^>]*>(.*?)<\/strong>/gi, '**$1**')
+    .replace(/<b\b[^>]*>(.*?)<\/b>/gi, '**$1**')
+    .replace(/<em\b[^>]*>(.*?)<\/em>/gi, '*$1*')
+    .replace(/<i\b[^>]*>(.*?)<\/i>/gi, '*$1*')
+    .replace(/<u\b[^>]*>(.*?)<\/u>/gi, '<u>$1</u>')
+    .replace(/<del\b[^>]*>(.*?)<\/del>/gi, '~~$1~~')
+    .replace(/<s\b[^>]*>(.*?)<\/s>/gi, '~~$1~~')
+    .replace(/<strike\b[^>]*>(.*?)<\/strike>/gi, '~~$1~~');
+
+  // Escape HTML characters
+  s = s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+  // Bold: **text**
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // Italic: *text*
+  s = s.replace(/(^|[^\*])\*([^\*\n]+?)\*([^\*]|$)/g, '$1<em>$2</em>$3');
+  // Underline: __text__ or &lt;u&gt;text&lt;/u&gt;
+  s = s.replace(/__(.+?)__/g, '<u>$1</u>');
+  s = s.replace(/&lt;u&gt;(.+?)&lt;\/u&gt;/gi, '<u>$1</u>');
+  // Strikeout: ~~text~~ or &lt;s&gt;text&lt;/s&gt;
+  s = s.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  s = s.replace(/&lt;s&gt;(.+?)&lt;\/s&gt;/gi, '<del>$1</del>');
+  s = s.replace(/&lt;del&gt;(.+?)&lt;\/del&gt;/gi, '<del>$1</del>');
+  s = s.replace(/&lt;strike&gt;(.+?)&lt;\/strike&gt;/gi, '<del>$1</del>');
+
+  // Newlines to <br>
+  s = s.replace(/\r?\n/g, '<br>');
+
+  return s;
+}
+
 // Global browser window bindings
 if (typeof window !== 'undefined') {
   window.esc = esc;
+  window.renderFormattedNotes = renderFormattedNotes;
   window.formatEur = formatEur;
   window.formatBytes = formatBytes;
   window.formatFileSize = formatFileSize;

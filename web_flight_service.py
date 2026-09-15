@@ -85,6 +85,47 @@ def parse_flightinformation_html(html, flight_num, loc=None):
     if el_arr_gate and el_arr_gate.text.strip() and el_arr_gate.text.strip() != '--':
         arr_gate = el_arr_gate.text.strip()
 
+    # Delay & Status from board card
+    dep_delay = 0
+    arr_delay = 0
+    el_dep_delay = soup.find(id='departure-delay-value')
+    if el_dep_delay and el_dep_delay.text.strip() and el_dep_delay.text.strip() != '--':
+        m_del = re.search(r'(\d+)', el_dep_delay.text)
+        if m_del:
+            dep_delay = int(m_del.group(1))
+
+    el_arr_delay = soup.find(id='arrival-delay-value')
+    if el_arr_delay and el_arr_delay.text.strip() and el_arr_delay.text.strip() != '--':
+        m_del = re.search(r'(\d+)', el_arr_delay.text)
+        if m_del:
+            arr_delay = int(m_del.group(1))
+
+    flight_delay = dep_delay if dep_delay > 0 else arr_delay
+
+    el_dep_status = soup.find(id='departure-status-value')
+    dep_status = el_dep_status.text.strip().lower() if (el_dep_status and el_dep_status.text.strip() != '--') else None
+    overall_status = 'scheduled'
+    if dep_status:
+        if 'cancel' in dep_status:
+            overall_status = 'cancelled'
+        elif 'land' in dep_status:
+            overall_status = 'landed'
+        elif 'active' in dep_status or 'air' in dep_status or 'depart' in dep_status:
+            overall_status = 'active'
+
+    # Check for terminal in HTML
+    m_dep_term = re.search(r'(?:departure.*?terminal|terminal\s*plecare)\s*([0-9A-Za-z]+)', html, re.I | re.DOTALL)
+    if m_dep_term:
+        val = m_dep_term.group(1).upper()
+        if val not in ('NA', 'NONE', 'NULL'):
+            dep_terminal = m_dep_term.group(1)
+
+    m_arr_term = re.search(r'(?:arrival.*?terminal|terminal\s*sosire)\s*([0-9A-Za-z]+)', html, re.I | re.DOTALL)
+    if m_arr_term:
+        val = m_arr_term.group(1).upper()
+        if val not in ('NA', 'NONE', 'NULL'):
+            arr_terminal = m_arr_term.group(1)
+
     # 3. Airport Names & Cities
     dep_city = None
     dep_airport = None
@@ -154,9 +195,9 @@ def parse_flightinformation_html(html, flight_num, loc=None):
         'flight_icao': callsign or '',
         'airline': airline_name or 'Airline',
         'airline_iata': airline_iata,
-        'status': 'scheduled',
-        'status_raw': 'scheduled',
-        'delay': 0,
+        'status': overall_status,
+        'status_raw': dep_status or 'scheduled',
+        'delay': flight_delay,
         'duration': duration,
         'departure': {
             'airport': dep_airport or dep_city or 'Departure Airport',
@@ -169,7 +210,7 @@ def parse_flightinformation_html(html, flight_num, loc=None):
             'scheduled': dep_iso,
             'estimated': dep_iso,
             'actual': None,
-            'delay': 0,
+            'delay': dep_delay,
         },
         'arrival': {
             'airport': arr_airport or arr_city or 'Arrival Airport',
@@ -182,7 +223,7 @@ def parse_flightinformation_html(html, flight_num, loc=None):
             'scheduled': arr_iso,
             'estimated': arr_iso,
             'actual': None,
-            'delay': 0,
+            'delay': arr_delay,
         },
         'aircraft': aircraft_type,
         'callsign': callsign,

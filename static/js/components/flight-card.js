@@ -46,30 +46,34 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
   const visual = getFlightStatusVisual(flight.status, delayVal);
   const live = flight.live;
 
+  const hasDelay = delayVal != null && Number(delayVal) > 0;
+  const delayDisplay = hasDelay ? `+${Number(delayVal)} min Delay` : 'No Delay';
+
+  const depTerminal = dep.terminal ? String(dep.terminal) : '-';
+  const depGate = dep.gate ? String(dep.gate) : '-';
+  const arrTerminal = arr.terminal ? String(arr.terminal) : '-';
+  const arrGate = arr.gate ? String(arr.gate) : '-';
+
   const lastUpdatedStr = flight.last_updated ? formatFlightDateTime(flight.last_updated) : 'Recent';
   const durationStr = flight.duration ? `<span class="flight-route-duration" title="Durată estimată">⏱️ ${esc(flight.duration)}</span>` : '';
 
-  const detailsItems = [];
-  if (flight.airline) detailsItems.push({ label: 'Companie', val: flight.airline });
-  if (flight.flight_number || flight.flight_iata) detailsItems.push({ label: 'Număr Zbor', val: (flight.flight_number || flight.flight_iata).toUpperCase() });
-  if (dep.terminal) detailsItems.push({ label: 'Terminal Plecare', val: dep.terminal });
-  if (dep.gate) detailsItems.push({ label: 'Poartă Plecare', val: dep.gate });
-  if (arr.terminal) detailsItems.push({ label: 'Terminal Sosire', val: arr.terminal });
-  if (arr.gate) detailsItems.push({ label: 'Poartă Sosire', val: arr.gate });
-  if (arr.baggage) detailsItems.push({ label: 'Bandă Bagaje', val: arr.baggage });
+  const detailsItems = [
+    { label: 'Companie', val: flight.airline || '-' },
+    { label: 'Status Întârziere', val: delayDisplay, isDelay: true, hasDelay: hasDelay },
+  ];
   if (flight.aircraft) detailsItems.push({ label: 'Aeronava', val: flight.aircraft });
-  if (delayVal) detailsItems.push({ label: 'Întârziere', val: `${delayVal} min` });
+  if (arr.baggage) detailsItems.push({ label: 'Bandă Bagaje', val: arr.baggage });
 
-  const detailsGridHTML = detailsItems.length ? `
+  const detailsGridHTML = `
     <div class="flight-details-grid">
       ${detailsItems.map(item => `
-        <div class="flight-detail-item">
+        <div class="flight-detail-item${item.highlight ? ' is-highlighted' : ''}${item.isDelay ? (item.hasDelay ? ' item-delay-yes' : ' item-delay-no') : ''}">
           <span class="flight-detail-label">${esc(item.label)}</span>
           <span class="flight-detail-value">${esc(item.val)}</span>
         </div>
       `).join('')}
     </div>
-  ` : '';
+  `;
 
   const liveRowHTML = live ? `
     <div class="flight-live-banner">
@@ -88,9 +92,16 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
           <span class="drawer-flight-airline">${esc(flight.airline || 'Zbor')}</span>
           <span class="drawer-flight-code">${esc((flight.flight_number || flight.flight_iata || loc.flight_number || '').toUpperCase())}</span>
         </div>
-        <div class="drawer-flight-badge ${visual.className}">
-          <span class="status-badge-icon">${visual.icon}</span>
-          <span class="status-badge-label">${esc(visual.label)}</span>
+        <div class="drawer-flight-header-right">
+          ${hasDelay ? `
+            <div class="flight-delay-badge has-delay" title="Întârziere: +${delayVal} min">
+              ⚠️ +${delayVal} min Delay
+            </div>
+          ` : ''}
+          <div class="drawer-flight-badge ${visual.className}">
+            <span class="status-badge-icon">${visual.icon}</span>
+            <span class="status-badge-label">${esc(visual.label)}</span>
+          </div>
         </div>
       </div>
 
@@ -100,6 +111,16 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
           <div class="flight-route-time">${formatFlightTime(depTime, dep.timezone)}</div>
           <div class="flight-route-airport" title="${esc(dep.airport || '')}">${esc(dep.airport || 'Plecare')}</div>
           <div class="flight-route-date">${formatFlightDate(dep.scheduled || loc.visit_date)}</div>
+          <div class="flight-route-meta-inline">
+            <div class="flight-detail-item${depTerminal !== '-' ? ' is-highlighted' : ''}">
+              <span class="flight-detail-label">Terminal</span>
+              <span class="flight-detail-value">${esc(depTerminal)}</span>
+            </div>
+            <div class="flight-detail-item${depGate !== '-' ? ' is-highlighted' : ''}">
+              <span class="flight-detail-label">Gate</span>
+              <span class="flight-detail-value">${esc(depGate)}</span>
+            </div>
+          </div>
         </div>
 
         <div class="flight-route-graphic">
@@ -108,6 +129,11 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
             <span class="vector-line"></span>
             <span class="vector-plane">✈</span>
           </div>
+          ${hasDelay ? `
+            <div class="flight-vector-delay-tag is-delayed">
+              +${delayVal}m Delay
+            </div>
+          ` : ''}
         </div>
 
         <div class="flight-route-col arrival">
@@ -115,6 +141,16 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
           <div class="flight-route-time">${formatFlightTime(arrTime, arr.timezone)}</div>
           <div class="flight-route-airport" title="${esc(arr.airport || '')}">${esc(arr.airport || 'Sosire')}</div>
           <div class="flight-route-date">${formatFlightDate(arr.scheduled || loc.visit_date)}</div>
+          <div class="flight-route-meta-inline">
+            <div class="flight-detail-item${arrTerminal !== '-' ? ' is-highlighted' : ''}">
+              <span class="flight-detail-label">Terminal</span>
+              <span class="flight-detail-value">${esc(arrTerminal)}</span>
+            </div>
+            <div class="flight-detail-item${arrGate !== '-' ? ' is-highlighted' : ''}">
+              <span class="flight-detail-label">Gate</span>
+              <span class="flight-detail-value">${esc(arrGate)}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -129,9 +165,9 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
             <span class="cache-time-label">Actualizat: ${lastUpdatedStr}</span>
           </div>
         </div>
-        <button type="button" class="btn-secondary btn-sm drawer-flight-refresh-btn" data-loc-id="${esc(loc.id)}" title="Interoghează API AviationStack pentru date proaspete">
+        <button type="button" class="btn-secondary btn-sm drawer-flight-refresh-btn" data-loc-id="${esc(loc.id)}" title="Actualizează datele de zbor">
           <span class="btn-refresh-icon">🔄</span>
-          <span class="btn-refresh-text">Actualizează de la API</span>
+          <span class="btn-refresh-text">Actualizează Zbor</span>
         </button>
       </div>
 
@@ -280,45 +316,9 @@ export function openFlightModal(locId) {
     titleEl.textContent = `Detalii Zbor · ${flightCode}`;
   }
 
-  // Render subcard-inner subcard-flight-content inside the modal
   const f = loc.flight_data || null;
-  const dep = f?.departure || {};
-  const arr = f?.arrival || {};
-  const depIata = dep.iata || (loc.departure_airport || '').toUpperCase() || 'DEP';
-  const arrIata = arr.iata || (loc.arrival_airport || '').toUpperCase() || 'ARR';
-  const depTime = dep.scheduled ? dep.scheduled.slice(11, 16) : (loc.visit_time || '');
-  const arrTime = arr.scheduled ? arr.scheduled.slice(11, 16) : '';
-  const status = f?.status || '';
-  const delay = f?.delay != null ? f.delay : dep.delay;
 
-  let statusBadge = '';
-  if (status) {
-    const isLanded = status === 'landed';
-    const isCancelled = status === 'cancelled';
-    const isDelayed = delay > 0;
-    const dotColor = isCancelled ? '#ef4444' : isDelayed ? '#f59e0b' : isLanded ? '#3b82f6' : '#10b981';
-    const statusLabel = isCancelled ? 'Anulat' : isDelayed ? `+${delay}m` : isLanded ? 'Aterizat' : 'La timp';
-    statusBadge = `<span class="subcard-flight-status" style="--dot-color:${dotColor};"><span class="subcard-flight-dot"></span>${esc(statusLabel)}</span>`;
-  }
-  const durationStr = f?.duration ? `<span class="subcard-flight-dur">⏱️ ${esc(f.duration)}</span>` : '';
-  const gateInfo = (dep.gate || arr.gate) ? `<span class="subcard-flight-gate">Gate ${esc(dep.gate || arr.gate)}</span>` : '';
-
-  bodyEl.innerHTML = `
-    <div class="subcard-inner subcard-flight-content flight-modal-subcard" style="cursor: default;">
-      <div class="subcard-flight-main">
-        <span class="subcard-icon">✈️</span>
-        <span class="subcard-flight-code">${esc(flightCode)}</span>
-        <span class="subcard-flight-route">${esc(depIata)} → ${esc(arrIata)}</span>
-        ${(depTime || arrTime) ? `<span class="subcard-flight-times">${esc(depTime)}${arrTime ? ` - ${esc(arrTime)}` : ''}</span>` : ''}
-      </div>
-      <div class="subcard-flight-meta">
-        ${statusBadge}
-        ${durationStr}
-        ${gateInfo}
-      </div>
-    </div>
-    <div class="flight-status-card-wrap flight-modal-radar-wrap" id="flightModalRadarWrap"></div>
-  `;
+  bodyEl.innerHTML = `<div class="flight-status-card-wrap flight-modal-radar-wrap" id="flightModalRadarWrap"></div>`;
 
   const radarWrap = document.getElementById('flightModalRadarWrap');
   if (radarWrap) {

@@ -39,6 +39,25 @@ export const api = {
   },
 
   async saveTrip(trip) {
+    if (trip && Array.isArray(trip.locations)) {
+      trip.locations.forEach(loc => {
+        if (!loc) return;
+        if (!Array.isArray(loc.links) || loc.links.length === 0) {
+          if (loc.confirmation_url && loc.confirmation_url.trim()) {
+            loc.links = [{
+              url: loc.confirmation_url.trim(),
+              label: (loc.confirmation_label || '').trim()
+            }];
+          } else {
+            loc.links = [];
+          }
+        }
+        if (loc.links.length > 0) {
+          loc.confirmation_url = loc.links[0].url || '';
+          loc.confirmation_label = loc.links[0].label || '';
+        }
+      });
+    }
     const res = await fetch('/api/trip', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -29,6 +29,20 @@ export const CATEGORY_ICONS = {
   other: '📍',
 };
 
+export const TRANSPORT_SUBCATEGORIES = [
+  'transport_flight',
+  'transport_train',
+  'transport_bus',
+  'transport_car',
+  'transport_boat',
+];
+
+if (typeof window !== 'undefined') {
+  window.VALID_CATEGORIES = VALID_CATEGORIES;
+  window.CATEGORY_ICONS = CATEGORY_ICONS;
+  window.TRANSPORT_SUBCATEGORIES = TRANSPORT_SUBCATEGORIES;
+}
+
 const PREFS_KEY = 'eurotrip_prefs';
 
 export function loadPrefs() {
@@ -142,6 +156,7 @@ export function addBlankLocation() {
     reservation_status: '',
     confirmation_url: '',
     confirmation_label: '',
+    links: [],
     flight_number: '',
     notes: '',
     enabled: true,
