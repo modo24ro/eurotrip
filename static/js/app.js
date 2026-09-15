@@ -2405,7 +2405,6 @@ function cardHTML(loc) {
   // Nav buttons in card-actions (equal dimensions with static SVG assets)
   const MAPS_ICON_URL = (window.location.protocol === 'file:') ? 'icons/maps-icon.svg' : '/static/icons/maps-icon.svg';
   const WAZE_ICON_URL = (window.location.protocol === 'file:') ? 'icons/waze-icon.svg' : '/static/icons/waze-icon.svg';
-  const detailsBtn = `<button type="button" class="loc-nav-btn card-details-btn" data-action="openLocationModal" data-loc-id="${esc(loc.id)}" title="Deschide detalii locație"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg><span class="nav-btn-text">Detalii</span></button>`;
   const mapsBtn = mapsHref ? `<a href="${mapsHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn maps-btn" title="Open in Maps"><img src="${MAPS_ICON_URL}" class="nav-btn-icon maps-icon" alt="" width="14" height="14"><span class="nav-btn-text">Maps</span></a>` : '';
   const wazeBtn = wazeHref ? `<a href="${wazeHref}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn waze-btn waze" title="Waze"><img src="${WAZE_ICON_URL}" class="nav-btn-icon waze-icon" alt="" width="14" height="14"><span class="nav-btn-text">Waze</span></a>` : '';
   const navGpsBtn = `<button type="button" class="loc-nav-btn gps-nav-btn" data-action="navigateFromCurrent" data-loc-id="${esc(loc.id)}" title="Go To (navighează de la locația curentă)"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M12 2L4.5 20.29l.71.71L12 18l6.79 3 .71-.71z" fill="currentColor"/></svg><span class="nav-btn-text">Go To</span></button>`;
@@ -2609,7 +2608,7 @@ function cardHTML(loc) {
         ${renderCardSubcardHTML(loc)}
         <div class="card-actions">
           ${topButtons}
-          ${(detailsBtn || mapsBtn || wazeBtn || navGpsBtn) ? `<div class="card-nav-btns">${detailsBtn}${mapsBtn}${wazeBtn}${navGpsBtn}</div>` : ''}
+          ${(mapsBtn || wazeBtn || navGpsBtn) ? `<div class="card-nav-btns">${mapsBtn}${wazeBtn}${navGpsBtn}</div>` : ''}
         </div>
         ${cardFields}
       </div>
@@ -2836,16 +2835,10 @@ function applyCardsPerRowMode() {
   }
   const toggle = document.getElementById('singleColToggle');
   if (toggle) toggle.checked = isSingle;
-  const toggleMobile = document.getElementById('singleColToggleMobile');
-  if (toggleMobile) toggleMobile.checked = isSingle;
 
-  const rowMobile = document.getElementById('singleColToggleRowMobile') || toggleMobile?.closest('label');
-  if (rowMobile) {
-    rowMobile.style.display = isNarrow ? 'none' : '';
-  }
   const modalRow = document.getElementById('cardsPerRowModalGroup');
   if (modalRow) {
-    modalRow.style.display = isNarrow ? 'none' : '';
+    modalRow.style.display = '';
   }
 
   scheduleEqualizeCardHeights();
@@ -2947,7 +2940,7 @@ function bindEvents() {
     }
   }
 
-  // Exit App Handler (Web & Native Mobile Capacitor)
+  // Log Out Handler (Web & Native Mobile Capacitor)
   const handleExitApp = (e) => {
     if (e) {
       e.preventDefault();
@@ -3562,18 +3555,13 @@ function bindEvents() {
     if (sortMob) sortMob.value = state.sortBy || 'added';
     const hvMob = document.getElementById('hideVisitedMobile');
     if (hvMob) hvMob.checked = Boolean(state.hideVisited);
-    const isNarrow = isNarrowViewport();
-    const scMob = document.getElementById('singleColToggleMobile');
-    if (scMob) scMob.checked = isNarrow || Boolean(state.singleCol);
-    const scRowMob = document.getElementById('singleColToggleRowMobile') || scMob?.closest('label');
-    if (scRowMob) scRowMob.style.display = isNarrow ? 'none' : '';
     const cpMob = document.getElementById('cardsPerRowSelectMobile');
     if (cpMob) {
       updateCardsPerRowOptions();
       cpMob.value = String(state.cardsPerRow || (state.singleCol ? 1 : Math.min(2, getMaxCardsPerRow())));
     }
     const cpGroup = document.getElementById('cardsPerRowModalGroup');
-    if (cpGroup) cpGroup.style.display = isNarrow ? 'none' : '';
+    if (cpGroup) cpGroup.style.display = '';
   }
 
   const closeFilterModalFn = () => filterModal?.classList.remove('open');
@@ -3615,14 +3603,6 @@ function bindEvents() {
       const dHv = document.getElementById('hideVisited');
       if (dHv) dHv.checked = hvMob.checked;
     }
-    const scMob = document.getElementById('singleColToggleMobile');
-    if (scMob) {
-      state.singleCol = scMob.checked;
-      if (scMob.checked) state.cardsPerRow = 1;
-      savePrefs({ singleCol: scMob.checked, cardsPerRow: state.cardsPerRow });
-      const dSc = document.getElementById('singleColToggle');
-      if (dSc) dSc.checked = scMob.checked;
-    }
     const cpMob = document.getElementById('cardsPerRowSelectMobile');
     if (cpMob) {
       const val = parseInt(cpMob.value, 10);
@@ -3632,6 +3612,8 @@ function bindEvents() {
         savePrefs({ cardsPerRow: val, singleCol: state.singleCol });
         const dCp = document.getElementById('cardsPerRowSelect');
         if (dCp) dCp.value = String(val);
+        const dSc = document.getElementById('singleColToggle');
+        if (dSc) dSc.checked = (val === 1);
       }
     }
     applyCardsPerRowMode();
@@ -3686,8 +3668,25 @@ function bindEvents() {
   });
 
   // Trip name
-  document.getElementById('tripNameInput')?.addEventListener('change', e => { state.trip.trip_name = e.target.value; markUnsaved(); updateDocumentTitle(e.target.value); });
-  document.getElementById('tripNameInput')?.addEventListener('keydown', e => {
+  const adjustTripNameInputWidth = () => {
+    const input = document.getElementById('tripNameInput');
+    if (!input) return;
+    if (window.CSS && CSS.supports && CSS.supports('field-sizing', 'content')) return;
+    const val = input.value || input.placeholder || '';
+    input.style.width = Math.max(50, Math.min(220, val.length * 9.5 + 16)) + 'px';
+  };
+  const tripNameInputEl = document.getElementById('tripNameInput');
+  if (tripNameInputEl) {
+    adjustTripNameInputWidth();
+    tripNameInputEl.addEventListener('input', adjustTripNameInputWidth);
+  }
+  tripNameInputEl?.addEventListener('change', e => {
+    state.trip.trip_name = e.target.value;
+    adjustTripNameInputWidth();
+    markUnsaved();
+    updateDocumentTitle(e.target.value);
+  });
+  tripNameInputEl?.addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.target.blur(); }
   });
 
@@ -3698,7 +3697,9 @@ function bindEvents() {
   // Save
   const saveAction = async () => {
     const btn = document.getElementById('saveBtn');
+    const menuBtn = document.getElementById('menuSaveBtn');
     if (btn) { btn.disabled = true; btn.style.opacity = '0.7'; }
+    if (menuBtn) { menuBtn.disabled = true; menuBtn.style.opacity = '0.7'; }
     try {
       await api.saveTrip(state.trip);
       clearUnsaved();
@@ -3707,9 +3708,11 @@ function bindEvents() {
       toast('Save failed: ' + e.message, 'error');
     } finally {
       if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      if (menuBtn) { menuBtn.disabled = false; menuBtn.style.opacity = ''; }
     }
   };
   document.getElementById('saveBtn')?.addEventListener('click', saveAction);
+  document.getElementById('menuSaveBtn')?.addEventListener('click', saveAction);
   document.getElementById('mobileSave')?.addEventListener('click', saveAction);
 
   const closeBackupModal = () => document.getElementById('backupModal')?.classList.remove('open');

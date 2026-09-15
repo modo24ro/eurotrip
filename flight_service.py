@@ -243,6 +243,22 @@ def query_aviationstack_api(flight_iata, loc=None):
     if not clean_iata:
         return None, "Parametrul flight_iata este obligatoriu."
 
+    # Check if AviationStack is temporarily disabled via .env
+    use_aviationstack = os.environ.get('USE_AVIATIONSTACK', '1').strip().lower()
+    google_flights_only = os.environ.get('USE_GOOGLE_FLIGHTS_ONLY', '0').strip().lower()
+    if use_aviationstack in ('0', 'false', 'no', 'off') or google_flights_only in ('1', 'true', 'yes', 'on'):
+        logger.info("AviationStack API este dezactivat temporar prin .env (se folosește exclusiv Google Flights).")
+        base_flight = build_fallback_flight_data(clean_iata, airline_iata, flight_num, loc)
+        try:
+            import google_flight_service
+            g_data, g_err = google_flight_service.fetch_google_flight_status(clean_iata, loc)
+            if g_data:
+                enriched = google_flight_service.enrich_flight_data_with_google(base_flight, g_data, loc)
+                return enriched, None
+        except Exception as exc:
+            logger.warning("Eroare la interogarea Google Flights: %s", exc)
+        return base_flight, None
+
     api_key = get_aviation_key()
     if not api_key:
         fallback = build_fallback_flight_data(clean_iata, airline_iata, flight_num, loc)

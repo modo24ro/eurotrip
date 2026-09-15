@@ -125,7 +125,7 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
         <div class="drawer-flight-cache-info">
           <span class="cache-shield-icon" title="Date salvate local, fără consum API">🛡️</span>
           <div class="cache-text-wrap">
-            <span class="cache-source-label">Snapshot local JSON</span>
+            <span class="cache-source-label">${flight.google_enrichment ? 'Snapshot API + Google Flight Status' : 'Snapshot local JSON'}</span>
             <span class="cache-time-label">Actualizat: ${lastUpdatedStr}</span>
           </div>
         </div>

@@ -200,9 +200,12 @@ body::before {
   font-size: 1.05rem;
   font-weight: 700;
   font-family: inherit;
-  width: 210px;
+  width: auto;
+  min-width: 60px;
+  max-width: 220px;
+  field-sizing: content;
   outline: none;
-  padding: 4px 10px;
+  padding: 4px 6px;
   border-radius: var(--radius-sm);
   transition: background 0.2s;
 }
@@ -261,6 +264,7 @@ body::before {
   height: 16px;
   fill: currentColor;
 }
+
 .header-nav-group .save-btn,
 .header-nav-group .desktop-save-btn {
   display: inline-flex;
@@ -627,6 +631,7 @@ body::before {
 
 /* Desktop: modalul este mai inalt, spatios si centrat */
 @media (min-width: 601px) {
+
   .modal-box.location-modal-box,
   .modal-box.notification-location-modal-box,
   #locationModal .modal-box,
@@ -638,6 +643,7 @@ body::before {
 
 /* Mobile: inaltime adaptata la viewport si flex column */
 @media (max-width: 600px) {
+
   .modal-box.location-modal-box,
   .modal-box.notification-location-modal-box,
   #locationModal .modal-box,
@@ -659,6 +665,7 @@ body::before {
 }
 
 @media (max-width: 600px) {
+
   .location-modal-body,
   .notification-location-body {
     padding: 12px 14px;
@@ -714,6 +721,7 @@ body::before {
   background: var(--bg-card, #121526);
   z-index: 10;
 }
+
 .modal-tabs-nav::-webkit-scrollbar {
   display: none;
 }
@@ -804,6 +812,7 @@ body::before {
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -2752,14 +2761,14 @@ body:has(.modal-overlay.open) .leaflet-control-container {
 }
 
 .banner-item-dates .banner-dates-val {
-  font-size: 0.88rem;
+  font-size: 0.78rem !important;
   font-weight: 700;
   white-space: nowrap;
   line-height: 1.2;
 }
 
 .banner-value {
-  font-size: 1.15rem;
+  font-size: 0.88rem !important;
   font-weight: 800;
   color: var(--accent-light);
   line-height: 1.1;
@@ -2840,6 +2849,7 @@ body:has(.modal-overlay.open) .leaflet-control-container {
   flex-wrap: nowrap;
   flex-shrink: 0;
 }
+
 .country-badge {
   display: inline-flex;
   align-items: center;
@@ -3742,26 +3752,31 @@ body.single-col-cards .card-notes-row,
   border-color: var(--cat-transport);
   background: color-mix(in srgb, var(--cat-transport) 15%, transparent);
 }
+
 .strip-cat.cat-transport_flight {
   color: var(--cat-transport_flight);
   border-color: var(--cat-transport_flight);
   background: color-mix(in srgb, var(--cat-transport_flight) 15%, transparent);
 }
+
 .strip-cat.cat-transport_train {
   color: var(--cat-transport_train);
   border-color: var(--cat-transport_train);
   background: color-mix(in srgb, var(--cat-transport_train) 15%, transparent);
 }
+
 .strip-cat.cat-transport_bus {
   color: var(--cat-transport_bus);
   border-color: var(--cat-transport_bus);
   background: color-mix(in srgb, var(--cat-transport_bus) 15%, transparent);
 }
+
 .strip-cat.cat-transport_car {
   color: var(--cat-transport_car);
   border-color: var(--cat-transport_car);
   background: color-mix(in srgb, var(--cat-transport_car) 15%, transparent);
 }
+
 .strip-cat.cat-transport_boat {
   color: var(--cat-transport_boat);
   border-color: var(--cat-transport_boat);
@@ -4478,6 +4493,7 @@ body.single-col-cards .card-notes-row,
   align-items: center !important;
   height: 100% !important;
 }
+
 .subcard-notes-text {
   font-size: 0.78rem;
   line-height: 1.4;
@@ -4498,9 +4514,11 @@ body.single-col-cards .card-notes-row,
   cursor: pointer;
   width: 100%;
 }
+
 .subcard-flight-content:hover .subcard-flight-code {
   color: #60a5fa;
 }
+
 .subcard-flight-main {
   display: flex;
   align-items: center;
@@ -4508,18 +4526,22 @@ body.single-col-cards .card-notes-row,
   flex-wrap: wrap;
   font-size: 0.78rem;
 }
+
 .subcard-flight-code {
   font-weight: 700;
   color: #93c5fd;
 }
+
 .subcard-flight-route {
   font-weight: 600;
   color: var(--text-primary);
 }
+
 .subcard-flight-times {
   color: var(--text-muted);
   font-size: 0.72rem;
 }
+
 .subcard-flight-meta {
   display: flex;
   align-items: center;
@@ -4527,12 +4549,14 @@ body.single-col-cards .card-notes-row,
   font-size: 0.7rem;
   color: var(--text-muted);
 }
+
 .subcard-flight-status {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-weight: 600;
 }
+
 .subcard-flight-dot {
   display: inline-block;
   width: 6px;
@@ -4548,6 +4572,7 @@ body.single-col-cards .card-notes-row,
   gap: 8px;
   flex-wrap: wrap;
 }
+
 .subcard-chip {
   margin: 0 !important;
 }
@@ -4561,6 +4586,7 @@ body.single-col-cards .card-notes-row,
   background: transparent !important;
   box-shadow: none !important;
 }
+
 .subcard-address-text {
   font-size: 0.78rem;
   line-height: 1.4;
@@ -4590,16 +4616,20 @@ body.single-col-cards .card-notes-row,
   user-select: none;
   touch-action: manipulation;
 }
+
 .subcard-nav-arrow:hover {
   color: rgba(255, 255, 255, 0.95);
   transform: translateY(-50%) scale(1.15);
 }
+
 .subcard-nav-arrow:active {
   transform: translateY(-50%) scale(0.92);
 }
+
 .subcard-nav-prev {
   left: 3px;
 }
+
 .subcard-nav-next {
   right: 3px;
 }
@@ -4615,6 +4645,7 @@ body.single-col-cards .card-notes-row,
   gap: 4px;
   pointer-events: none;
 }
+
 .subcard-dot {
   width: 4px;
   height: 4px;
@@ -4622,6 +4653,7 @@ body.single-col-cards .card-notes-row,
   background: rgba(255, 255, 255, 0.2);
   transition: all 0.2s ease;
 }
+
 .subcard-dot.is-active {
   background: var(--accent, #3b82f6);
   width: 8px;
@@ -5149,6 +5181,7 @@ body.single-col-cards .place-info-text,
   .card-nav-btns {
     gap: 4px !important;
   }
+
   .card-nav-btns .loc-nav-btn {
     padding: 0 4px !important;
     gap: 3px !important;
@@ -5160,6 +5193,7 @@ body.single-col-cards .place-info-text,
   .card-nav-btns {
     gap: 4px !important;
   }
+
   .card-nav-btns .loc-nav-btn {
     padding: 0 4px !important;
     gap: 3px !important;
@@ -7301,6 +7335,7 @@ select option,
 
 /* Hide mobile bottom navigation bar when virtual keyboard is active (input/textarea focused) */
 @media (max-width: 900px) {
+
   body:has(input:focus, textarea:focus, [contenteditable="true"]:focus) .mobile-nav,
   body.keyboard-open .mobile-nav {
     display: none !important;
@@ -7905,6 +7940,10 @@ select option,
    DESKTOP — hide mobile nav, full padding
    ============================================================ */
 @media (min-width: 981px) {
+  :root {
+    --controls-bar-h: 50px;
+  }
+
   .mobile-nav {
     display: none;
   }
@@ -7927,14 +7966,59 @@ select option,
     gap: 8px;
   }
 
+  .header-nav-group .desktop-save-btn {
+    display: inline-flex !important;
+  }
+
   .mobile-filter-btn {
     display: none !important;
+  }
+
+  /* Desktop: view-tabs and filter-row positioned on the SAME row */
+  .controls-bar {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 16px !important;
+    min-height: 50px !important;
+    padding: 0 20px !important;
+  }
+
+  .view-tabs {
+    display: flex !important;
+    border-bottom: none !important;
+    flex-shrink: 0 !important;
+    align-items: center !important;
+    height: 50px !important;
+  }
+
+  .view-tab {
+    height: 50px !important;
+    padding: 12px 14px !important;
+    margin-bottom: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .filter-row {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    justify-content: flex-end !important;
+    padding: 0 !important;
+    gap: 10px !important;
+  }
+
+  .search-wrap {
+    max-width: 260px !important;
   }
 }
 
 @media (max-width: 980px) {
   :root {
     --controls-bar-h: 46px;
+  }
+
+  .header-nav-group .desktop-save-btn {
+    display: none !important;
   }
 
   /* Pe mobil: cand meniul de jos exista, ascundem view-tabs de sus */
@@ -8069,7 +8153,18 @@ select option,
 /* ============================================================
    SAMSUNG GALAXY Z FOLD 6 (INNER SCREEN) OPTIMIZATIONS
    ============================================================ */
-@media (min-width: 600px) and (max-width: 960px) {
+@media (min-width: 560px) and (max-width: 1250px) {
+
+  .app-header {
+    gap: 8px !important;
+    padding: 0 12px !important;
+  }
+
+  .header-brand {
+    gap: 8px !important;
+    margin-right: 0 !important;
+    flex-shrink: 0 !important;
+  }
 
   /* Trip brand details & dates period in header on Z Fold 6 */
   .trip-brand-details {
@@ -8078,7 +8173,17 @@ select option,
     align-items: flex-start !important;
     justify-content: center !important;
     min-width: 0 !important;
+    width: fit-content !important;
+    max-width: fit-content !important;
     gap: 1px !important;
+  }
+
+  .trip-brand-details .trip-name-input {
+    width: auto !important;
+    min-width: 60px !important;
+    max-width: 170px !important;
+    field-sizing: content !important;
+    padding: 2px 4px !important;
   }
 
   .trip-header-dates {
@@ -8105,27 +8210,53 @@ select option,
     display: none !important;
   }
 
+  /* On Z Fold 6 inner screen: Add button becomes icon-only "+" to save header space */
+  .header-nav-group .add-btn .menu-btn-text {
+    display: none !important;
+  }
+
+  .header-nav-group .add-btn {
+    padding: 0 10px !important;
+    min-width: 36px !important;
+    width: 36px !important;
+    height: 34px !important;
+    justify-content: center !important;
+    gap: 0 !important;
+  }
+
+  .header-nav-group .add-btn svg {
+    width: 18px !important;
+    height: 18px !important;
+    display: block !important;
+    margin: 0 !important;
+  }
+
   /* Z Fold 6 Inner Screen Summary Banner embedded in app-header */
   .app-header .summary-banner.in-header {
     display: flex !important;
     flex-direction: row !important;
     align-items: center !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
     flex: 0 1 auto !important;
-    margin: 0 auto !important; /* Visually centered after trip-brand-details with exact equal spacing before and after */
-    padding: 0 12px !important;
+    margin: 0 !important;
+    margin-left: 6px !important;
+    margin-right: auto !important;
+    padding: 0 !important;
     background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
     border: none !important;
     border-bottom: none !important;
     box-shadow: none !important;
     min-height: auto !important;
     height: 40px !important;
+    max-width: calc(100% - 280px) !important;
     overflow-x: auto !important;
     overflow-y: hidden !important;
     scrollbar-width: none !important;
     white-space: nowrap !important;
-    gap: 8px !important;
-    z-index: 10 !important;
+    gap: 6px !important;
+    z-index: 5 !important;
   }
 
   .app-header .summary-banner.in-header::-webkit-scrollbar {
@@ -8151,6 +8282,19 @@ select option,
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  .app-header .summary-banner.in-header .banner-item.is-scheduled {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border-color: rgba(16, 185, 129, 0.4) !important;
   }
 
   .app-header .summary-banner.in-header .banner-item-countries {
@@ -8159,6 +8303,11 @@ select option,
     max-height: 38px !important;
     padding: 2px 7px !important;
     gap: 1px !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
   }
 
   .app-header .summary-banner.in-header .banner-countries-flags {
@@ -8245,6 +8394,73 @@ select option,
   .route-radio-cards {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* Cand apare tripHeaderDates nu mai afisa niciodata banner-item banner-item-dates */
+body:has(#tripHeaderDates:not([style*="display: none"]):not(:empty)) .banner-item-dates,
+.app-header:has(#tripHeaderDates:not([style*="display: none"]):not(:empty))~* .banner-item-dates,
+.summary-banner.in-header .banner-item-dates,
+.app-header .summary-banner .banner-item-dates {
+  display: none !important;
+}
+
+/* Universal styles when banner is moved into app-header or on Z Fold 6 inner screen */
+.app-header .summary-banner.in-header,
+.summary-banner.in-header {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
+.app-header .summary-banner.in-header .banner-item,
+.summary-banner.in-header .banner-item {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.app-header .summary-banner.in-header .banner-item.is-scheduled,
+.summary-banner.in-header .banner-item.is-scheduled {
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+body.is-zfold-inner .header-nav-group,
+.app-header .summary-banner.in-header ~ .header-nav-group {
+  margin-left: auto !important;
+  flex-shrink: 0 !important;
+  position: relative !important;
+  z-index: 20 !important;
+}
+
+body.is-zfold-inner .header-nav-group .add-btn .menu-btn-text,
+.app-header .summary-banner.in-header~.header-nav-group .add-btn .menu-btn-text {
+  display: none !important;
+}
+
+body.is-zfold-inner .header-nav-group .add-btn,
+.app-header .summary-banner.in-header~.header-nav-group .add-btn {
+  padding: 0 10px !important;
+  min-width: 36px !important;
+  width: 36px !important;
+  height: 34px !important;
+  justify-content: center !important;
+  gap: 0 !important;
+}
+
+body.is-zfold-inner .header-nav-group .add-btn svg,
+.app-header .summary-banner.in-header~.header-nav-group .add-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  margin: 0 !important;
 }
 
 @media (max-width: 600px) {
@@ -10797,6 +11013,7 @@ select option,
     gap: 12px;
     padding: 14px 16px;
   }
+
   .danger-action-row button {
     width: 100%;
     justify-content: center;
@@ -11092,7 +11309,7 @@ select option,
 .location-card .card-actions,
 body.single-col-cards .location-card .card-actions,
 .single-col-cards .location-card .card-actions,
-.card-address-row + .card-actions {
+.card-address-row+.card-actions {
   margin-top: auto !important;
   flex-shrink: 0 !important;
 }
@@ -11106,15 +11323,15 @@ body.single-col-cards .location-card .card-info-strip,
   flex-shrink: 0 !important;
 }
 
-.location-card .card-info-strip + .card-actions,
-body.single-col-cards .location-card .card-info-strip + .card-actions,
-.single-col-cards .location-card .card-info-strip + .card-actions {
+.location-card .card-info-strip+.card-actions,
+body.single-col-cards .location-card .card-info-strip+.card-actions,
+.single-col-cards .location-card .card-info-strip+.card-actions {
   margin-top: 0 !important;
 }
 
-.location-card .card-info-strip:empty + .card-actions,
-body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
-.single-col-cards .location-card .card-info-strip:empty + .card-actions {
+.location-card .card-info-strip:empty+.card-actions,
+body.single-col-cards .location-card .card-info-strip:empty+.card-actions,
+.single-col-cards .location-card .card-info-strip:empty+.card-actions {
   margin-top: auto !important;
 }
 
@@ -11126,12 +11343,14 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   gap: 8px;
   align-items: center;
 }
+
 .flight-input-row .flight-number-input {
   flex: 1;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-weight: 600;
 }
+
 .check-flight-btn {
   white-space: nowrap;
   flex-shrink: 0;
@@ -11147,30 +11366,34 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   align-items: center;
   gap: 10px;
   padding: 14px 16px;
-  background: rgba(255,255,255,0.04);
+  background: rgba(255, 255, 255, 0.04);
   border-radius: 10px;
   font-size: 0.85rem;
   color: var(--text-secondary);
 }
+
 .flight-loading-spinner {
   display: inline-block;
   width: 16px;
   height: 16px;
-  border: 2px solid rgba(99,102,241,0.3);
+  border: 2px solid rgba(99, 102, 241, 0.3);
   border-top-color: #6366f1;
   border-radius: 50%;
   animation: flt-spin 0.8s linear infinite;
   flex-shrink: 0;
 }
+
 @keyframes flt-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Error */
 .flight-status-error {
   padding: 12px 16px;
-  background: rgba(239,68,68,0.08);
-  border: 1px solid rgba(239,68,68,0.25);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
   border-radius: 10px;
   font-size: 0.85rem;
   color: #f87171;
@@ -11191,17 +11414,20 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   align-items: center;
   justify-content: space-between;
   padding: 10px 14px 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
+
 .fsc-flight-id {
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
+
 .fsc-airline {
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
+
 .fsc-flight-num {
   font-weight: 700;
   font-size: 0.95rem;
@@ -11218,12 +11444,42 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
-.fsc-status-badge.status-scheduled { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
-.fsc-status-badge.status-active    { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-.fsc-status-badge.status-landed    { background: rgba(14,165,233,0.15); color: #38bdf8; border: 1px solid rgba(14,165,233,0.3); }
-.fsc-status-badge.status-cancelled { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
-.fsc-status-badge.status-diverted  { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
-.fsc-status-badge.status-incident  { background: rgba(239,68,68,0.2);   color: #f87171; border: 1px solid rgba(239,68,68,0.4); }
+
+.fsc-status-badge.status-scheduled {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.fsc-status-badge.status-active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.fsc-status-badge.status-landed {
+  background: rgba(14, 165, 233, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(14, 165, 233, 0.3);
+}
+
+.fsc-status-badge.status-cancelled {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.fsc-status-badge.status-diverted {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.fsc-status-badge.status-incident {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
 
 /* Route row */
 .fsc-route {
@@ -11233,6 +11489,7 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   padding: 14px 14px 10px;
   gap: 8px;
 }
+
 .fsc-endpoint {
   display: flex;
   flex-direction: column;
@@ -11240,9 +11497,11 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   min-width: 0;
   flex: 0 0 auto;
 }
+
 .fsc-endpoint-right {
   text-align: right;
 }
+
 .fsc-iata {
   font-size: 1.6rem;
   font-weight: 800;
@@ -11250,6 +11509,7 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   line-height: 1;
   letter-spacing: -0.02em;
 }
+
 .fsc-time {
   font-size: 1.05rem;
   font-weight: 700;
@@ -11258,7 +11518,11 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   align-items: center;
   gap: 5px;
 }
-.fsc-endpoint-right .fsc-time { justify-content: flex-end; }
+
+.fsc-endpoint-right .fsc-time {
+  justify-content: flex-end;
+}
+
 .fsc-city {
   font-size: 0.72rem;
   color: var(--text-secondary);
@@ -11267,10 +11531,12 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   text-overflow: ellipsis;
   max-width: 130px;
 }
+
 .fsc-date {
   font-size: 0.7rem;
   color: var(--text-muted);
 }
+
 .fsc-arrow {
   flex: 1;
   display: flex;
@@ -11278,6 +11544,7 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   justify-content: center;
   padding: 0 4px;
 }
+
 .fsc-duration-line {
   position: relative;
   width: 100%;
@@ -11285,13 +11552,16 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   align-items: center;
   justify-content: center;
 }
+
 .fsc-line {
   position: absolute;
-  left: 0; right: 0;
+  left: 0;
+  right: 0;
   top: 50%;
   height: 1px;
-  background: rgba(99,102,241,0.3);
+  background: rgba(99, 102, 241, 0.3);
 }
+
 .fsc-plane-icon {
   position: relative;
   color: #6366f1;
@@ -11304,22 +11574,25 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   display: flex;
   flex-wrap: wrap;
   gap: 0;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   padding: 8px 14px 10px;
   gap: 6px 16px;
 }
+
 .fsc-detail {
   display: flex;
   flex-direction: column;
   gap: 1px;
   min-width: 60px;
 }
+
 .fsc-detail-label {
   font-size: 0.67rem;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
 .fsc-detail-val {
   font-size: 0.9rem;
   font-weight: 700;
@@ -11330,9 +11603,9 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
 .flight-delay-badge {
   font-size: 0.65rem;
   font-weight: 700;
-  background: rgba(245,158,11,0.18);
+  background: rgba(245, 158, 11, 0.18);
   color: #fbbf24;
-  border: 1px solid rgba(245,158,11,0.35);
+  border: 1px solid rgba(245, 158, 11, 0.35);
   padding: 1px 6px;
   border-radius: 10px;
   vertical-align: middle;
@@ -11344,12 +11617,13 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  background: rgba(16,185,129,0.06);
-  border-top: 1px solid rgba(16,185,129,0.15);
+  background: rgba(16, 185, 129, 0.06);
+  border-top: 1px solid rgba(16, 185, 129, 0.15);
   font-size: 0.78rem;
   color: #34d399;
   flex-wrap: wrap;
 }
+
 .flight-live-dot {
   width: 7px;
   height: 7px;
@@ -11359,11 +11633,24 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   flex-shrink: 0;
   animation: flt-pulse 1.5s ease-in-out infinite;
 }
+
 @keyframes flt-pulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(1.3); }
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.5;
+    transform: scale(1.3);
+  }
 }
-.flight-live-sep { color: rgba(52,211,153,0.4); }
+
+.flight-live-sep {
+  color: rgba(52, 211, 153, 0.4);
+}
 
 /* ============================================================
    UNIFIED CARD DETAILS DRAWER & INTELLIGENT FLIGHT INTEGRATION
@@ -11400,18 +11687,7 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
   margin-left: 2px;
 }
 
-/* Card Actions Details Button */
-.loc-nav-btn.card-details-btn {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
 
-.loc-nav-btn.card-details-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.25);
-}
 
 /* ============================================================
    FLIGHT CARD STYLING (USED IN MODAL FLIGHT TAB & CARDS)
@@ -11713,8 +11989,13 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .drawer-flight-refresh-notice {
@@ -11845,5 +12126,3 @@ body.single-col-cards .location-card .card-info-strip:empty + .card-actions,
 .flight-modal-radar-wrap:empty {
   display: none;
 }
-
-

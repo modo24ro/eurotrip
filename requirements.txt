@@ -8,3 +8,4 @@ MarkupSafe==3.0.3
 python-dotenv>=1.0.0
 tzdata==2026.4
 Werkzeug==3.1.8
+BeautifulSoup4==4.13.2

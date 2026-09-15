@@ -25,6 +25,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from dotenv import load_dotenv
 load_dotenv()
 import flight_service
+import google_flight_service
 
 
 app = Flask(__name__)
@@ -2901,6 +2902,14 @@ def get_location_flight_data(loc_id):
     if err or not normalized:
         return jsonify({'error': err or 'Nu s-au putut prelua datele zborului', 'flight': None, 'status': 'error'}), 200
 
+    # Supplementary check via Google Flight Status (strictly verified)
+    try:
+        g_data, _ = google_flight_service.fetch_google_flight_status(flight_num, loc)
+        if g_data and google_flight_service.verify_flight_identity(normalized, g_data, loc):
+            normalized = google_flight_service.enrich_flight_data_with_google(normalized, g_data, loc)
+    except Exception as g_exc:
+        logger.warning("Supplementary Google flight check failed: %s", g_exc)
+
     flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, normalized)
     loc['flight_data'] = normalized
     write_trip_data_atomic(trip, trip_id)
@@ -2926,18 +2935,76 @@ def refresh_location_flight(loc_id):
     existing_cached = loc.get('flight_data') or flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc_id)
 
     if err or not normalized:
-        # Preserve cached data on failure per Requirement 9
-        return jsonify({
-            'status': 'error',
-            'error': err or 'Actualizarea a eșuat',
-            'flight': existing_cached,
-            'message': f"Datele nu au putut fi actualizate: {err}. Se păstrează datele salvate anterior."
-        }), 200
+        if existing_cached:
+            normalized = existing_cached
+        else:
+            normalized = flight_service.build_fallback_flight_data(flight_num, loc=loc)
+
+    # Supplementary check via Google Flight Status (strictly verified)
+    try:
+        g_data, _ = google_flight_service.fetch_google_flight_status(flight_num, loc)
+        if g_data and google_flight_service.verify_flight_identity(normalized, g_data, loc):
+            normalized = google_flight_service.enrich_flight_data_with_google(normalized, g_data, loc)
+    except Exception as g_exc:
+        logger.warning("Supplementary Google flight refresh check failed: %s", g_exc)
 
     flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, normalized)
     loc['flight_data'] = normalized
     write_trip_data_atomic(trip, trip_id)
     return jsonify({'status': 'ok', 'flight': normalized, 'message': 'Datele zborului au fost actualizate.'})
+
+
+@app.route('/api/locations/<loc_id>/flight-google-enrich', methods=['POST'])
+@require_auth
+@require_role('admin')
+def enrich_location_flight_from_google(loc_id):
+    trip_id = active_trip_id()
+    trip = load_trip_data(trip_id)
+    loc = next((l for l in trip.get('locations', []) if l.get('id') == loc_id), None)
+    if not loc:
+        return jsonify({'error': 'Location not found'}), 404
+
+    flight_num = (loc.get('flight_number') or '').strip()
+    if not flight_num:
+        return jsonify({'error': 'Numărul zborului lipsește'}), 400
+
+    existing = loc.get('flight_data') or flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc_id)
+    if not existing:
+        existing, _ = flight_service.query_aviationstack_api(flight_num, loc)
+    if not existing:
+        existing = flight_service.build_fallback_flight_data(flight_num, loc=loc)
+
+    body = request.get_json(silent=True) or {}
+    raw_snippet = body.get('snippet') or body.get('html')
+
+    if raw_snippet:
+        google_data = google_flight_service.parse_google_flight_data(raw_snippet)
+    else:
+        google_data, _ = google_flight_service.fetch_google_flight_status(flight_num, loc)
+
+    if not google_data:
+        return jsonify({
+            'status': 'warning',
+            'flight': existing,
+            'message': 'Nu s-au putut extrage date valide din statusul Google.'
+        }), 200
+
+    if not google_flight_service.verify_flight_identity(existing, google_data, loc):
+        return jsonify({
+            'status': 'error',
+            'flight': existing,
+            'message': 'Datele din Google nu corespund exact acestui zbor (rută, număr sau dată diferită). Rezultatul a fost ignorat.'
+        }), 200
+
+    enriched = google_flight_service.enrich_flight_data_with_google(existing, google_data, loc)
+    flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, enriched)
+    loc['flight_data'] = enriched
+    write_trip_data_atomic(trip, trip_id)
+    return jsonify({
+        'status': 'ok',
+        'flight': enriched,
+        'message': 'Datele zborului au fost completate cu succes din Google Flight Status.'
+    })
 
 
 @app.route('/api/flights/refresh-all', methods=['POST'])

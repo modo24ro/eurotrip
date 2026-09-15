@@ -20,6 +20,14 @@
         </svg>
         <span class="menu-btn-text">Add</span>
       </button>
+      <button class="hdr-btn menu-btn save-btn desktop-save-btn" id="saveBtn" title="Save Trip (Ctrl+S)">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path
+            d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z" />
+        </svg>
+        <span class="menu-btn-text">Save</span>
+        <span class="unsaved-dot" id="unsavedDot"></span>
+      </button>
       {% endif %}
       <button class="hdr-btn notification-btn header-notification-btn" id="notificationsBtn" title="Notifications"
         type="button" aria-label="Notifications">
@@ -36,7 +44,8 @@
           <span class="menu-category-title">Trips</span>
         </div>
         <div class="menu-subgroup">
-          <div class="trip-selector-wrap menu-item-wrap" id="tripSelectorWrap"{% if trip_count is defined and trip_count <= 1 %} style="display: none;"{% endif %}>
+          <div class="trip-selector-wrap menu-item-wrap" id="tripSelectorWrap" {% if trip_count is defined and
+            trip_count <=1 %} style="display: none;" {% endif %}>
             <button id="tripSelector" class="hdr-btn menu-btn trip-selector-btn" type="button" aria-label="Select trip"
               title="Select trip">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -55,13 +64,13 @@
             </svg>
             <span class="menu-btn-text">New Trip</span>
           </button>
-          <button class="hdr-btn menu-btn save-btn desktop-save-btn" id="saveBtn" title="Save Trip (Ctrl+S)">
+          <button class="hdr-btn menu-btn save-btn menu-dropdown-save-btn" id="menuSaveBtn" title="Save Trip (Ctrl+S)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
               <path
                 d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z" />
             </svg>
             <span class="menu-btn-text">Save Trip</span>
-            <span class="unsaved-dot" id="unsavedDot"></span>
+            <span class="unsaved-dot" id="menuUnsavedDot"></span>
           </button>
           {% endif %}
         </div>
@@ -96,7 +105,7 @@
 
       <div class="menu-divider"></div>
 
-      <!-- Category 3: Session / Exit App -->
+      <!-- Category 3: Session / Log Out -->
       <div class="menu-category">
         {% if role != 'admin' %}
         <button class="hdr-btn menu-btn admin-login-btn" id="adminLoginBtn" title="Admin Login" type="button">
@@ -107,12 +116,12 @@
           <span class="menu-btn-text">Admin</span>
         </button>
         {% endif %}
-        <button class="hdr-btn menu-btn logout-btn exit-app-btn" id="exitAppBtn" title="Exit App" type="button">
+        <button class="hdr-btn menu-btn logout-btn exit-app-btn" id="exitAppBtn" title="Log Out" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path
               d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
           </svg>
-          <span class="menu-btn-text">Exit App</span>
+          <span class="menu-btn-text">Log Out</span>
         </button>
       </div>
     </div>
@@ -285,7 +294,8 @@
       </div>
       <div class="modal-body">
         <div class="backup-list-toolbar">
-          <label class="backup-select-all" for="selectAllBackups"><input type="checkbox" id="selectAllBackups"> <span>Select all</span></label>
+          <label class="backup-select-all" for="selectAllBackups"><input type="checkbox" id="selectAllBackups">
+            <span>Select all</span></label>
           <button class="btn-danger backup-bulk-delete" id="deleteSelectedBackups" type="button" disabled>Delete
             selected</button>
         </div>
@@ -600,9 +610,12 @@
       <div class="modal-body location-modal-body" id="locationModalBody"></div>
       <div class="modal-footer location-modal-footer">
         <button type="button" class="btn-secondary location-modal-cancel-btn" id="cancelLocationModal">Cancel</button>
-        <button type="button" class="btn-primary location-modal-save-btn" id="locationModalSaveBtn" title="Salvează locația">
+        <button type="button" class="btn-primary location-modal-save-btn" id="locationModalSaveBtn"
+          title="Salvează locația">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-            <path d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z"></path>
+            <path
+              d="M17 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7l-4-4zm-5 16a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm3-10H5V5h10v4z">
+            </path>
           </svg>
           <span>Save</span>
         </button>
@@ -617,7 +630,8 @@
         <h2 id="flightModalTitle">Detalii zbor</h2>
         <button class="modal-close" id="closeFlightModal" type="button" aria-label="Close">
           <svg viewBox="0 0 24 24">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            <path
+              d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
           </svg>
         </button>
       </div>
@@ -910,12 +924,12 @@
       <span>Save</span>
     </button>
     {% else %}
-    <button class="mnav-btn exit-app-btn" id="mobileLogout" title="Exit App">
+    <button class="mnav-btn exit-app-btn" id="mobileLogout" title="Log Out">
       <svg viewBox="0 0 24 24">
         <path
           d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.59L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
       </svg>
-      <span>Exit App</span>
+      <span>Log Out</span>
     </button>
     {% endif %}
   </nav>
@@ -975,11 +989,7 @@
               <input type="checkbox" id="hideVisitedMobile">
               <span>Hide visited locations</span>
             </label>
-            <label class="filter-modal-toggle-row single-col-toggle-row-mobile" id="singleColToggleRowMobile" for="singleColToggleMobile">
-              <input type="checkbox" id="singleColToggleMobile">
-              <span>1 card per row (Large cards)</span>
-            </label>
-            <div class="filter-modal-select-row" id="cardsPerRowModalGroup" style="display:none; margin-top: 8px;">
+            <div class="filter-modal-select-row" id="cardsPerRowModalGroup" style="margin-top: 8px;">
               <label class="filter-modal-label" for="cardsPerRowSelectMobile">Carduri pe rând</label>
               <select id="cardsPerRowSelectMobile" class="filter-modal-select">
                 <option value="1">1 card / rând</option>
@@ -1027,4 +1037,4 @@
 
 
 </div>
-{% endblock %}
+{% endblock %}

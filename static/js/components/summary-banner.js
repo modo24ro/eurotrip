@@ -14,41 +14,60 @@ function resolveState(providedState) {
 }
 
 /**
+ * Measures the actual inner content width of summary-banner items (.banner-metrics + .banner-secondary)
+ * rather than the full-width block container.
+ */
+export function getBannerContentWidth(banner) {
+  if (!banner) return 0;
+  const items = banner.querySelectorAll('.banner-item:not(.banner-item-dates)');
+  if (!items.length) return banner.scrollWidth || banner.offsetWidth || 0;
+  let w = 0;
+  items.forEach(it => {
+    w += (it.offsetWidth || it.scrollWidth || 0);
+  });
+  w += (items.length - 1) * 6 + 20;
+  return w;
+}
+
+/**
  * Detects if the current device is specifically a Samsung Galaxy Z Fold 6 using its inner/main screen.
  * - Checks UA for SM-F956 (Galaxy Z Fold 6) or Z Fold family SM-F9xx.
- * - In DevTools/emulation: checks inner screen dimensions (width 600-960px, near-square aspect ratio 0.72-1.38, touch).
- * - Excludes Apple/iPads and outer folded cover screens (width < 600px).
+ * - Checks Android touch device with unfolded inner display dimensions (width 560-1400px, aspect ratio 0.50-1.90).
+ * - Excludes Apple/iPads and outer folded cover screens (width < 560px).
  */
 export function isZFold6InnerScreen() {
   if (typeof window === 'undefined') return false;
   const ua = navigator.userAgent || '';
   const model = window.navigator?.userAgentData?.model || '';
-  const isZFoldModel = /SM-F956/i.test(ua) || /SM-F956/i.test(model);
-  const isZFoldFamily = /SM-F9/i.test(ua) || /SM-F9/i.test(model);
-
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-
-  const isInnerScreenDimensions = w >= 600 && w <= 960;
-  const isFoldRatio = (w / h >= 0.72 && w / h <= 1.38);
-
-  if (isZFoldModel || isZFoldFamily) {
-    return isInnerScreenDimensions && isFoldRatio;
-  }
 
   // Exclude Apple devices (iPad/iPhone/Mac)
   if (/iPad|Macintosh|iPhone/i.test(ua)) return false;
 
-  // Touch screen with Z Fold 6 inner screen physical characteristics (including Android & DevTools emulation)
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-  return isTouch && isInnerScreenDimensions && isFoldRatio;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  // Outer cover screen of Z Fold is narrow phone width (< 560px)
+  if (w < 560) return false;
+
+  const isZFoldModel = /SM-F9|SM-W9|Galaxy Z Fold/i.test(ua) || /SM-F9|SM-W9/i.test(model);
+  if (isZFoldModel) {
+    return true;
+  }
+
+  // Inner screen range (portrait or landscape): 560px - 1400px
+  if (isTouch && w >= 560 && w <= 1400) {
+    const ratio = w / h;
+    if (ratio >= 0.50 && ratio <= 1.90) return true;
+  }
+
+  return false;
 }
 
 /**
- * On Samsung Galaxy Z Fold 6 (inner/main screen ONLY):
- * Moves #summaryBanner into .app-header after .trip-brand-details (between .header-brand and .header-nav-group),
- * ONLY if there is enough horizontal space for it to fit properly with equal spacing before & after.
- * On all other devices or on Z Fold 6 outer screen, preserves original position below header.
+ * Moves #summaryBanner into .app-header after .trip-brand-details (between .header-brand and .header-nav-group)
+ * when there is sufficient horizontal room on the row, maximizing vertical space efficiency.
+ * On Z Fold 6 inner screen and capable viewports, ensures seamless fit.
  */
 export function syncZFold6SummaryBanner() {
   if (typeof document === 'undefined') return;
@@ -72,7 +91,12 @@ export function syncZFold6SummaryBanner() {
   };
 
   const isZFoldInner = isZFold6InnerScreen();
-  if (!isZFoldInner) {
+  if (document.body) {
+    document.body.classList.toggle('is-zfold-inner', isZFoldInner);
+  }
+
+  // Viewports under 560px remain below header
+  if (window.innerWidth < 560) {
     restoreToOriginal();
     return;
   }
@@ -82,12 +106,12 @@ export function syncZFold6SummaryBanner() {
   const brandWidth = brand.offsetWidth || 0;
   const navGroupWidth = navGroup ? navGroup.offsetWidth : 0;
 
-  // Require minimum equal spacing: at least 24px before (after trip-brand-details) and 24px after = 48px
-  const minRequiredSpacing = 48;
+  // Minimum required spacing before and after banner to guarantee it never overlaps addBtn
+  const minRequiredSpacing = 36;
   const availableSpace = headerWidth - brandWidth - navGroupWidth - minRequiredSpacing;
 
-  // Measure content width of summary-banner
-  const bannerContentWidth = banner.scrollWidth || banner.offsetWidth;
+  // Measure ACTUAL content width of summary-banner items (excluding dates which are under title)
+  const bannerContentWidth = getBannerContentWidth(banner);
 
   if (bannerContentWidth > 0 && bannerContentWidth <= availableSpace) {
     // Move into app-header after trip-brand-details (inserted before navGroup)
@@ -122,6 +146,9 @@ export function renderSummary(targetState) {
     ? `All ${enabled.length} active locations are scheduled`
     : `${scheduled} of ${enabled.length} active locations scheduled`;
 
+  const hasHeaderDates = (days.length > 0 && firstDay !== '—');
+  const showBannerDates = !hasHeaderDates && (days.length > 0);
+
   const el = document.getElementById('summaryBanner');
   if (el) {
     el.innerHTML = `
@@ -130,9 +157,9 @@ export function renderSummary(targetState) {
         <div class="banner-item"><div class="banner-value">${days.length}</div><div class="banner-label">Days</div></div>
         <div class="banner-item"><div class="banner-value">${formatEur(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
       </div>
-      ${(days.length > 0 || countries.length > 0) ? `
+      ${(showBannerDates || countries.length > 0) ? `
         <div class="banner-secondary">
-          ${days.length > 0 ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
+          ${showBannerDates ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
           ${countries.length > 0 ? `
             <div class="banner-item banner-item-countries">
               <div class="banner-countries-flags">
@@ -161,7 +188,7 @@ export function renderSummary(targetState) {
     }
   }
   if (headerDatesEl) {
-    if (days.length > 0 && firstDay !== '—') {
+    if (hasHeaderDates) {
       headerDatesEl.innerHTML = `<span class="banner-value banner-dates-val trip-header-dates-val">${firstDay} → ${lastDay}</span>`;
       headerDatesEl.style.display = '';
     } else {
