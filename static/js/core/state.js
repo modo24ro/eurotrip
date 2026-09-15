@@ -79,8 +79,13 @@ export function clearUnsaved() {
   if (dot) dot.classList.remove('visible');
 }
 
+function getActiveState() {
+  return (typeof window !== 'undefined' && window.state) ? window.state : state;
+}
+
 export function getLocation(id) {
-  return state.trip?.locations?.find(l => l.id === id) || null;
+  const s = getActiveState();
+  return s.trip?.locations?.find(l => l.id === id) || null;
 }
 
 export function updateLocation(id, fields) {
@@ -91,16 +96,18 @@ export function updateLocation(id, fields) {
 }
 
 export function deleteLocation(id) {
-  if (!state.trip) return;
-  state.trip.locations = (state.trip.locations || []).filter(l => l.id !== id);
-  state.mapExcluded.delete(id);
-  savePrefs({ mapExcluded: [...state.mapExcluded] });
+  const s = getActiveState();
+  if (!s.trip) return;
+  s.trip.locations = (s.trip.locations || []).filter(l => l.id !== id);
+  if (s.mapExcluded) s.mapExcluded.delete(id);
+  savePrefs({ mapExcluded: s.mapExcluded ? [...s.mapExcluded] : [] });
   markUnsaved();
 }
 
 export function duplicateLocation(id) {
+  const s = getActiveState();
   const orig = getLocation(id);
-  if (!orig) return null;
+  if (!orig || !s.trip) return null;
 
   const copy = JSON.parse(JSON.stringify(orig));
   copy.id = 'loc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9);
@@ -108,11 +115,11 @@ export function duplicateLocation(id) {
   copy.visited = false;
   copy.attachments = [];
 
-  const idx = state.trip.locations.findIndex(l => l.id === id);
+  const idx = s.trip.locations.findIndex(l => l.id === id);
   if (idx !== -1) {
-    state.trip.locations.splice(idx + 1, 0, copy);
+    s.trip.locations.splice(idx + 1, 0, copy);
   } else {
-    state.trip.locations.push(copy);
+    s.trip.locations.push(copy);
   }
   markUnsaved();
   return copy;

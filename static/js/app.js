@@ -40,8 +40,14 @@ import {
 import { toast, showToast } from './core/toast.js';
 import { api } from './core/api.js';
 import { renderSummary, renderCountryFilter } from './components/summary-banner.js';
-import { openFlightModal, closeFlightModal } from './components/flight-card.js';
-
+import {
+  openFlightModal,
+  closeFlightModal,
+  getFlightStatusVisual,
+  renderFlightCardHTML,
+  renderFlightUnavailableHTML,
+  fetchFlightStatus,
+} from './components/flight-card.js';
 
 // ============================================================
 // STATE
@@ -56,10 +62,6 @@ function savePrefs(patch) {
 }
 
 const _prefs = loadPrefs();
-
-// function isNarrowScreen() {
-//   return typeof window !== 'undefined' && window.innerWidth <= 768;
-// }
 
 function getInitialView() {
   if (typeof window !== 'undefined') {
@@ -1769,58 +1771,6 @@ function addMinutesToTime(timeStr, mins) {
   return minutesToTime(startMins + (Number(mins) || 0));
 }
 
-// function formatDuration(minutes) {
-//   const mins = Number(minutes);
-//   if (!mins || isNaN(mins) || mins <= 0) return '1h';
-//   const h = Math.floor(mins / 60);
-//   const m = mins % 60;
-//   if (h > 0 && m > 0) return `${h}h ${m}m`;
-//   if (h > 0) return `${h}h`;
-//   return `${m}m`;
-// }
-
-// function getScheduleTimes(loc) {
-//   if (!loc || !loc.visit_time) return null;
-//   const duration = Number(loc.duration_minutes) > 0 ? Number(loc.duration_minutes) : 60;
-//   const startMinutes = timeToMinutes(loc.visit_time);
-//   if (startMinutes == null) return null;
-//   const endMinutes = startMinutes + duration;
-//   return {
-//     start: loc.visit_time,
-//     end: minutesToTime(endMinutes),
-//     duration,
-//     startMinutes,
-//     endMinutes,
-//   };
-// }
-
-// function detectScheduleConflicts(locations) {
-//   const conflicts = new Map();
-//   const scheduled = locations
-//     .filter(l => l.enabled !== false && l.visit_time)
-//     .map(l => ({ loc: l, times: getScheduleTimes(l) }))
-//     .filter(item => item.times != null)
-//     .sort((a, b) => a.times.startMinutes - b.times.startMinutes);
-
-//   for (let i = 0; i < scheduled.length - 1; i++) {
-//     const current = scheduled[i];
-//     const next = scheduled[i + 1];
-//     if (next.times.startMinutes < current.times.endMinutes) {
-//       const overlap = current.times.endMinutes - next.times.startMinutes;
-//       const curConflict = conflicts.get(current.loc.id) || { conflictingWith: [], overlapMinutes: 0 };
-//       curConflict.conflictingWith.push(next.loc);
-//       curConflict.overlapMinutes = Math.max(curConflict.overlapMinutes, overlap);
-//       conflicts.set(current.loc.id, curConflict);
-
-//       const nextConflict = conflicts.get(next.loc.id) || { conflictingWith: [], overlapMinutes: 0 };
-//       nextConflict.conflictingWith.push(current.loc);
-//       nextConflict.overlapMinutes = Math.max(nextConflict.overlapMinutes, overlap);
-//       conflicts.set(next.loc.id, nextConflict);
-//     }
-//   }
-//   return conflicts;
-// }
-
 function getCategoryColor(category) {
   const colors = {
     hotel: '#5c73f2',
@@ -2071,268 +2021,8 @@ if (typeof window !== 'undefined') {
 }
 
 // ============================================================
-// INTELLIGENT FLIGHT DATA & UNIFIED CARD DRAWER
+// CARD DRAWER / MODAL BRIDGES
 // ============================================================
-
-function getFlightStatusVisual(status, delay) {
-  const s = (status || 'unknown').toLowerCase();
-  const delayMin = Number(delay) || 0;
-
-  if (s === 'cancelled') {
-    return { icon: '🔴', label: 'Anulat', className: 'flight-status-cancelled', textClass: 'text-red-400' };
-  }
-  if (s === 'diverted') {
-    return { icon: '↩️', label: 'Deviat', className: 'flight-status-diverted', textClass: 'text-amber-400' };
-  }
-  if (s === 'incident') {
-    return { icon: '⚠️', label: 'Incident', className: 'flight-status-incident', textClass: 'text-orange-400' };
-  }
-  if (delayMin > 10 && (s === 'scheduled' || s === 'active')) {
-    return { icon: '🟡', label: `Întârziat (+${delayMin} min)`, className: 'flight-status-delayed', textClass: 'text-amber-400' };
-  }
-
-  const map = {
-    scheduled: { icon: '🟢', label: 'Programat / La timp', className: 'flight-status-scheduled', textClass: 'text-emerald-400' },
-    active: { icon: '🔵', label: 'În zbor', className: 'flight-status-active', textClass: 'text-blue-400' },
-    landed: { icon: '✓', label: 'Aterizat', className: 'flight-status-landed', textClass: 'text-purple-400' },
-    unknown: { icon: '⚪', label: 'Status necunoscut', className: 'flight-status-unknown', textClass: 'text-slate-400' }
-  };
-
-  return map[s] || { icon: '⚪', label: status || 'Necunoscut', className: 'flight-status-unknown', textClass: 'text-slate-400' };
-}
-
-// function formatFlightTime(iso, tz) {
-//   if (!iso) return '—';
-//   try {
-//     const d = new Date(iso);
-//     const opts = { hour: '2-digit', minute: '2-digit', hour12: false };
-//     if (tz) opts.timeZone = tz;
-//     return d.toLocaleTimeString([], opts);
-//   } catch {
-//     return iso.slice(11, 16) || '—';
-//   }
-// }
-
-// function formatFlightDate(iso) {
-//   if (!iso) return '';
-//   try {
-//     const d = new Date(iso);
-//     return d.toLocaleDateString('ro-RO', { weekday: 'short', day: 'numeric', month: 'short' });
-//   } catch {
-//     return iso.slice(0, 10) || '';
-//   }
-// }
-
-function formatFlightDateTime(iso) {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-  } catch {
-    return iso.slice(0, 16);
-  }
-}
-
-function renderFlightCardHTML(container, loc, flight, fromCache = true) {
-  if (!container || !flight) return;
-
-  const dep = flight.departure || {};
-  const arr = flight.arrival || {};
-  const depTime = dep.actual || dep.estimated || dep.scheduled;
-  const arrTime = arr.actual || arr.estimated || arr.scheduled;
-  const delayVal = flight.delay != null ? flight.delay : dep.delay;
-  const visual = getFlightStatusVisual(flight.status, delayVal);
-  const live = flight.live;
-
-  const lastUpdatedStr = flight.last_updated ? formatFlightDateTime(flight.last_updated) : 'Recent';
-  const durationStr = flight.duration ? `<span class="flight-route-duration" title="Durată estimată">⏱️ ${esc(flight.duration)}</span>` : '';
-
-  // Non-empty details list only
-  const detailsItems = [];
-  if (flight.airline) detailsItems.push({ label: 'Companie', val: flight.airline });
-  if (flight.flight_number || flight.flight_iata) detailsItems.push({ label: 'Număr Zbor', val: (flight.flight_number || flight.flight_iata).toUpperCase() });
-  if (dep.terminal) detailsItems.push({ label: 'Terminal Plecare', val: dep.terminal });
-  if (dep.gate) detailsItems.push({ label: 'Poartă Plecare', val: dep.gate });
-  if (arr.terminal) detailsItems.push({ label: 'Terminal Sosire', val: arr.terminal });
-  if (arr.gate) detailsItems.push({ label: 'Poartă Sosire', val: arr.gate });
-  if (arr.baggage) detailsItems.push({ label: 'Bandă Bagaje', val: arr.baggage });
-  if (flight.aircraft) detailsItems.push({ label: 'Aeronava', val: flight.aircraft });
-  if (delayVal) detailsItems.push({ label: 'Întârziere', val: `${delayVal} min` });
-
-  const detailsGridHTML = detailsItems.length ? `
-    <div class="flight-details-grid">
-      ${detailsItems.map(item => `
-        <div class="flight-detail-item">
-          <span class="flight-detail-label">${esc(item.label)}</span>
-          <span class="flight-detail-value">${esc(item.val)}</span>
-        </div>
-      `).join('')}
-    </div>
-  ` : '';
-
-  // Live telemetry row if active
-  const liveRowHTML = live ? `
-    <div class="flight-live-banner">
-      <span class="flight-live-pulse-dot"></span>
-      <span class="flight-live-title">Radar Live:</span>
-      <span>${live.is_ground ? 'La sol' : 'În aer'}</span>
-      ${live.altitude != null ? `<span class="live-sep">·</span><span>Alt: ${live.altitude} m</span>` : ''}
-      ${live.speed_horizontal != null ? `<span class="live-sep">·</span><span>Viteză: ${Math.round(live.speed_horizontal)} km/h</span>` : ''}
-    </div>
-  ` : '';
-
-  container.innerHTML = `
-    <div class="drawer-flight-card">
-      <!-- Flight Header: Airline & Status -->
-      <div class="drawer-flight-header">
-        <div class="drawer-flight-meta">
-          <span class="drawer-flight-airline">${esc(flight.airline || 'Zbor')}</span>
-          <span class="drawer-flight-code">${esc((flight.flight_number || flight.flight_iata || loc.flight_number || '').toUpperCase())}</span>
-        </div>
-        <div class="drawer-flight-badge ${visual.className}">
-          <span class="status-badge-icon">${visual.icon}</span>
-          <span class="status-badge-label">${esc(visual.label)}</span>
-        </div>
-      </div>
-
-      <!-- Route Board: IAS ──✈── BCN -->
-      <div class="drawer-flight-route">
-        <div class="flight-route-col departure">
-          <div class="flight-route-iata">${esc(dep.iata || 'DEP')}</div>
-          <div class="flight-route-time">${formatFlightTime(depTime, dep.timezone)}</div>
-          <div class="flight-route-airport" title="${esc(dep.airport || '')}">${esc(dep.airport || 'Plecare')}</div>
-          <div class="flight-route-date">${formatFlightDate(dep.scheduled || loc.visit_date)}</div>
-        </div>
-
-        <div class="flight-route-graphic">
-          ${durationStr}
-          <div class="flight-route-vector">
-            <span class="vector-line"></span>
-            <span class="vector-plane">✈</span>
-          </div>
-        </div>
-
-        <div class="flight-route-col arrival">
-          <div class="flight-route-iata">${esc(arr.iata || 'ARR')}</div>
-          <div class="flight-route-time">${formatFlightTime(arrTime, arr.timezone)}</div>
-          <div class="flight-route-airport" title="${esc(arr.airport || '')}">${esc(arr.airport || 'Sosire')}</div>
-          <div class="flight-route-date">${formatFlightDate(arr.scheduled || loc.visit_date)}</div>
-        </div>
-      </div>
-
-      <!-- Details Grid -->
-      ${detailsGridHTML}
-
-      <!-- Live Telemetry -->
-      ${liveRowHTML}
-
-      <!-- Cache Snapshot & Refresh Action Footer -->
-      <div class="drawer-flight-footer">
-        <div class="drawer-flight-cache-info">
-          <span class="cache-shield-icon" title="Date salvate local, fără consum API">🛡️</span>
-          <div class="cache-text-wrap">
-            <span class="cache-source-label">Snapshot local JSON</span>
-            <span class="cache-time-label">Actualizat: ${lastUpdatedStr}</span>
-          </div>
-        </div>
-        <button type="button" class="btn-secondary btn-sm drawer-flight-refresh-btn" data-loc-id="${esc(loc.id)}" title="Interoghează API AviationStack pentru date proaspete">
-          <span class="btn-refresh-icon">🔄</span>
-          <span class="btn-refresh-text">Actualizează de la API</span>
-        </button>
-      </div>
-
-      <div class="drawer-flight-refresh-notice" style="display:none;"></div>
-    </div>
-  `;
-
-  // Attach refresh button listener
-  const refreshBtn = container.querySelector('.drawer-flight-refresh-btn');
-  const noticeEl = container.querySelector('.drawer-flight-refresh-notice');
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', async () => {
-      refreshBtn.disabled = true;
-      const originalText = refreshBtn.querySelector('.btn-refresh-text')?.textContent;
-      if (refreshBtn.querySelector('.btn-refresh-text')) {
-        refreshBtn.querySelector('.btn-refresh-text').textContent = 'Se preia din API…';
-      }
-      refreshBtn.classList.add('is-loading');
-
-      try {
-        const res = await fetch(`/api/locations/${encodeURIComponent(loc.id)}/flight-refresh`, { method: 'POST' });
-        const data = await res.json();
-
-        if (res.ok && data.status === 'ok' && data.flight) {
-          loc.flight_data = data.flight;
-          // Synchronize cached card in main state
-          const stateLoc = getLocation(loc.id);
-          if (stateLoc) stateLoc.flight_data = data.flight;
-          renderFlightCardHTML(container, loc, data.flight, false);
-          updateCardSubcard(document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`), loc);
-          showToast('Datele zborului au fost actualizate de la API!', 'success');
-        } else {
-          // Requirement 9: Keep displaying last successfully cached flight data!
-          if (noticeEl) {
-            noticeEl.style.display = 'block';
-            noticeEl.className = 'drawer-flight-refresh-notice notice-warning';
-            noticeEl.innerHTML = `⚠️ <strong>Nu s-a putut actualiza:</strong> ${esc(data.message || data.error || 'Eroare API')}. Se afișează datele din cache-ul local salvat la ${lastUpdatedStr}.`;
-          }
-          showToast(data.message || data.error || 'Nu s-a putut actualiza zborul', 'warning');
-        }
-      } catch (err) {
-        if (noticeEl) {
-          noticeEl.style.display = 'block';
-          noticeEl.className = 'drawer-flight-refresh-notice notice-warning';
-          noticeEl.innerHTML = `⚠️ <strong>Eroare rețea:</strong> ${esc(err.message)}. Se afișează datele din cache-ul local salvat la ${lastUpdatedStr}.`;
-        }
-        showToast('Eroare rețea la actualizarea zborului', 'warning');
-      } finally {
-        refreshBtn.disabled = false;
-        refreshBtn.classList.remove('is-loading');
-        if (refreshBtn.querySelector('.btn-refresh-text') && originalText) {
-          refreshBtn.querySelector('.btn-refresh-text').textContent = originalText;
-        }
-      }
-    });
-  }
-}
-
-function renderFlightUnavailableHTML(container, loc, errMsg) {
-  if (!container) return;
-  const fNum = (loc.flight_number || '').toUpperCase();
-  container.innerHTML = `
-    <div class="flight-unavailable-box">
-      <div class="unavail-icon">✈️</div>
-      <div class="unavail-title">Date de zbor indisponibile</div>
-      <p class="unavail-desc">${esc(errMsg || `Nu s-au putut prelua automat datele pentru zborul ${fNum}.`)}</p>
-      <button type="button" class="btn-primary btn-sm retry-flight-btn" data-loc-id="${esc(loc.id)}">
-        🔄 Reîncearcă interogarea API
-      </button>
-    </div>
-  `;
-
-  const retryBtn = container.querySelector('.retry-flight-btn');
-  retryBtn?.addEventListener('click', () => {
-    retryBtn.disabled = true;
-    retryBtn.textContent = 'Se verifică…';
-    fetch(`/api/locations/${encodeURIComponent(loc.id)}/flight-refresh`, { method: 'POST' })
-      .then(res => res.json())
-      .then(data => {
-        if (data.status === 'ok' && data.flight) {
-          loc.flight_data = data.flight;
-          const stateLoc = getLocation(loc.id);
-          if (stateLoc) stateLoc.flight_data = data.flight;
-          renderFlightCardHTML(container, loc, data.flight, false);
-          updateCardSubcard(document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`), loc);
-          showToast('Datele zborului au fost preluate și salvate local!', 'success');
-        } else {
-          renderFlightUnavailableHTML(container, loc, data.message || data.error);
-        }
-      })
-      .catch(err => {
-        renderFlightUnavailableHTML(container, loc, err.message);
-      });
-  });
-}
 
 function openCardDrawer(locId, options = {}) {
   const initialTab = options?.initialTab || 'general';
@@ -2342,49 +2032,6 @@ function openCardDrawer(locId, options = {}) {
 function closeCardDrawer() {
   closeLocationModal();
 }
-
-function initCardDrawer() {
-  // Drawer overlay removed - modal workflow in use
-}
-
-
-async function fetchFlightStatus(card, flightIata, forceRefresh = false) {
-  const wrap = card.querySelector('.flight-status-card-wrap');
-  if (!wrap) return;
-  const locId = card.dataset.id;
-  const loc = getLocation(locId);
-
-  // Requirement 2: Do NOT query API if already cached locally, unless explicit refresh requested
-  if (!forceRefresh && loc && loc.flight_data) {
-    wrap.style.display = '';
-    renderFlightCardHTML(wrap, loc, loc.flight_data, true);
-    return;
-  }
-
-  wrap.style.display = '';
-  wrap.innerHTML = `<div class="flight-status-loading"><span class="flight-loading-spinner"></span> Se verifică zborul ${flightIata}…</div>`;
-
-  try {
-    const endpoint = forceRefresh
-      ? `/api/locations/${encodeURIComponent(locId)}/flight-refresh`
-      : `/api/locations/${encodeURIComponent(locId)}/flight-data`;
-    const opts = forceRefresh ? { method: 'POST' } : {};
-    const res = await fetch(endpoint, opts);
-    const data = await res.json();
-
-    if (!res.ok || (data.error && !data.flight)) {
-      wrap.innerHTML = `<div class="flight-status-error">❌ ${esc(data.error || 'Eroare la verificarea zborului')}</div>`;
-      return;
-    }
-
-    if (loc) loc.flight_data = data.flight;
-    renderFlightCardHTML(wrap, loc || { id: locId, flight_number: flightIata }, data.flight, data.from_cache !== false);
-  } catch (err) {
-    wrap.innerHTML = `<div class="flight-status-error">❌ Eroare rețea: ${esc(err.message)}</div>`;
-  }
-}
-
-
 
 function renderConfirmationLinkHTML(rawUrl, rawLabel, options = {}) {
   const url = cleanUrlString(rawUrl);
@@ -2712,14 +2359,6 @@ ${adminItems}
     </div>`;
 
   return `<div class="card-titlebar-meta">${bookingBadge}${paidBadge}${costChip}${overflowMenu}</div>`;
-}
-
-function checkTimeConflict(loc, allLocs) {
-  if (!loc || !loc.visit_date) return null;
-  const locList = allLocs || state.trip?.locations || [];
-  const dayLocs = locList.filter(l => l.visit_date === loc.visit_date && l.enabled !== false);
-  const dayConflicts = detectScheduleConflicts(dayLocs);
-  return dayConflicts.get(loc.id) || null;
 }
 
 function renderCardSubcardHTML(loc) {
@@ -4926,7 +4565,7 @@ function bindEvents() {
   // Upload modal
   const openUpload = (tab = 'file') => {
     document.getElementById('uploadModal')?.classList.add('open');
-    switchModalTab(tab);
+    switchUploadTab(tab);
   };
   document.getElementById('uploadBtn')?.addEventListener('click', () => openUpload('file'));
   document.getElementById('mobileUpload')?.addEventListener('click', () => openUpload('file'));
@@ -4942,7 +4581,7 @@ function bindEvents() {
   // Upload modal tabs
   document.querySelectorAll('.modal-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      switchModalTab(tab.dataset.tab);
+      switchUploadTab(tab.dataset.tab);
       document.getElementById('uploadPreview').style.display = 'none';
     });
   });
@@ -6906,7 +6545,7 @@ function isGoogleMapsUrl(url) {
   return /google\.[a-z.]+\/maps/i.test(url) || /maps\.google\./i.test(url);
 }
 
-function switchModalTab(tab) {
+function switchUploadTab(tab) {
   document.querySelectorAll('.modal-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   const paneFile = document.getElementById('paneFile');
   const paneUrl = document.getElementById('paneUrl');

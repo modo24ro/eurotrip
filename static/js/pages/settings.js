@@ -11,11 +11,6 @@ import { api } from '../core/api.js';
 const escapeHtml = esc;
 
 
-', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-    , 3500);
-    }
-
     // Header Actions Dropdown Handler
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const appHeader = document.querySelector('.settings-desktop-menu .app-header');
