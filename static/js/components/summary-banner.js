@@ -1,6 +1,7 @@
 /**
  * components/summary-banner.js
  * Summary metrics banner and country filter dropdown
+ * Includes Samsung Galaxy Z Fold 6 inner screen responsive header integration
  */
 
 import { esc, flagHTML, flagText, formatEur } from '../core/utils.js';
@@ -10,6 +11,98 @@ function resolveState(providedState) {
   if (providedState && typeof providedState === 'object') return providedState;
   if (typeof window !== 'undefined' && window.state) return window.state;
   return {};
+}
+
+/**
+ * Detects if the current device is specifically a Samsung Galaxy Z Fold 6 using its inner/main screen.
+ * - Checks UA for SM-F956 (Galaxy Z Fold 6) or Z Fold family SM-F9xx.
+ * - In DevTools/emulation: checks inner screen dimensions (width 600-960px, near-square aspect ratio 0.72-1.38, touch).
+ * - Excludes Apple/iPads and outer folded cover screens (width < 600px).
+ */
+export function isZFold6InnerScreen() {
+  if (typeof window === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  const model = window.navigator?.userAgentData?.model || '';
+  const isZFoldModel = /SM-F956/i.test(ua) || /SM-F956/i.test(model);
+  const isZFoldFamily = /SM-F9/i.test(ua) || /SM-F9/i.test(model);
+
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  const isInnerScreenDimensions = w >= 600 && w <= 960;
+  const isFoldRatio = (w / h >= 0.72 && w / h <= 1.38);
+
+  if (isZFoldModel || isZFoldFamily) {
+    return isInnerScreenDimensions && isFoldRatio;
+  }
+
+  // Exclude Apple devices (iPad/iPhone/Mac)
+  if (/iPad|Macintosh|iPhone/i.test(ua)) return false;
+
+  // Touch screen with Z Fold 6 inner screen physical characteristics (including Android & DevTools emulation)
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  return isTouch && isInnerScreenDimensions && isFoldRatio;
+}
+
+/**
+ * On Samsung Galaxy Z Fold 6 (inner/main screen ONLY):
+ * Moves #summaryBanner into .app-header after .trip-brand-details (between .header-brand and .header-nav-group),
+ * ONLY if there is enough horizontal space for it to fit properly with equal spacing before & after.
+ * On all other devices or on Z Fold 6 outer screen, preserves original position below header.
+ */
+export function syncZFold6SummaryBanner() {
+  if (typeof document === 'undefined') return;
+  const banner = document.getElementById('summaryBanner');
+  const header = document.querySelector('.app-header');
+  const brand = header?.querySelector('.header-brand');
+  const navGroup = header?.querySelector('.header-nav-group');
+  const controlsBar = document.querySelector('.controls-bar');
+
+  if (!banner || !header || !brand) return;
+
+  const restoreToOriginal = () => {
+    if (banner.parentElement === header) {
+      banner.classList.remove('in-header');
+      if (controlsBar && controlsBar.parentNode) {
+        controlsBar.parentNode.insertBefore(banner, controlsBar);
+      } else {
+        header.insertAdjacentElement('afterend', banner);
+      }
+    }
+  };
+
+  const isZFoldInner = isZFold6InnerScreen();
+  if (!isZFoldInner) {
+    restoreToOriginal();
+    return;
+  }
+
+  // Calculate available space in app-header between brand and navGroup
+  const headerWidth = header.clientWidth;
+  const brandWidth = brand.offsetWidth || 0;
+  const navGroupWidth = navGroup ? navGroup.offsetWidth : 0;
+
+  // Require minimum equal spacing: at least 24px before (after trip-brand-details) and 24px after = 48px
+  const minRequiredSpacing = 48;
+  const availableSpace = headerWidth - brandWidth - navGroupWidth - minRequiredSpacing;
+
+  // Measure content width of summary-banner
+  const bannerContentWidth = banner.scrollWidth || banner.offsetWidth;
+
+  if (bannerContentWidth > 0 && bannerContentWidth <= availableSpace) {
+    // Move into app-header after trip-brand-details (inserted before navGroup)
+    if (banner.parentElement !== header) {
+      if (navGroup) {
+        header.insertBefore(banner, navGroup);
+      } else {
+        header.appendChild(banner);
+      }
+      banner.classList.add('in-header');
+    }
+  } else {
+    // Not enough space to fit properly without cramping: keep in original position
+    restoreToOriginal();
+  }
 }
 
 export function renderSummary(targetState) {
@@ -76,6 +169,9 @@ export function renderSummary(targetState) {
       headerDatesEl.style.display = 'none';
     }
   }
+
+  // Sync Z Fold 6 banner placement if applicable
+  syncZFold6SummaryBanner();
 }
 
 export function renderCountryFilter(targetState) {
@@ -93,4 +189,15 @@ export function renderCountryFilter(targetState) {
 if (typeof window !== 'undefined') {
   window.renderSummary = (s) => renderSummary(s || window.state);
   window.renderCountryFilter = (s) => renderCountryFilter(s || window.state);
+  window.syncZFold6SummaryBanner = syncZFold6SummaryBanner;
+  window.isZFold6InnerScreen = isZFold6InnerScreen;
+
+  // Re-check Z Fold 6 banner placement on resize/orientation changes
+  window.addEventListener('resize', () => {
+    syncZFold6SummaryBanner();
+  }, { passive: true });
+
+  window.addEventListener('orientationchange', () => {
+    setTimeout(syncZFold6SummaryBanner, 100);
+  }, { passive: true });
 }

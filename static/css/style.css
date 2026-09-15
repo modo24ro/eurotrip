@@ -4445,7 +4445,16 @@ body.single-col-cards .card-notes-row,
   padding: 8px 24px;
   display: flex;
   align-items: center;
-  min-height: 44px;
+  min-height: 56px;
+  height: 56px;
+}
+
+.subcard-slide.subcard-slide-notes,
+.subcard-slide.subcard-slide-flight,
+.subcard-slide.subcard-slide-address,
+.subcard-slide.subcard-slide-media {
+  min-height: 56px;
+  height: 56px;
 }
 
 .subcards-viewport.is-single .subcard-slide {
@@ -8057,7 +8066,135 @@ select option,
    ============================================================ */
 @media (min-width: 600px) and (max-width: 960px) {
 
-  /* Galaxy Z Fold 6 Inner Screen: 768px-832px width, aspect ratio ~4:3 */
+  /* Trip brand details & dates period in header on Z Fold 6 */
+  .trip-brand-details {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    min-width: 0 !important;
+    gap: 1px !important;
+  }
+
+  .trip-header-dates {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 4px !important;
+    margin-left: 0 !important;
+    padding: 1px 6px !important;
+    border-radius: 4px !important;
+    background: rgba(92, 115, 242, 0.08) !important;
+    border: 1px solid rgba(92, 115, 242, 0.16) !important;
+    font-size: 0.72rem !important;
+    line-height: 1.2 !important;
+    color: var(--text-secondary) !important;
+    white-space: nowrap !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* Dates period is already under trip-brand-details; do NOT duplicate in summary-banner */
+  .summary-banner .banner-item-dates,
+  .banner-item.banner-item-dates {
+    display: none !important;
+  }
+
+  /* Z Fold 6 Inner Screen Summary Banner embedded in app-header */
+  .app-header .summary-banner.in-header {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 1 auto !important;
+    margin: 0 auto !important; /* Visually centered after trip-brand-details with exact equal spacing before and after */
+    padding: 0 12px !important;
+    background: transparent !important;
+    border: none !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+    min-height: auto !important;
+    height: 40px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    scrollbar-width: none !important;
+    white-space: nowrap !important;
+    gap: 8px !important;
+    z-index: 10 !important;
+  }
+
+  .app-header .summary-banner.in-header::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .app-header .summary-banner.in-header .banner-metrics,
+  .app-header .summary-banner.in-header .banner-secondary {
+    gap: 6px !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+  }
+
+  .app-header .summary-banner.in-header .banner-item {
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    box-sizing: border-box !important;
+    padding: 2px 7px !important;
+    border-radius: var(--radius-sm) !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .app-header .summary-banner.in-header .banner-item-countries {
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
+    padding: 2px 7px !important;
+    gap: 1px !important;
+  }
+
+  .app-header .summary-banner.in-header .banner-countries-flags {
+    height: 16px !important;
+    min-height: 16px !important;
+    max-height: 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    line-height: 1 !important;
+  }
+
+  .app-header .summary-banner.in-header .country-button {
+    padding: 0 1px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .app-header .summary-banner.in-header .country-button .flag-img {
+    width: 16px !important;
+    height: 11px !important;
+    max-height: 11px !important;
+    object-fit: cover !important;
+    vertical-align: middle !important;
+    margin: 0 !important;
+  }
+
+  .app-header .summary-banner.in-header .banner-value {
+    font-size: 0.82rem !important;
+    line-height: 1.1 !important;
+  }
+
+  .app-header .summary-banner.in-header .banner-label {
+    font-size: 0.54rem !important;
+    line-height: 1 !important;
+    margin-top: 1px !important;
+  }
+
   .main-content {
     padding: 14px 16px;
   }
@@ -8474,13 +8611,29 @@ select option,
     flex-wrap: nowrap !important;
   }
 
-  .banner-metrics .banner-item {
+  /* Unify ALL banner items on mobile to exactly 40px height */
+  .summary-banner .banner-item,
+  .banner-metrics .banner-item,
+  .banner-secondary .banner-item,
+  .banner-item-countries {
     min-width: 50px !important;
     height: 40px !important;
     min-height: 40px !important;
+    max-height: 40px !important;
+    box-sizing: border-box !important;
     padding: 3px 7px !important;
     border-radius: var(--radius-sm) !important;
     flex-shrink: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Dates period is already under trip-brand-details; do NOT duplicate in summary-banner */
+  .summary-banner .banner-item-dates,
+  .banner-item.banner-item-dates {
+    display: none !important;
   }
 
   .banner-metrics .banner-value {
@@ -8524,15 +8677,49 @@ select option,
   }
 
   .banner-item-countries {
-    padding: 5px 10px;
+    padding: 2px 8px !important;
+    gap: 1px !important;
   }
 
   .banner-countries-flags {
-    gap: 4px;
+    height: 18px !important;
+    min-height: 18px !important;
+    max-height: 18px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3px !important;
+    line-height: 1 !important;
   }
 
   .country-button {
-    padding: 1px 2px;
+    padding: 0 1px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  .country-button .flag-img {
+    width: 17px !important;
+    height: 12px !important;
+    max-height: 12px !important;
+    object-fit: cover !important;
+    vertical-align: middle !important;
+    margin: 0 !important;
+  }
+
+  .country-button .flag-fallback {
+    font-size: 0.82rem !important;
+    line-height: 1 !important;
+  }
+
+  .banner-item-countries .banner-label {
+    font-size: 0.58rem !important;
+    letter-spacing: 0.02em !important;
+    margin-top: 1px !important;
+    white-space: nowrap !important;
+    line-height: 1 !important;
   }
 
   .filter-row {
@@ -8740,9 +8927,20 @@ select option,
     gap: 5px !important;
   }
 
-  .banner-metrics .banner-item {
+  .summary-banner .banner-item,
+  .banner-metrics .banner-item,
+  .banner-secondary .banner-item,
+  .banner-item-countries {
     min-width: 46px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
     padding: 2px 5px !important;
+  }
+
+  .summary-banner .banner-item-dates,
+  .banner-item.banner-item-dates {
+    display: none !important;
   }
 }
 
