@@ -635,9 +635,19 @@ function renderSummary() {
         <div class="banner-item"><div class="banner-value">${formatCurrency(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
       </div>
       ${(days.length > 0 || countries.length > 0) ? `
-        <div class="banner-secondary">
           ${days.length > 0 ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
-          ${countries.length > 0 ? `<div class="banner-countries">${countries.map(c => `<button type="button" class="country-badge" data-action="goToCountry" data-country="${esc(c)}" title="View ${esc(c)} in Countries">${flagHTML(c)}<span class="country-badge-name">${esc(c)}</span></button>`).join('')}</div>` : ''}
+          ${countries.length > 0 ? `
+            <div class="banner-item banner-item-countries">
+              <div class="banner-countries-flags">
+                ${countries.map(c => `
+                  <button type="button" class="country-button" data-action="goToCountry" data-country="${esc(c)}" title="View ${esc(c)} in Countries">
+                    ${flagHTML(c)}
+                  </button>
+                `).join('')}
+              </div>
+              <div class="banner-label">Countries</div>
+            </div>
+          ` : ''}
         </div>
       ` : ''}
     `;
@@ -2937,7 +2947,6 @@ function titlebarMetaHTML(loc, sym) {
         <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
       </button>
       <div class="card-overflow-dropdown" role="menu">
-${detailsItem}
 ${routeItem}
 ${adminItems}
       </div>
@@ -3957,7 +3966,7 @@ function bindEvents() {
       handleCardClick(event);
       return;
     }
-    const countryBadge = event.target.closest('[data-action="goToCountry"], .country-badge');
+    const countryBadge = event.target.closest('[data-action="goToCountry"], .country-button, .country-badge');
     if (countryBadge) {
       event.preventDefault();
       const country = countryBadge.dataset.country;
@@ -5469,7 +5478,7 @@ function handleCardClick(e) {
     return;
   }
 
-  if (actionEl.dataset.action === 'goToCountry' || actionEl.classList.contains('country-badge')) {
+  if (actionEl.dataset.action === 'goToCountry' || actionEl.classList.contains('country-button') || actionEl.classList.contains('country-badge')) {
     e.preventDefault();
     e.stopPropagation();
     const country = actionEl.dataset.country;

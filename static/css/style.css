@@ -2774,6 +2774,65 @@ body:has(.modal-overlay.open) .leaflet-control-container {
   line-height: 1;
 }
 
+/* Countries Banner Item */
+.banner-item-countries {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: auto;
+  height: 48px;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 5px 14px;
+}
+
+.banner-countries-flags {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.country-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 2px 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.country-button:hover {
+  transform: scale(1.15);
+  filter: brightness(1.2);
+}
+
+.country-button:active {
+  transform: scale(0.92);
+}
+
+.country-button .flag-img {
+  display: inline-block;
+  vertical-align: middle;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  margin-right: 0 !important;
+}
+
+.country-button .flag-fallback {
+  margin-right: 0 !important;
+  font-size: 1rem;
+}
+
+/* Fallback / legacy support for country-badge if rendered anywhere */
 .banner-countries {
   display: flex;
   gap: 6px;
@@ -2781,48 +2840,14 @@ body:has(.modal-overlay.open) .leaflet-control-container {
   flex-wrap: nowrap;
   flex-shrink: 0;
 }
-
 .country-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  font-size: 0.73rem;
-  font-family: inherit;
-  color: var(--text-secondary);
-  white-space: nowrap;
+  padding: 2px 4px;
+  background: transparent;
+  border: none;
   cursor: pointer;
-  user-select: none;
-  touch-action: manipulation;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-}
-
-.country-badge:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: var(--text-primary);
-}
-
-.country-badge:active {
-  transform: scale(0.94);
-}
-
-.country-badge .flag-img {
-  display: inline-block;
-  vertical-align: middle;
-  border-radius: 2px;
-  margin-right: 0 !important;
-}
-
-.country-badge .flag-fallback {
-  margin-right: 0 !important;
-}
-
-.country-badge-name {
-  font-size: 0.73rem;
 }
 
 /* ============================================================
@@ -8292,24 +8317,16 @@ select option,
     padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px) + 32px) !important;
   }
 
-  /* Pe mobil și tablete (inclusiv Galaxy Z Fold 6): afișăm doar steagul fără numele țării */
-  .country-badge {
-    padding: 3px 6px;
-    border-radius: 999px;
-    gap: 0;
-    flex-shrink: 0 !important;
+  .banner-item-countries {
+    padding: 5px 10px;
   }
 
-  .country-badge .flag-img {
-    margin-right: 0 !important;
+  .banner-countries-flags {
+    gap: 4px;
   }
 
-  .country-badge .flag-fallback {
-    margin-right: 0 !important;
-  }
-
-  .country-badge .country-badge-name {
-    display: none;
+  .country-button {
+    padding: 1px 2px;
   }
 
   .filter-row {
