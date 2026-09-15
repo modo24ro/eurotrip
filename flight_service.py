@@ -247,16 +247,15 @@ def query_aviationstack_api(flight_iata, loc=None):
     use_aviationstack = os.environ.get('USE_AVIATIONSTACK', '1').strip().lower()
     google_flights_only = os.environ.get('USE_GOOGLE_FLIGHTS_ONLY', '0').strip().lower()
     if use_aviationstack in ('0', 'false', 'no', 'off') or google_flights_only in ('1', 'true', 'yes', 'on'):
-        logger.info("AviationStack API este dezactivat temporar prin .env (se folosește exclusiv Google Flights).")
-        base_flight = build_fallback_flight_data(clean_iata, airline_iata, flight_num, loc)
+        logger.info("AviationStack API este dezactivat temporar prin .env (se folosește exclusiv Web Flight Service - flightinformation.com / flight.info).")
         try:
-            import google_flight_service
-            g_data, g_err = google_flight_service.fetch_google_flight_status(clean_iata, loc)
-            if g_data:
-                enriched = google_flight_service.enrich_flight_data_with_google(base_flight, g_data, loc)
-                return enriched, None
+            import web_flight_service
+            w_data, w_err = web_flight_service.fetch_web_flight_data(clean_iata, loc)
+            if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
+                return w_data, None
         except Exception as exc:
-            logger.warning("Eroare la interogarea Google Flights: %s", exc)
+            logger.warning("Eroare la interogarea web_flight_service: %s", exc)
+        base_flight = build_fallback_flight_data(clean_iata, airline_iata, flight_num, loc)
         return base_flight, None
 
     api_key = get_aviation_key()
@@ -315,10 +314,28 @@ def query_aviationstack_api(flight_iata, loc=None):
 
     if match:
         normalized = normalize_flight_data(match, clean_iata)
+        try:
+            import web_flight_service
+            w_data, _ = web_flight_service.fetch_web_flight_data(clean_iata, loc)
+            if w_data:
+                if not normalized.get('duration') and w_data.get('duration'):
+                    normalized['duration'] = w_data['duration']
+                if not normalized.get('aircraft') and w_data.get('aircraft'):
+                    normalized['aircraft'] = w_data['aircraft']
+        except Exception:
+            pass
         return normalized, None
 
     # If the flight is not active today on radar (e.g. future date or operates on other days),
-    # build and return a structured fallback so the user gets clean info and NO 502 error!
+    # query web_flight_service (flightinformation.com / flight.info) for scheduled flight route & times!
+    try:
+        import web_flight_service
+        w_data, w_err = web_flight_service.fetch_web_flight_data(clean_iata, loc)
+        if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
+            return w_data, None
+    except Exception as exc:
+        logger.warning("Web flight fallback failed: %s", exc)
+
     fallback = build_fallback_flight_data(clean_iata, airline_iata, flight_num, loc)
     return fallback, None
 

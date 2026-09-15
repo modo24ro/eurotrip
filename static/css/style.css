@@ -622,11 +622,14 @@ body::before {
 .modal-box.notification-location-modal-box,
 #locationModal .modal-box,
 #notificationLocationModal .modal-box {
-  width: min(900px, 94vw) !important;
-  max-width: min(900px, 94vw) !important;
+  width: min(760px, 94vw) !important;
+  max-width: min(760px, 94vw) !important;
   display: flex !important;
   flex-direction: column !important;
   overflow: hidden !important;
+  border-radius: 16px !important;
+  background: var(--bg-card, #121526) !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px color-mix(in srgb, var(--border) 75%, transparent) !important;
 }
 
 /* Desktop: modalul este mai inalt, spatios si centrat */
@@ -636,23 +639,62 @@ body::before {
   .modal-box.notification-location-modal-box,
   #locationModal .modal-box,
   #notificationLocationModal .modal-box {
-    height: min(92vh, 900px) !important;
-    max-height: 92vh !important;
+    height: min(88vh, 840px) !important;
+    max-height: min(88vh, 840px) !important;
   }
 }
 
-/* Mobile: inaltime adaptata la viewport si flex column */
+/* Mobile: adaptat la ecran mic (bottom-sheet feel, 1 coloana) */
 @media (max-width: 600px) {
 
   .modal-box.location-modal-box,
   .modal-box.notification-location-modal-box,
   #locationModal .modal-box,
   #notificationLocationModal .modal-box {
-    height: 92vh !important;
-    max-height: 92vh !important;
-    width: 96vw !important;
-    max-width: 96vw !important;
+    height: 94vh !important;
+    max-height: 94vh !important;
+    width: 98vw !important;
+    max-width: 98vw !important;
+    border-radius: 16px 16px 0 0 !important;
+    margin-top: auto !important;
   }
+}
+
+.location-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, var(--bg-card, #121526));
+  flex-shrink: 0;
+}
+
+.location-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.location-modal-cat-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.location-modal-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .location-modal-body,
@@ -661,7 +703,7 @@ body::before {
   max-height: none !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
-  padding: 16px 20px;
+  padding: 18px 22px;
 }
 
 @media (max-width: 600px) {
@@ -674,35 +716,24 @@ body::before {
   .location-modal-body .modal-tab-pane.active,
   .notification-location-body .modal-tab-pane.active {
     grid-template-columns: 1fr !important;
-    gap: 10px !important;
+    gap: 12px !important;
   }
 }
 
-.location-modal-body .location-card,
-.notification-location-body .location-card {
-  box-shadow: none;
-  border-color: var(--border);
-  margin-bottom: 0;
+/* Edit form container in modal: pure form layout without card wrapper preview */
+.location-modal-body .location-edit-form,
+.notification-location-body .location-edit-form {
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  margin: 0 !important;
+  padding: 0 !important;
   height: auto !important;
   min-height: auto !important;
-  --card-uniform-height: auto !important;
-}
-
-.location-modal-body .location-card .card-body,
-.notification-location-body .location-card .card-body {
-  overflow: visible !important;
-  height: auto !important;
-  max-height: none !important;
-}
-
-.location-modal-body .card-fields,
-.notification-location-body .card-fields {
   display: flex !important;
   flex-direction: column !important;
-  gap: 16px !important;
-  border-top: none !important;
-  margin-top: 6px !important;
-  padding-top: 2px !important;
+  gap: 14px !important;
+  width: 100% !important;
 }
 
 /* Modal Category Tabs Navigation */
@@ -712,13 +743,15 @@ body::before {
   gap: 8px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 6px 2px 10px 2px;
-  border-bottom: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  padding: 10px 22px;
+  margin: -18px -22px 14px -22px;
+  border-bottom: 1px solid var(--border);
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   position: sticky;
-  top: 0;
-  background: var(--bg-card, #121526);
+  top: -18px;
+  background: color-mix(in srgb, var(--bg-card, #121526) 94%, var(--bg-surface, #1e2238));
+  backdrop-filter: blur(12px);
   z-index: 10;
 }
 
@@ -730,7 +763,7 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 16px;
+  padding: 7px 15px;
   border-radius: 9999px;
   border: 1px solid var(--border);
   background: color-mix(in srgb, var(--bg-surface, #1a1e36) 70%, transparent);
@@ -769,6 +802,16 @@ body::before {
   line-height: 1;
 }
 
+.modal-tab-btn .tab-badge {
+  background: var(--accent, #6366f1);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  margin-left: 2px;
+}
+
 .modal-tab-btn.tab-flight-btn {
   border-color: color-mix(in srgb, var(--cat-transport_flight, #6366f1) 40%, var(--border));
 }
@@ -794,7 +837,8 @@ body::before {
 .modal-tab-pane.active {
   display: grid !important;
   grid-template-columns: 1fr 1fr;
-  gap: 14px 16px;
+  gap: 14px 18px;
+  align-items: start;
   animation: modalTabFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -802,9 +846,59 @@ body::before {
   grid-column: 1 / -1;
 }
 
-.modal-tab-pane .field-input-lg {
-  font-size: 0.96rem;
-  font-weight: 500;
+.location-modal-body .field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.location-modal-body .field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #94a3b8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+}
+
+.location-modal-body .field-input,
+.location-modal-body .field-select,
+.location-modal-body .field-textarea {
+  width: 100%;
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 8px;
+  padding: 9px 13px;
+  color: var(--text-primary, #f8fafc);
+  font-family: inherit;
+  font-size: 0.92rem;
+  transition: border-color 0.18s, box-shadow 0.18s, background-color 0.18s;
+  box-sizing: border-box;
+}
+
+.location-modal-body .field-input:focus,
+.location-modal-body .field-select:focus,
+.location-modal-body .field-textarea:focus {
+  outline: none;
+  border-color: var(--accent, #6366f1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #6366f1) 25%, transparent);
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 95%, rgba(0, 0, 0, 0.1));
+}
+
+.location-modal-body .field-input-lg {
+  font-size: 1.05rem !important;
+  font-weight: 600;
+  padding: 11px 14px !important;
+  border-color: color-mix(in srgb, var(--accent, #6366f1) 35%, var(--border));
+}
+
+.location-modal-body .field-textarea {
+  resize: vertical;
+  min-height: 90px;
+  line-height: 1.5;
 }
 
 @keyframes modalTabFadeIn {
@@ -817,6 +911,193 @@ body::before {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Durations card & quick preset buttons */
+.dur-field-group {
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 45%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dur-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.dur-input-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dur-input-wrap .dur-input {
+  width: 75px !important;
+  text-align: right;
+  font-weight: 700;
+  padding: 6px 10px !important;
+  border-radius: 6px;
+}
+
+.dur-input-wrap .dur-unit {
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.dur-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dur-preset-btn {
+  padding: 6px 13px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #94a3b8);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dur-preset-btn:hover {
+  background: color-mix(in srgb, var(--accent, #6366f1) 15%, rgba(255, 255, 255, 0.08));
+  color: var(--text-primary, #fff);
+  border-color: var(--accent, #6366f1);
+}
+
+.dur-preset-btn.is-active {
+  background: var(--accent, #6366f1);
+  color: #fff;
+  border-color: var(--accent, #6366f1);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+}
+
+/* Paid checkbox pill */
+.paid-field-group {
+  margin-top: 4px;
+}
+
+.field-checkbox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 60%, transparent);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  width: fit-content;
+}
+
+.field-checkbox-pill:hover {
+  border-color: color-mix(in srgb, #16a34a 40%, var(--border));
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, transparent);
+}
+
+.field-checkbox-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.checkbox-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1.5px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  transition: all 0.18s ease;
+  color: transparent;
+  flex-shrink: 0;
+}
+
+.field-checkbox-input:checked + .checkbox-indicator {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(22, 163, 74, 0.35);
+}
+
+.checkbox-label-text {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-primary, #f8fafc);
+}
+
+/* Google Maps field row */
+.maps-field-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.maps-field-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.maps-details-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  height: 38px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.86rem;
+}
+
+/* Flight number field group & input row */
+.flight-number-field-group {
+  background: color-mix(in srgb, var(--cat-transport_flight, #6366f1) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat-transport_flight, #6366f1) 30%, var(--border));
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.flight-input-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+  margin-bottom: 6px;
+}
+
+.flight-number-input {
+  max-width: 220px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+  font-weight: 700 !important;
+  font-size: 1.05rem !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.check-flight-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+  height: 40px;
+  padding: 0 16px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .flight-category-hint {
@@ -6664,8 +6945,8 @@ select option,
 .modal-box.notification-location-modal-box,
 #locationModal .modal-box,
 #notificationLocationModal .modal-box {
-  width: min(900px, 94vw) !important;
-  max-width: min(900px, 94vw) !important;
+  width: min(760px, 94vw) !important;
+  max-width: min(760px, 94vw) !important;
 }
 
 .modal-overlay.open .modal-box {
@@ -8396,26 +8677,67 @@ select option,
   }
 }
 
-/* Cand apare tripHeaderDates nu mai afisa niciodata banner-item banner-item-dates */
+/* Cand apare tripHeaderDates in trip-brand-details, nu duplica in summary-banner */
 body:has(#tripHeaderDates:not([style*="display: none"]):not(:empty)) .banner-item-dates,
-.app-header:has(#tripHeaderDates:not([style*="display: none"]):not(:empty))~* .banner-item-dates,
-.summary-banner.in-header .banner-item-dates,
-.app-header .summary-banner .banner-item-dates {
+.app-header:has(#tripHeaderDates:not([style*="display: none"]):not(:empty)) .banner-item-dates,
+.app-header:has(#tripHeaderDates:not([style*="display: none"]):not(:empty)) ~ * .banner-item-dates {
   display: none !important;
 }
 
-/* Universal styles when banner is moved into app-header or on Z Fold 6 inner screen */
-.app-header .summary-banner.in-header,
-.summary-banner.in-header {
+/* Universal styles when banner is moved into app-header (desktop and capable viewports) */
+.app-header .summary-banner.in-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  flex: 0 1 auto !important;
+  margin: 0 !important;
+  margin-left: 8px !important;
+  margin-right: auto !important;
+  padding: 0 !important;
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
-  box-shadow: none !important;
   border: none !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+  min-height: auto !important;
+  height: 40px !important;
+  max-width: calc(100% - 280px) !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-width: none !important;
+  white-space: nowrap !important;
+  gap: 6px !important;
+  z-index: 5 !important;
+}
+
+.app-header .summary-banner.in-header::-webkit-scrollbar {
+  display: none !important;
+}
+
+.app-header .summary-banner.in-header .banner-metrics,
+.app-header .summary-banner.in-header .banner-secondary {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
 }
 
 .app-header .summary-banner.in-header .banner-item,
 .summary-banner.in-header .banner-item {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  box-sizing: border-box !important;
+  padding: 2px 8px !important;
+  border-radius: var(--radius-sm) !important;
+  flex-shrink: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
   background: transparent !important;
   background-color: transparent !important;
   background-image: none !important;
@@ -8430,6 +8752,73 @@ body:has(#tripHeaderDates:not([style*="display: none"]):not(:empty)) .banner-ite
   background-image: none !important;
   box-shadow: none !important;
   border-color: rgba(16, 185, 129, 0.4) !important;
+}
+
+.app-header .summary-banner.in-header .banner-item-dates,
+.summary-banner.in-header .banner-item-dates {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 2px 8px !important;
+  gap: 1px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.app-header .summary-banner.in-header .banner-item-countries,
+.summary-banner.in-header .banner-item-countries {
+  height: 38px !important;
+  min-height: 38px !important;
+  max-height: 38px !important;
+  padding: 2px 7px !important;
+  gap: 1px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+
+.app-header .summary-banner.in-header .banner-countries-flags {
+  height: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  line-height: 1 !important;
+}
+
+.app-header .summary-banner.in-header .country-button {
+  padding: 0 1px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.app-header .summary-banner.in-header .country-button .flag-img {
+  width: 16px !important;
+  height: 11px !important;
+  max-height: 11px !important;
+  object-fit: cover !important;
+  vertical-align: middle !important;
+  margin: 0 !important;
+}
+
+.app-header .summary-banner.in-header .banner-value {
+  font-size: 0.82rem !important;
+  line-height: 1.1 !important;
+}
+
+.app-header .summary-banner.in-header .banner-label {
+  font-size: 0.54rem !important;
+  line-height: 1 !important;
+  margin-top: 1px !important;
 }
 
 body.is-zfold-inner .header-nav-group,

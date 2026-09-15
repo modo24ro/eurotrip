@@ -2378,6 +2378,206 @@ function updateCardSubcard(card, loc) {
   }
 }
 
+function locationFormHTML(loc) {
+  const safecat = VALID_CATEGORIES.includes(loc.category) ? loc.category : 'other';
+  const locId = loc.id || ('temp_' + Math.random().toString(36).slice(2, 9));
+  const safeId = String(locId).replace(/[^a-zA-Z0-9_-]/g, '_');
+  const sym = getCurrencySymbol(state.trip?.currency);
+  const durMin = parseInt(loc.duration_minutes, 10) || 60;
+
+  const catOptions = VALID_CATEGORIES.map(c =>
+    `<option value="${c}"${c === safecat ? ' selected' : ''}>${CATEGORY_ICONS[c]} ${catLabel(c)}</option>`
+  ).join('');
+
+  const attachments = Array.isArray(loc.attachments) ? loc.attachments : [];
+  const attachmentsCount = attachments.length;
+
+  return `
+    <div class="location-edit-form location-card card-fields" data-id="${esc(loc.id)}" style="--cat-color: var(--cat-${safecat});">
+      <!-- Navigation Tabs -->
+      <div class="modal-tabs-nav" role="tablist">
+        <button type="button" class="modal-tab-btn active" data-tab="general" role="tab" aria-selected="true">
+          <span class="tab-icon">ℹ️</span>
+          <span class="tab-label">General</span>
+        </button>
+        <button type="button" class="modal-tab-btn" data-tab="schedule" role="tab" aria-selected="false">
+          <span class="tab-icon">🗓️</span>
+          <span class="tab-label">Program</span>
+        </button>
+        <button type="button" class="modal-tab-btn" data-tab="budget" role="tab" aria-selected="false">
+          <span class="tab-icon">💳</span>
+          <span class="tab-label">Buget &amp; Rezervare</span>
+        </button>
+        <button type="button" class="modal-tab-btn tab-flight-btn${safecat === 'transport_flight' ? '' : ' is-hidden'}" data-tab="flight" role="tab" aria-selected="false">
+          <span class="tab-icon">✈️</span>
+          <span class="tab-label">Zbor</span>
+        </button>
+        <button type="button" class="modal-tab-btn" data-tab="notes" role="tab" aria-selected="false">
+          <span class="tab-icon">📝</span>
+          <span class="tab-label">Notițe &amp; Fișiere</span>
+          ${attachmentsCount > 0 ? `<span class="tab-badge">${attachmentsCount}</span>` : ''}
+        </button>
+      </div>
+
+      <!-- Tab Panes -->
+      <div class="modal-tab-panes">
+        <!-- TAB 1: GENERAL -->
+        <div class="modal-tab-pane active" data-pane="general" role="tabpanel">
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_name">Nume locație</label>
+            <input type="text" id="loc_${safeId}_name" class="field-input field-input-lg" data-field="name" value="${esc(loc.name || '')}" placeholder="ex: Hotel Arts, Sagrada Família, Aeroport..." autocomplete="off">
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_category">Categorie</label>
+            <select id="loc_${safeId}_category" class="field-select" data-field="category">${catOptions}</select>
+            <div class="flight-category-hint" style="${safecat === 'transport_flight' ? '' : 'display:none'}">
+              ✈️ Zbor selectat: mergi la tab-ul <button type="button" class="inline-tab-switch-btn" data-switch-tab="flight">✈️ Zbor</button> pentru orar și număr zbor
+            </div>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_country">Țară</label>
+            <input type="text" id="loc_${safeId}_country" class="field-input" data-field="country" value="${esc(loc.country || '')}" placeholder="ex: Spania, România...">
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_city">Oraș</label>
+            <input type="text" id="loc_${safeId}_city" class="field-input" data-field="city" value="${esc(loc.city || '')}" placeholder="ex: Barcelona, Iași...">
+          </div>
+
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_address">Adresă completă / Reper</label>
+            <input type="text" id="loc_${safeId}_address" class="field-input" data-field="address" value="${esc(loc.address || '')}" placeholder="Strada, număr, reper...">
+          </div>
+
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_maps">Link Google Maps</label>
+            <div class="maps-field-row">
+              <input type="url" id="loc_${safeId}_maps" class="field-input" data-field="google_maps_url"
+                value="${esc(loc.google_maps_url || '')}"
+                placeholder="https://www.google.com/maps/place/…">
+              <button class="btn-secondary maps-details-btn" data-action="findMapsDetails" type="button" title="Preluare detalii automate din Google Maps">🔍 Găsește detalii</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: PROGRAM -->
+        <div class="modal-tab-pane" data-pane="schedule" role="tabpanel">
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_date">Data vizitei</label>
+            <input type="date" id="loc_${safeId}_date" class="field-input" data-field="visit_date" value="${esc(loc.visit_date || '')}">
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_time">Ora vizitei</label>
+            <input type="time" id="loc_${safeId}_time" class="field-input" data-field="visit_time" value="${esc(loc.visit_time || '')}">
+          </div>
+
+          <div class="field-group full-width dur-field-group">
+            <div class="dur-header-row">
+              <label class="field-label" for="loc_${safeId}_dur">Durată estimată</label>
+              <div class="dur-input-wrap">
+                <input type="number" id="loc_${safeId}_dur" class="field-input dur-input" data-field="duration_minutes" value="${durMin}" min="5" max="720" step="5" placeholder="60" aria-label="Durată în minute">
+                <span class="dur-unit">min</span>
+              </div>
+            </div>
+            <div class="dur-presets">
+              <button type="button" class="dur-preset-btn${durMin === 30 ? ' is-active' : ''}" data-action="setDuration" data-dur="30">30m</button>
+              <button type="button" class="dur-preset-btn${durMin === 45 ? ' is-active' : ''}" data-action="setDuration" data-dur="45">45m</button>
+              <button type="button" class="dur-preset-btn${durMin === 60 ? ' is-active' : ''}" data-action="setDuration" data-dur="60">1h</button>
+              <button type="button" class="dur-preset-btn${durMin === 90 ? ' is-active' : ''}" data-action="setDuration" data-dur="90">1.5h</button>
+              <button type="button" class="dur-preset-btn${durMin === 120 ? ' is-active' : ''}" data-action="setDuration" data-dur="120">2h</button>
+              <button type="button" class="dur-preset-btn${durMin === 180 ? ' is-active' : ''}" data-action="setDuration" data-dur="180">3h</button>
+              <button type="button" class="dur-preset-btn${durMin === 240 ? ' is-active' : ''}" data-action="setDuration" data-dur="240">4h</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: BUGET & REZERVARE -->
+        <div class="modal-tab-pane" data-pane="budget" role="tabpanel">
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_res_status">Status rezervare</label>
+            <select id="loc_${safeId}_res_status" class="field-select" data-field="reservation_status">
+              <option value=""${!loc.reservation_status ? ' selected' : ''}>Fără rezervare</option>
+              <option value="reserved"${loc.reservation_status === 'reserved' ? ' selected' : ''}>Rezervat (în așteptare)</option>
+              <option value="confirmed"${loc.reservation_status === 'confirmed' ? ' selected' : ''}>Confirmat</option>
+            </select>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label" for="loc_${safeId}_cost">Cost</label>
+            <div class="cost-wrap">
+              <span class="cost-symbol">${sym}</span>
+              <input type="number" id="loc_${safeId}_cost" class="field-input cost-input" data-field="cost"
+                value="${loc.cost || 0}" min="0" step="0.01" placeholder="0">
+            </div>
+          </div>
+
+          <div class="field-group full-width paid-field-group">
+            <label class="field-checkbox-pill" for="loc_${safeId}_paid">
+              <input type="checkbox" id="loc_${safeId}_paid" class="field-checkbox-input" data-field="paid"${loc.paid ? ' checked' : ''}>
+              <span class="checkbox-indicator">
+                <svg viewBox="0 0 24 24" width="14" height="14"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/></svg>
+              </span>
+              <span class="checkbox-label-text">Plătit integral</span>
+            </label>
+          </div>
+
+          <div class="field-group full-width doc-link-field-group">
+            <div class="doc-link-header-row">
+              <label class="field-label" for="loc_${safeId}_doc_url">Link document / confirmare / bilet</label>
+              <div class="doc-label-input-wrap">
+                <label class="doc-label-prefix" for="loc_${safeId}_doc_label">Etichetă:</label>
+                <input type="text" id="loc_${safeId}_doc_label" class="field-input doc-label-input" data-field="confirmation_label" value="${esc(loc.confirmation_label || '')}" placeholder="ex: Bilete, Voucher, Rezervare…">
+              </div>
+            </div>
+            <div class="doc-link-input-wrapper">
+              <input type="url" id="loc_${safeId}_doc_url" class="field-input" data-field="confirmation_url" value="${esc(loc.confirmation_url || '')}" placeholder="https://… sau link aplicație">
+              <button type="button" class="btn-secondary" id="openAppBtn" data-action="openDocLink">Deschide</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: ZBOR -->
+        <div class="modal-tab-pane" data-pane="flight" role="tabpanel">
+          <div class="field-group full-width flight-number-field-group">
+            <label class="field-label" for="loc_${safeId}_flight">✈️ Număr zbor (IATA)</label>
+            <div class="flight-input-row">
+              <input type="text" id="loc_${safeId}_flight" class="field-input flight-number-input" data-field="flight_number"
+                value="${esc(loc.flight_number || '')}" placeholder="ex: W4 3685, RO 371..." style="text-transform:uppercase">
+              <button type="button" class="btn-secondary check-flight-btn" data-action="checkFlight"
+                title="Verifică statusul zborului live">🔍 Verifică status zbor</button>
+            </div>
+            <span class="field-hint">Introdu compania și numărul zborului pentru preluare orar live, terminal, poartă și status automat.</span>
+          </div>
+          <div class="flight-status-card-wrap" style="${loc.flight_number ? '' : 'display:none'}"></div>
+        </div>
+
+        <!-- TAB 5: NOTIȚE & FIȘIERE -->
+        <div class="modal-tab-pane" data-pane="notes" role="tabpanel">
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_notes">Notițe &amp; Detalii utile</label>
+            <textarea id="loc_${safeId}_notes" class="field-textarea" data-field="notes" rows="4" placeholder="Adaugă notițe, coduri de acces, ponturi sau recomandări…">${esc(loc.notes || '')}</textarea>
+          </div>
+
+          <div class="field-group full-width">
+            <label class="field-label" for="loc_${safeId}_files">Fișiere &amp; Documente atașate</label>
+            <input type="file" id="loc_${safeId}_files" class="field-input attachment-input" data-attachment-location="${esc(loc.id)}" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx">
+            <div class="card-attachment-links">
+              ${attachments.map(file => {
+                const fileUrl = `/api/locations/${encodeURIComponent(loc.id)}/attachments/${encodeURIComponent(file.name)}`;
+                const meta = getFileMeta(file.name);
+                return `<a class="attachment-link" href="${fileUrl}" data-action="viewAttachment" data-location-id="${esc(loc.id)}" data-attachment-name="${esc(file.name)}" data-attachment-url="${esc(fileUrl)}" title="${esc(file.name)}">${meta.icon} ${esc(file.name)}</a>`;
+              }).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function cardHTML(loc) {
   const safecat = VALID_CATEGORIES.includes(loc.category) ? loc.category : 'other';
   const icon = CATEGORY_ICONS[safecat];
@@ -2419,165 +2619,7 @@ function cardHTML(loc) {
     </div>`;
   const locId = loc.id || ('temp_' + Math.random().toString(36).slice(2, 9));
   const safeId = String(locId).replace(/[^a-zA-Z0-9_-]/g, '_');
-  const cardFields = isAdmin ? `
-    <div class="card-fields">
-      <div class="modal-tabs-nav" role="tablist">
-        <button type="button" class="modal-tab-btn active" data-tab="general" role="tab" aria-selected="true">
-          <span class="tab-icon">ℹ️</span>
-          <span class="tab-label">General</span>
-        </button>
-        <button type="button" class="modal-tab-btn" data-tab="schedule" role="tab" aria-selected="false">
-          <span class="tab-icon">🗓️</span>
-          <span class="tab-label">Program</span>
-        </button>
-        <button type="button" class="modal-tab-btn" data-tab="budget" role="tab" aria-selected="false">
-          <span class="tab-icon">💳</span>
-          <span class="tab-label">Buget &amp; Rezervare</span>
-        </button>
-        <button type="button" class="modal-tab-btn tab-flight-btn${safecat === 'transport_flight' ? '' : ' is-hidden'}" data-tab="flight" role="tab" aria-selected="false">
-          <span class="tab-icon">✈️</span>
-          <span class="tab-label">Zbor</span>
-        </button>
-        <button type="button" class="modal-tab-btn" data-tab="notes" role="tab" aria-selected="false">
-          <span class="tab-icon">📎</span>
-          <span class="tab-label">Notițe &amp; Fișiere</span>
-        </button>
-      </div>
-
-      <div class="modal-tab-panes">
-        <!-- TAB 1: GENERAL -->
-        <div class="modal-tab-pane active" data-pane="general" role="tabpanel">
-          <div class="field-group full-width">
-            <label class="field-label" for="loc_${safeId}_name">Nume locație</label>
-            <input type="text" id="loc_${safeId}_name" class="field-input field-input-lg" data-field="name" value="${esc(loc.name || '')}" placeholder="ex: Hotel Arts, Sagrada Família, Aeroport...">
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_category">Categorie</label>
-            <select id="loc_${safeId}_category" class="field-select" data-field="category">${catOptions}</select>
-            <div class="flight-category-hint" style="${safecat === 'transport_flight' ? '' : 'display:none'}">
-              ✈️ Zbor selectat: mergi la tab-ul <button type="button" class="inline-tab-switch-btn" data-switch-tab="flight">✈️ Zbor</button> pentru orar și număr zbor
-            </div>
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_country">Țară</label>
-            <input type="text" id="loc_${safeId}_country" class="field-input" data-field="country" value="${esc(loc.country || '')}" placeholder="ex: Spania, România...">
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_city">Oraș</label>
-            <input type="text" id="loc_${safeId}_city" class="field-input" data-field="city" value="${esc(loc.city || '')}" placeholder="ex: Barcelona, Iași...">
-          </div>
-          <div class="field-group full-width">
-            <label class="field-label" for="loc_${safeId}_address">Adresă</label>
-            <input type="text" id="loc_${safeId}_address" class="field-input" data-field="address" value="${esc(loc.address || '')}" placeholder="Strada, număr, reper...">
-          </div>
-          <div class="field-group full-width">
-            <label class="field-label" for="loc_${safeId}_maps">Link Google Maps</label>
-            <div class="maps-field-row">
-              <input type="url" id="loc_${safeId}_maps" class="field-input" data-field="google_maps_url"
-                value="${esc(loc.google_maps_url || '')}"
-                placeholder="https://www.google.com/maps/place/…">
-              <button class="btn-secondary maps-details-btn" data-action="findMapsDetails" type="button" title="Preluare detalii automate din Google Maps">🔍 Găsește detalii</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 2: PROGRAM -->
-        <div class="modal-tab-pane" data-pane="schedule" role="tabpanel">
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_date">Data vizitei</label>
-            <input type="date" id="loc_${safeId}_date" class="field-input" data-field="visit_date" value="${esc(loc.visit_date || '')}">
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_time">Ora vizitei &amp; Durată</label>
-            <div class="time-dur-row">
-              <input type="time" id="loc_${safeId}_time" class="field-input" data-field="visit_time" value="${esc(loc.visit_time || '')}">
-              <div class="dur-input-wrap">
-                <input type="number" id="loc_${safeId}_dur" class="field-input dur-input" data-field="duration_minutes" value="${loc.duration_minutes || 60}" min="5" max="720" step="5" placeholder="60" aria-label="Durată în minute">
-                <span class="dur-unit">min</span>
-              </div>
-            </div>
-            <div class="dur-presets">
-              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="30">30m</button>
-              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="60">1h</button>
-              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="90">1.5h</button>
-              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="120">2h</button>
-              <button type="button" class="dur-preset-btn" data-action="setDuration" data-dur="180">3h</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 3: BUGET & REZERVARE -->
-        <div class="modal-tab-pane" data-pane="budget" role="tabpanel">
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_res_status">Status rezervare</label>
-            <select id="loc_${safeId}_res_status" class="field-select" data-field="reservation_status">
-              <option value=""${!loc.reservation_status ? ' selected' : ''}>Fără rezervare</option>
-              <option value="reserved"${loc.reservation_status === 'reserved' ? ' selected' : ''}>Rezervat (în așteptare)</option>
-              <option value="confirmed"${loc.reservation_status === 'confirmed' ? ' selected' : ''}>Confirmat</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label class="field-label" for="loc_${safeId}_cost">Cost</label>
-            <div class="cost-wrap">
-              <span class="cost-symbol">${sym}</span>
-              <input type="number" id="loc_${safeId}_cost" class="field-input cost-input" data-field="cost"
-                value="${loc.cost || 0}" min="0" step="0.01" placeholder="0">
-            </div>
-          </div>
-          <div class="field-group">
-            <span class="field-label">Status plată</span>
-            <label class="field-checkbox" for="loc_${safeId}_paid"><input type="checkbox" id="loc_${safeId}_paid" data-field="paid"${loc.paid ? ' checked' : ''}> Plătit integral</label>
-          </div>
-          <div class="field-group full-width doc-link-field-group">
-            <div class="doc-link-header-row">
-              <label class="field-label" for="loc_${safeId}_doc_url">Link document / confirmare / bilet</label>
-              <div class="doc-label-input-wrap">
-                <label class="doc-label-prefix" for="loc_${safeId}_doc_label">Etichetă:</label>
-                <input type="text" id="loc_${safeId}_doc_label" class="field-input doc-label-input" data-field="confirmation_label" value="${esc(loc.confirmation_label || '')}" placeholder="ex: Bilete, Voucher, Rezervare…">
-              </div>
-            </div>
-            <div class="doc-link-input-wrapper">
-              <input type="url" id="loc_${safeId}_doc_url" class="field-input" data-field="confirmation_url" value="${esc(loc.confirmation_url || '')}" placeholder="https://… sau link aplicație">
-              <button type="button" class="btn-secondary" id="openAppBtn" data-action="openDocLink">Deschide</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 4: ZBOR -->
-        <div class="modal-tab-pane" data-pane="flight" role="tabpanel">
-          <div class="field-group full-width flight-number-field-group"> 
-            <label class="field-label" for="loc_${safeId}_flight">✈️ Număr zbor (IATA)</label>
-            <div class="flight-input-row">
-              <input type="text" id="loc_${safeId}_flight" class="field-input flight-number-input" data-field="flight_number"
-                value="${esc(loc.flight_number || '')}" placeholder="ex: W4 3685, RO 371..." style="text-transform:uppercase">
-              <button type="button" class="btn-secondary check-flight-btn" data-action="checkFlight"
-                title="Verifică statusul zborului live">🔍 Verifică status zbor</button>
-            </div>
-            <span class="field-hint">Introdu compania și numărul zborului pentru preluare orar live, terminal, poartă și status ca pe Google.</span>
-          </div>
-          <div class="flight-status-card-wrap" style="${loc.flight_number ? '' : 'display:none'}"></div>
-        </div>
-
-        <!-- TAB 5: NOTIȚE & FIȘIERE -->
-        <div class="modal-tab-pane" data-pane="notes" role="tabpanel">
-          <div class="field-group full-width">
-            <label class="field-label" for="loc_${safeId}_notes">Notițe &amp; Detalii utile</label>
-            <textarea id="loc_${safeId}_notes" class="field-textarea" data-field="notes" rows="4" placeholder="Adaugă notițe, coduri de acces, ponturi sau recomandări…">${esc(loc.notes || '')}</textarea>
-          </div>
-          <div class="field-group full-width">
-            <label class="field-label" for="loc_${safeId}_files">Fișiere &amp; Documente atașate</label>
-            <input type="file" id="loc_${safeId}_files" class="field-input attachment-input" data-attachment-location="${esc(loc.id)}" multiple accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.svg,.doc,.docx,.xls,.xlsx">
-            <div class="card-attachment-links">
-            ${(loc.attachments || []).map(file => {
-    const fileUrl = `/api/locations/${encodeURIComponent(loc.id)}/attachments/${encodeURIComponent(file.name)}`;
-    const meta = getFileMeta(file.name);
-    return `<a class="attachment-link" href="${fileUrl}" data-action="viewAttachment" data-location-id="${esc(loc.id)}" data-attachment-name="${esc(file.name)}" data-attachment-url="${esc(fileUrl)}" title="${esc(file.name)}">${meta.icon} ${esc(file.name)}</a>`;
-  }).join('')}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>` : '';
+  const cardFields = '';
 
   return `
     <div class="location-card${enabled ? '' : ' disabled'}${loc.visited ? ' row-visited' : ''}${isExcluded ? ' card-excluded' : ''}" data-id="${esc(loc.id)}" style="--cat-color: var(--cat-${safecat});">
@@ -3215,9 +3257,14 @@ function bindEvents() {
           el.textContent = e.target.value || '';
         });
       }
-      const modalTitle = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
-      if (modalTitle && e.target.closest('#locationModal, #notificationLocationModal')) {
-        modalTitle.textContent = e.target.value || 'Location';
+      const titleTextEl = document.querySelector('#locationModalTitle .location-modal-title-text, #notificationLocationTitle .location-modal-title-text');
+      if (titleTextEl && e.target.closest('#locationModal, #notificationLocationModal')) {
+        titleTextEl.textContent = e.target.value || 'Locație';
+      } else {
+        const modalTitle = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
+        if (modalTitle && e.target.closest('#locationModal, #notificationLocationModal')) {
+          modalTitle.textContent = e.target.value || 'Locație';
+        }
       }
     }
   };
@@ -6314,12 +6361,14 @@ function handleCardChange(e) {
     }
   }
 
-  // Update window titlebar and cat-color when category changes
+  // Update window titlebar, modal header icon and cat-color when category changes
   if (field === 'category') {
     const safecat = VALID_CATEGORIES.includes(value) ? value : 'other';
     card.style.setProperty('--cat-color', `var(--cat-${safecat})`);
     const winIcon = card.querySelector('.window-titlebar-icon');
     if (winIcon) winIcon.textContent = CATEGORY_ICONS[safecat] || '📍';
+    const catIconEl = document.getElementById('locationModalCatIcon');
+    if (catIconEl) catIconEl.textContent = CATEGORY_ICONS[safecat] || '📍';
     const catChip = card.querySelector('.strip-cat');
     if (catChip) {
       catChip.className = `strip-chip strip-cat cat-${safecat}`;
@@ -6342,6 +6391,13 @@ function handleCardChange(e) {
     }
     const flightWrap = card.querySelector('.flight-status-card-wrap');
     if (flightWrap) flightWrap.style.display = safecat === 'transport_flight' ? '' : 'none';
+  }
+
+  // Update duration preset buttons active state
+  if (field === 'duration_minutes') {
+    card.querySelectorAll('.dur-preset-btn').forEach(btn => {
+      btn.classList.toggle('is-active', parseInt(btn.dataset.dur, 10) === parseInt(value, 10));
+    });
   }
 
   // Update titlebar meta (booking badge, paid badge, cost) live
@@ -6809,9 +6865,9 @@ function renderNotifications() {
 
 function switchModalTab(cardOrContainer, targetTabName) {
   if (!cardOrContainer) return;
-  const container = cardOrContainer.classList?.contains('card-fields')
+  const container = (cardOrContainer.classList?.contains('card-fields') || cardOrContainer.classList?.contains('location-edit-form'))
     ? cardOrContainer
-    : cardOrContainer.querySelector?.('.card-fields');
+    : (cardOrContainer.querySelector?.('.card-fields') || cardOrContainer.querySelector?.('.location-edit-form') || cardOrContainer);
   if (!container) return;
 
   const tabBtns = container.querySelectorAll('.modal-tab-btn');
@@ -6837,9 +6893,15 @@ function openLocationModal(locationOrId, isNew = false, initialTab = 'general') 
   const body = document.getElementById('locationModalBody') || document.getElementById('notificationLocationBody');
   if (!location || !body) return;
   state.pendingNewLocation = isNew ? location : null;
-  body.innerHTML = cardHTML(location);
+  body.innerHTML = locationFormHTML(location);
+
   const title = document.getElementById('locationModalTitle') || document.getElementById('notificationLocationTitle');
-  if (title) title.textContent = isNew ? (location.name || 'Adaugă locație') : (location.name || 'Detalii locație');
+  const safecat = VALID_CATEGORIES.includes(location.category) ? location.category : 'other';
+  const icon = CATEGORY_ICONS[safecat] || '📍';
+  const titleText = isNew ? (location.name || 'Adaugă locație') : (location.name || 'Detalii locație');
+  if (title) {
+    title.innerHTML = `<span class="location-modal-cat-icon" id="locationModalCatIcon">${icon}</span> <span class="location-modal-title-text">${esc(titleText)}</span>`;
+  }
   const cancelBtn = document.getElementById('cancelLocationModal');
   if (cancelBtn) {
     cancelBtn.textContent = (state.role === 'admin') ? 'Anulează' : 'Închide';
@@ -6858,7 +6920,6 @@ function openLocationModal(locationOrId, isNew = false, initialTab = 'general') 
   switchModalTab(body, targetTab);
 
   // If this is a flight with flight number, fetch live flight status
-  const safecat = VALID_CATEGORIES.includes(location.category) ? location.category : 'other';
   if (safecat === 'transport_flight' && location.flight_number) {
     const cardEl = body.querySelector('.location-card');
     if (cardEl) {

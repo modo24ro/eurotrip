@@ -2902,13 +2902,24 @@ def get_location_flight_data(loc_id):
     if err or not normalized:
         return jsonify({'error': err or 'Nu s-au putut prelua datele zborului', 'flight': None, 'status': 'error'}), 200
 
-    # Supplementary check via Google Flight Status (strictly verified)
+    # Supplementary check via Web Flight Service (flightinformation.com / flight.info)
     try:
-        g_data, _ = google_flight_service.fetch_google_flight_status(flight_num, loc)
-        if g_data and google_flight_service.verify_flight_identity(normalized, g_data, loc):
-            normalized = google_flight_service.enrich_flight_data_with_google(normalized, g_data, loc)
-    except Exception as g_exc:
-        logger.warning("Supplementary Google flight check failed: %s", g_exc)
+        import web_flight_service
+        w_data, _ = web_flight_service.fetch_web_flight_data(flight_num, loc)
+        if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
+            if normalized.get('is_fallback') or not normalized.get('departure', {}).get('iata') or not normalized.get('arrival', {}).get('iata'):
+                normalized = w_data
+            else:
+                if not normalized.get('duration') and w_data.get('duration'):
+                    normalized['duration'] = w_data['duration']
+                if not normalized.get('aircraft') and w_data.get('aircraft'):
+                    normalized['aircraft'] = w_data['aircraft']
+                if not normalized.get('departure', {}).get('terminal') and w_data.get('departure', {}).get('terminal'):
+                    normalized['departure']['terminal'] = w_data['departure']['terminal']
+                if not normalized.get('arrival', {}).get('terminal') and w_data.get('arrival', {}).get('terminal'):
+                    normalized['arrival']['terminal'] = w_data['arrival']['terminal']
+    except Exception as w_exc:
+        logger.warning("Web flight check failed: %s", w_exc)
 
     flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, normalized)
     loc['flight_data'] = normalized
@@ -2930,23 +2941,24 @@ def refresh_location_flight(loc_id):
     if not flight_num:
         return jsonify({'error': 'Numărul zborului lipsește'}), 400
 
-    # Query API explicitly requested by user
+    # Query API / Web Flight Service
     normalized, err = flight_service.query_aviationstack_api(flight_num, loc)
     existing_cached = loc.get('flight_data') or flight_service.load_cached_flight(TRIPS_DIR, trip_id, loc_id)
 
-    if err or not normalized:
+    if err or not normalized or normalized.get('is_fallback'):
+        try:
+            import web_flight_service
+            w_data, _ = web_flight_service.fetch_web_flight_data(flight_num, loc)
+            if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
+                normalized = w_data
+        except Exception as w_exc:
+            logger.warning("Web flight refresh failed: %s", w_exc)
+
+    if not normalized:
         if existing_cached:
             normalized = existing_cached
         else:
             normalized = flight_service.build_fallback_flight_data(flight_num, loc=loc)
-
-    # Supplementary check via Google Flight Status (strictly verified)
-    try:
-        g_data, _ = google_flight_service.fetch_google_flight_status(flight_num, loc)
-        if g_data and google_flight_service.verify_flight_identity(normalized, g_data, loc):
-            normalized = google_flight_service.enrich_flight_data_with_google(normalized, g_data, loc)
-    except Exception as g_exc:
-        logger.warning("Supplementary Google flight refresh check failed: %s", g_exc)
 
     flight_service.save_cached_flight(TRIPS_DIR, trip_id, loc_id, normalized)
     loc['flight_data'] = normalized

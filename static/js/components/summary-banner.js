@@ -19,7 +19,15 @@ function resolveState(providedState) {
  */
 export function getBannerContentWidth(banner) {
   if (!banner) return 0;
-  const items = banner.querySelectorAll('.banner-item:not(.banner-item-dates)');
+  const items = Array.from(banner.querySelectorAll('.banner-item')).filter(it => {
+    if (it.classList.contains('banner-item-dates')) {
+      const headerDates = document.getElementById('tripHeaderDates');
+      if (headerDates && window.getComputedStyle && window.getComputedStyle(headerDates).display !== 'none' && headerDates.textContent.trim()) {
+        return false;
+      }
+    }
+    return true;
+  });
   if (!items.length) return banner.scrollWidth || banner.offsetWidth || 0;
   let w = 0;
   items.forEach(it => {
@@ -146,8 +154,7 @@ export function renderSummary(targetState) {
     ? `All ${enabled.length} active locations are scheduled`
     : `${scheduled} of ${enabled.length} active locations scheduled`;
 
-  const hasHeaderDates = (days.length > 0 && firstDay !== '—');
-  const showBannerDates = !hasHeaderDates && (days.length > 0);
+  const hasTripDays = (days.length > 0 && firstDay !== '—');
 
   const el = document.getElementById('summaryBanner');
   if (el) {
@@ -157,9 +164,14 @@ export function renderSummary(targetState) {
         <div class="banner-item"><div class="banner-value">${days.length}</div><div class="banner-label">Days</div></div>
         <div class="banner-item"><div class="banner-value">${formatEur(totalCost, state.trip?.currency)}</div><div class="banner-label">Budget</div></div>
       </div>
-      ${(showBannerDates || countries.length > 0) ? `
+      ${(hasTripDays || countries.length > 0) ? `
         <div class="banner-secondary">
-          ${showBannerDates ? `<div class="banner-item banner-item-dates"><span class="banner-dates-icon" aria-hidden="true">📅</span><div class="banner-dates-text"><div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div><div class="banner-label">Dates</div></div></div>` : ''}
+          ${hasTripDays ? `
+            <div class="banner-item banner-item-dates">
+              <div class="banner-value banner-dates-val">${firstDay} → ${lastDay}</div>
+              <div class="banner-label">Dates</div>
+            </div>
+          ` : ''}
           ${countries.length > 0 ? `
             <div class="banner-item banner-item-countries">
               <div class="banner-countries-flags">
@@ -188,7 +200,7 @@ export function renderSummary(targetState) {
     }
   }
   if (headerDatesEl) {
-    if (hasHeaderDates) {
+    if (hasTripDays) {
       headerDatesEl.innerHTML = `<span class="banner-value banner-dates-val trip-header-dates-val">${firstDay} → ${lastDay}</span>`;
       headerDatesEl.style.display = '';
     } else {
