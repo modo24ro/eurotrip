@@ -7659,6 +7659,11 @@ function switchModalTab(cardOrContainer, targetTabName) {
     const isActive = btn.dataset.tab === targetTabName;
     btn.classList.toggle('active', isActive);
     btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    if (isActive) {
+      try {
+        btn.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+      } catch (e) {}
+    }
   });
 
   tabPanes.forEach(pane => {
@@ -7721,6 +7726,8 @@ function openLocationModal(locationOrId, isNew = false, initialTab = 'general') 
 }
 
 const openNotificationLocation = openLocationModal;
+window.openLocationModal = openLocationModal;
+window.switchModalTab = switchModalTab;
 
 async function init() {
   if (!document.getElementById('locationsContainer') && !document.getElementById('summaryBanner') && !document.getElementById('app')) {

@@ -664,44 +664,61 @@ body::before {
   box-shadow: 0 20px 48px rgba(0, 0, 0, 0.55), 0 0 0 1px color-mix(in srgb, var(--border) 75%, transparent) !important;
 }
 
-/* Desktop: modal compact adaptat la continut, perfect proportionat */
+/* Desktop: inaltime fixa/constanta indiferent de card sau tab */
 @media (min-width: 601px) {
 
   .modal-box.location-modal-box,
   .modal-box.notification-location-modal-box,
   #locationModal .modal-box,
   #notificationLocationModal .modal-box {
-    height: auto !important;
-    max-height: min(86vh, 750px) !important;
+    height: min(86vh, 720px) !important;
+    max-height: min(86vh, 720px) !important;
   }
 }
 
-/* Mobile: adaptat la ecran mic (bottom-sheet feel, 1 coloana) */
+/* Mobile: inaltime constanta indiferent de card, spatiu dinamic sus/jos, nu iese din ecran */
 @media (max-width: 600px) {
+
+  #locationModal,
+  #notificationLocationModal {
+    padding: max(10px, env(safe-area-inset-top, 10px)) max(8px, env(safe-area-inset-right, 8px)) max(10px, env(safe-area-inset-bottom, 10px)) max(8px, env(safe-area-inset-left, 8px)) !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+  }
 
   .modal-box.location-modal-box,
   .modal-box.notification-location-modal-box,
   #locationModal .modal-box,
   #notificationLocationModal .modal-box {
-    height: 94vh !important;
-    max-height: 94vh !important;
-    width: 98vw !important;
-    max-width: 98vw !important;
-    border-radius: 16px 16px 0 0 !important;
-    margin-top: auto !important;
+    height: calc(100vh - 24px) !important;
+    height: calc(100dvh - max(20px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 20px)) !important;
+    max-height: calc(100vh - 24px) !important;
+    max-height: calc(100dvh - max(20px, env(safe-area-inset-top, 0px) + env(safe-area-inset-bottom, 0px) + 20px)) !important;
+    width: 100% !important;
+    max-width: calc(100vw - max(16px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 16px)) !important;
+    border-radius: 14px !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
 }
 
+#locationModal .modal-header,
+#notificationLocationModal .modal-header,
 .location-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, var(--bg-card, #121526));
-  flex-shrink: 0;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 14px 20px !important;
+  border-bottom: 1px solid var(--border) !important;
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, var(--bg-card, #121526)) !important;
+  flex-shrink: 0 !important;
 }
 
+#locationModalTitle,
 .location-modal-title {
   display: flex;
   align-items: center;
@@ -731,18 +748,33 @@ body::before {
 
 .location-modal-body,
 .notification-location-body {
-  flex: 1 1 auto;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
   max-height: none !important;
   overflow-y: auto !important;
   overscroll-behavior: contain;
   padding: 0 22px 18px 22px;
+  -webkit-overflow-scrolling: touch !important;
 }
 
 @media (max-width: 600px) {
 
+  #locationModal .modal-header,
+  #notificationLocationModal .modal-header,
+  .location-modal-header {
+    padding: 10px 14px !important;
+  }
+
+  #locationModalTitle,
+  .location-modal-title {
+    font-size: 1rem !important;
+    gap: 8px !important;
+  }
+
   .location-modal-body,
   .notification-location-body {
-    padding: 0 14px 12px 14px;
+    padding: 0 12px 12px 12px !important;
+    min-height: 0 !important;
   }
 
   .location-modal-body .modal-tab-pane.active,
@@ -768,10 +800,10 @@ body::before {
   width: 100% !important;
 }
 
-/* Modal Category Tabs Navigation — full width, dynamic equal share buttons */
+/* Modal Category Tabs Navigation — scrollabil orizontal, text mereu vizibil */
 .modal-tabs-nav {
   display: flex !important;
-  align-items: stretch !important;
+  align-items: center !important;
   width: 100% !important;
   gap: 8px !important;
   padding: 12px 0 14px 0 !important;
@@ -784,21 +816,28 @@ body::before {
   z-index: 10 !important;
   flex-shrink: 0 !important;
   box-sizing: border-box !important;
+  /* Scroll orizontal pe ecrane inguste fara a ascunde textul */
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  flex-wrap: nowrap !important;
+  scrollbar-width: none !important; /* Firefox */
+  -webkit-overflow-scrolling: touch !important;
+  scroll-padding: 0 8px;
 }
 
 .modal-tabs-nav::-webkit-scrollbar {
-  display: none;
+  display: none !important;
 }
 
 .modal-tab-btn {
-  flex: 1 1 0 !important;
-  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  min-width: auto !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   gap: 7px !important;
-  height: 42px !important;
-  padding: 0 8px !important;
+  height: 40px !important;
+  padding: 0 14px !important;
   border-radius: 10px !important;
   border: 1px solid var(--border) !important;
   background: color-mix(in srgb, var(--bg-surface, #1a1e36) 70%, transparent) !important;
@@ -849,8 +888,7 @@ body::before {
 }
 
 .modal-tab-btn .tab-label {
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+  display: inline !important;
   white-space: nowrap !important;
 }
 
@@ -880,20 +918,64 @@ body::before {
 
 @media (max-width: 600px) {
   .modal-tabs-nav {
-    gap: 5px !important;
-    padding: 10px 0 12px 0 !important;
+    gap: 6px !important;
+    padding: 8px 0 10px 0 !important;
   }
 
   .modal-tab-btn {
-    height: 38px !important;
-    padding: 0 6px !important;
-    font-size: 0.78rem !important;
+    flex: 0 0 auto !important;
+    min-width: auto !important;
+    height: 36px !important;
+    padding: 0 11px !important;
+    font-size: 0.82rem !important;
     gap: 5px !important;
+    border-radius: 8px !important;
   }
 
   .modal-tab-btn .tab-svg-icon {
     width: 14px !important;
     height: 14px !important;
+  }
+
+  .modal-tab-btn .tab-label {
+    display: inline !important;
+    font-size: 0.82rem !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Ecrane foarte inguste: etichetele raman MEREU vizibile si lizibile */
+@media (max-width: 420px) {
+  .modal-tabs-nav {
+    gap: 5px !important;
+    padding: 7px 0 9px 0 !important;
+  }
+
+  .modal-tab-btn {
+    flex: 0 0 auto !important;
+    min-width: auto !important;
+    height: 34px !important;
+    padding: 0 9px !important;
+    gap: 4px !important;
+    font-size: 0.78rem !important;
+  }
+
+  /* Etichetele text sunt MEREU vizibile, nu se ascund */
+  .modal-tab-btn .tab-label {
+    display: inline !important;
+    font-size: 0.78rem !important;
+    white-space: nowrap !important;
+  }
+
+  .modal-tab-btn .tab-badge {
+    font-size: 0.65rem !important;
+    padding: 1px 4px !important;
+    margin-left: 2px !important;
+  }
+
+  .modal-tab-btn .tab-svg-icon {
+    width: 13px !important;
+    height: 13px !important;
   }
 }
 
@@ -949,7 +1031,7 @@ body::before {
   width: 100%;
   height: 42px;
   min-height: 42px;
-  background: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, rgba(0, 0, 0, 0.25)) !important;
+  background-color: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, rgba(0, 0, 0, 0.25)) !important;
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12)) !important;
   border-radius: 9px !important;
   padding: 8px 14px !important;
@@ -970,7 +1052,7 @@ body::before {
   outline: none !important;
   border-color: var(--accent, #6366f1) !important;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #6366f1) 25%, transparent) !important;
-  background: color-mix(in srgb, var(--bg-surface, #1e2238) 95%, rgba(0, 0, 0, 0.1)) !important;
+  background-color: color-mix(in srgb, var(--bg-surface, #1e2238) 95%, rgba(0, 0, 0, 0.1)) !important;
 }
 
 .location-modal-body .field-input::placeholder,
@@ -994,9 +1076,10 @@ body::before {
   border-radius: 10px !important;
 }
 
-/* Unified Dropdowns with custom arrow */
+/* Unified Dropdowns with single custom arrow (prevents multiple repeating arrows) */
 .location-modal-body .field-select,
-.notification-location-body .field-select {
+.notification-location-body .field-select,
+.field-select {
   appearance: none !important;
   -webkit-appearance: none !important;
   -moz-appearance: none !important;
@@ -1009,8 +1092,12 @@ body::before {
 }
 
 .location-modal-body .field-select:focus,
-.notification-location-body .field-select:focus {
+.notification-location-body .field-select:focus,
+.field-select:focus {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 16px 16px !important;
 }
 
 .location-modal-body .field-select option,
@@ -1475,15 +1562,26 @@ body::before {
 }
 
 /* Location modal footer cu buton de save in colt dreapta (desktop & mobile) */
+#locationModal .modal-footer,
+#notificationLocationModal .modal-footer,
 .location-modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 12px 20px;
-  border-top: 1px solid var(--border);
-  background: var(--bg-surface, rgba(20, 24, 38, 0.95));
-  flex-shrink: 0;
-  gap: 12px;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  padding: 12px 20px !important;
+  border-top: 1px solid var(--border) !important;
+  background: var(--bg-surface, rgba(20, 24, 38, 0.95)) !important;
+  flex-shrink: 0 !important;
+  gap: 12px !important;
+}
+
+@media (max-width: 600px) {
+  #locationModal .modal-footer,
+  #notificationLocationModal .modal-footer,
+  .location-modal-footer {
+    padding: 10px 14px !important;
+    gap: 8px !important;
+  }
 }
 
 .location-modal-save-btn {
@@ -12187,6 +12285,25 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+/* Responsive Desktop vs Mobile settings navigation */
+@media (min-width: 769px) {
+  .settings-nav-desktop {
+    display: flex !important;
+  }
+  .settings-nav-mobile {
+    display: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .settings-nav-desktop {
+    display: none !important;
+  }
+  .settings-nav-mobile {
+    display: flex !important;
+  }
+}
+
 /* Fallback Legacy Tabs Bar */
 .settings-nav-bar {
   display: flex;
@@ -12474,35 +12591,44 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   }
 
   .settings-category-bar {
-    gap: 4px;
+    gap: 5px;
     padding: 4px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
   }
 
   .settings-cat-btn {
-    padding: 8px 4px;
-    font-size: 0.78rem;
-    gap: 5px;
+    padding: 9px 6px;
+    font-size: 0.82rem;
+    gap: 6px;
+    font-weight: 600;
   }
 
   .settings-cat-btn svg {
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
   }
 
   .settings-subnav-bar {
-    gap: 4px;
-    padding: 3px;
+    gap: 5px;
+    padding: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
   }
 
   .settings-subnav-bar .settings-tab-btn {
-    padding: 7px 3px;
-    font-size: 0.75rem;
-    gap: 4px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    gap: 5px;
+    white-space: nowrap;
+    flex: 1 1 auto;
   }
 
   .settings-subnav-bar .settings-tab-btn svg {
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
   }
 
   .settings-nav-bar {

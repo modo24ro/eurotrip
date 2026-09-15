@@ -36,6 +36,34 @@ const escapeHtml = esc;
     // TAB NAVIGATION
     // ==========================================
     const tabButtons = document.querySelectorAll('.settings-tab-btn');
+    const categoryButtons = document.querySelectorAll('.settings-cat-btn');
+    const subnavBars = document.querySelectorAll('.settings-subnav-bar');
+
+    // Mobile categorization mapping: 3 main categories
+    const TAB_CATEGORIES = {
+      backup: 'data',
+      upload: 'data',
+      history: 'data',
+      cards: 'config',
+      timezone: 'config',
+      security: 'system',
+      apilogs: 'system',
+      danger: 'system'
+    };
+
+    function updateMobileCategory(targetTab) {
+      const cat = TAB_CATEGORIES[targetTab] || 'data';
+      categoryButtons.forEach(btn => {
+        const isCat = btn.dataset.category === cat;
+        btn.classList.toggle('active', isCat);
+        btn.setAttribute('aria-selected', isCat ? 'true' : 'false');
+      });
+      subnavBars.forEach(bar => {
+        const isCat = bar.dataset.category === cat;
+        bar.style.display = isCat ? 'flex' : 'none';
+      });
+    }
+
     const tabPanes = {
       backup: document.getElementById('paneBackup'),
       security: document.getElementById('paneSecurity'),
@@ -55,6 +83,9 @@ const escapeHtml = esc;
         btn.classList.toggle('active', isMatch);
         btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
       });
+
+      // Synchronize mobile category & subnav bar
+      updateMobileCategory(targetTab);
 
       Object.entries(tabPanes).forEach(([name, pane]) => {
         if (!pane) return;
@@ -95,6 +126,23 @@ const escapeHtml = esc;
 
     tabButtons.forEach(btn => {
       btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    });
+
+    // Mobile category buttons: click to switch category and activate first tab in that category
+    categoryButtons.forEach(catBtn => {
+      catBtn.addEventListener('click', () => {
+        const cat = catBtn.dataset.category;
+        const currentActiveTab = new URL(window.location.href).searchParams.get('tab') || 'backup';
+        if (TAB_CATEGORIES[currentActiveTab] === cat) {
+          updateMobileCategory(currentActiveTab);
+          return;
+        }
+        // Switch to the first tab of this category
+        const firstTabOfCat = Object.keys(TAB_CATEGORIES).find(t => TAB_CATEGORIES[t] === cat);
+        if (firstTabOfCat) {
+          switchTab(firstTabOfCat);
+        }
+      });
     });
 
     // ==========================================
