@@ -2,3 +2,4 @@
 trips/Spain_2026/backup/
 trips/Spain_2026/versions/
 tests/__pycache__/
+api_requests_log.json
