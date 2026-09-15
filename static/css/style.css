@@ -4408,6 +4408,192 @@ body.single-col-cards .card-notes-row,
   display: none;
 }
 
+/* ============================================================
+   SWIPEABLE SECONDARY SUB-CARDS
+   ============================================================ */
+.subcards-viewport {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  margin: 6px 0 8px;
+  box-sizing: border-box;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.subcards-viewport:focus-visible {
+  outline: 1px solid var(--accent, #3b82f6);
+}
+
+.subcards-track {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
+}
+
+.subcard-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 8px 24px;
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.subcards-viewport.is-single .subcard-slide {
+  padding: 8px 12px;
+}
+
+.subcard-inner {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
+}
+
+/* 1. Notes Slide */
+.subcard-notes-content {
+  cursor: default;
+}
+.subcard-notes-text {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #cbd5e1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+/* 2. Flight Details Slide */
+.subcard-flight-content {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  cursor: pointer;
+  width: 100%;
+}
+.subcard-flight-content:hover .subcard-flight-code {
+  color: #60a5fa;
+}
+.subcard-flight-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+}
+.subcard-flight-code {
+  font-weight: 700;
+  color: #93c5fd;
+}
+.subcard-flight-route {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.subcard-flight-times {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+.subcard-flight-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+.subcard-flight-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+.subcard-flight-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--dot-color, #10b981);
+}
+
+/* 3. Media & Attachments Slide */
+.subcard-media-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.subcard-chip {
+  margin: 0 !important;
+}
+
+/* Navigation Chevrons */
+.subcard-nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  background: transparent;
+  border: none;
+  padding: 4px 2px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
+  user-select: none;
+  touch-action: manipulation;
+}
+.subcard-nav-arrow:hover {
+  color: rgba(255, 255, 255, 0.95);
+  transform: translateY(-50%) scale(1.15);
+}
+.subcard-nav-arrow:active {
+  transform: translateY(-50%) scale(0.92);
+}
+.subcard-nav-prev {
+  left: 3px;
+}
+.subcard-nav-next {
+  right: 3px;
+}
+
+/* Dots Indicators */
+.subcards-indicators {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+.subcard-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+.subcard-dot.is-active {
+  background: var(--accent, #3b82f6);
+  width: 8px;
+  border-radius: 2px;
+}
+
 /* Card Info Strip - separate dedicated button row, strictly on one line */
 .card-info-strip {
   display: flex;

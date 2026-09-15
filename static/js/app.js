@@ -765,6 +765,9 @@ function renderMain() {
 
   updateControlsBarHeight();
   updateDaysToggleLabel();
+  if (window.LocationSubcards) {
+    window.LocationSubcards.initCarousels(el);
+  }
 }
 
 function switchView(v, updateUrl = true, pushHistory = true) {
@@ -2964,107 +2967,17 @@ function checkTimeConflict(loc, allLocs) {
 }
 
 function renderCardSubcardHTML(loc) {
+  if (window.LocationSubcards) {
+    return window.LocationSubcards.renderHTML(loc);
+  }
   const notes = (loc.notes || '').trim();
-  const confirmationLink = renderConfirmationLinkHTML(loc.confirmation_url, loc.confirmation_label);
-  const attachmentChip = renderAttachmentChipHTML(loc);
-  const conflict = checkTimeConflict(loc, state.trip?.locations || []);
-  let conflictChip = '';
-  if (conflict) {
-    const withNames = [...new Set((conflict.conflictingWith || []).map(c => (c.name || '').trim()).filter(Boolean))];
-    const withStr = withNames.join(', ');
-    const chipText = withStr
-      ? `Conflict (${conflict.overlapMinutes}m cu ${withStr})`
-      : `Conflict (${conflict.overlapMinutes}m)`;
-    const titleText = withStr
-      ? `Schedule conflict: overlaps by ${conflict.overlapMinutes} min with ${withStr}`
-      : `Schedule conflict (${conflict.overlapMinutes} min overlap)`;
-    conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}"><span class="chip-icon">⚠️</span><span class="chip-label">${esc(chipText)}</span></span>`;
-  }
-
-  // Compact intelligent flight chip (opens modal on flight tab)
-  const isFlight = !!(loc.flight_number || loc.category === 'transport_flight');
-  let flightChip = '';
-  if (isFlight) {
-    const flightCode = (loc.flight_number || 'Zbor').toUpperCase();
-    const flightStatus = loc.flight_data?.status;
-    const visual = getFlightStatusVisual(flightStatus, loc.flight_data?.delay);
-    flightChip = `<button type="button" class="strip-chip strip-flight-btn" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" title="Deschide detaliile pentru zborul ${esc(flightCode)}">
-      <span class="chip-icon">✈️</span>
-      <span class="chip-label"><strong>${esc(flightCode)}</strong></span>
-      ${flightStatus ? `<span class="strip-flight-status-dot" title="${esc(visual.label)}">${visual.icon}</span>` : ''}
-    </button>`;
-  }
-
-  const notesBlock = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
-  const hasChips = !!(flightChip || confirmationLink || attachmentChip || conflictChip);
-  const chipsBlock = hasChips ? `<div class="card-info-strip">${flightChip}${confirmationLink}${attachmentChip}${conflictChip}</div>` : '';
-
-  return `${notesBlock}${chipsBlock}`;
+  return notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span></div>` : '';
 }
 
 function updateCardSubcard(card, loc) {
   if (!card) return;
-  const existingSubcard = card.querySelector('.card-subcard');
-  if (existingSubcard) existingSubcard.remove();
-
-  const notes = (loc.notes || '').trim();
-  let notesRow = card.querySelector('.card-notes-row');
-  const actions = card.querySelector('.card-actions');
-
-  if (notes) {
-    const newNotesHTML = `<span class="notes-row-icon">📝</span><span class="notes-row-text">${esc(notes)}</span>`;
-    if (notesRow) {
-      notesRow.innerHTML = newNotesHTML;
-      notesRow.title = notes;
-    } else {
-      notesRow = document.createElement('div');
-      notesRow.className = 'card-notes-row';
-      notesRow.title = notes;
-      notesRow.innerHTML = newNotesHTML;
-      if (actions) actions.parentNode.insertBefore(notesRow, actions);
-    }
-  } else if (notesRow) {
-    notesRow.remove();
-    notesRow = null;
-  }
-
-  const isFlight = !!(loc.flight_number || loc.category === 'transport_flight');
-  let flightChip = '';
-  if (isFlight) {
-    const flightCode = (loc.flight_number || 'Zbor').toUpperCase();
-    const flightStatus = loc.flight_data?.status;
-    const visual = getFlightStatusVisual(flightStatus, loc.flight_data?.delay);
-    flightChip = `<button type="button" class="strip-chip strip-flight-btn" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" title="Deschide detaliile pentru zborul ${esc(flightCode)}">
-      <span class="chip-icon">✈️</span>
-      <span class="chip-label"><strong>${esc(flightCode)}</strong></span>
-      ${flightStatus ? `<span class="strip-flight-status-dot" title="${esc(visual.label)}">${visual.icon}</span>` : ''}
-    </button>`;
-  }
-
-  const confirmationLink = renderConfirmationLinkHTML(loc.confirmation_url, loc.confirmation_label);
-  const attachmentChip = renderAttachmentChipHTML(loc);
-  const conflict = checkTimeConflict(loc, state.trip?.locations || []);
-  let conflictChip = '';
-  if (conflict) {
-    const withNames = [...new Set((conflict.conflictingWith || []).map(c => (c.name || '').trim()).filter(Boolean))];
-    const withStr = withNames.join(', ');
-    const chipText = withStr ? `Conflict (${conflict.overlapMinutes}m cu ${withStr})` : `Conflict (${conflict.overlapMinutes}m)`;
-    const titleText = withStr ? `Schedule conflict: overlaps by ${conflict.overlapMinutes} min with ${withStr}` : `Schedule conflict (${conflict.overlapMinutes} min overlap)`;
-    conflictChip = `<span class="strip-chip strip-conflict" title="${esc(titleText)}"><span class="chip-icon">⚠️</span><span class="chip-label">${esc(chipText)}</span></span>`;
-  }
-  const chipsHTML = `${flightChip}${confirmationLink}${attachmentChip}${conflictChip}`;
-  let infoStrip = card.querySelector('.card-info-strip');
-  if (chipsHTML) {
-    if (infoStrip) {
-      infoStrip.innerHTML = chipsHTML;
-    } else {
-      infoStrip = document.createElement('div');
-      infoStrip.className = 'card-info-strip';
-      infoStrip.innerHTML = chipsHTML;
-      if (actions) actions.parentNode.insertBefore(infoStrip, actions);
-    }
-  } else if (infoStrip) {
-    infoStrip.remove();
+  if (window.LocationSubcards) {
+    window.LocationSubcards.updateCard(card, loc);
   }
 }
 
