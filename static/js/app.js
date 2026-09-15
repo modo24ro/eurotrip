@@ -23,7 +23,7 @@ import {
   wazeUrl,
   genId,
   renderFormattedNotes,
-} from './core/utils.js';
+} from './core/utils.js?v=20260916_14';
 
 import {
   fmtDate,
@@ -2270,10 +2270,11 @@ function renderAttachmentChipHTML(loc) {
     return `<button class="strip-chip strip-attachments attachment-count-btn" data-action="viewAttachments" data-id="${esc(loc.id)}" type="button" title="View attachments"><span class="chip-icon">📎</span><span class="chip-label">${label}</span></button>`;
   }
 
-  return `<button class="strip-chip strip-attachments attachment-count-btn is-empty" data-action="addAttachment" data-id="${esc(loc.id)}" type="button" title="Add attachment"><span class="chip-icon">📎</span><span class="chip-label">+ Attachment</span></button>`;
+  return '';
 }
 
 function renderTimelineView() {
+  const isAdmin = state.role === 'admin';
   const locs = getFilteredLocations();
   const allTripDays = getAllTripDays();
   const days = [...new Set(locs.map(loc => loc.visit_date).filter(Boolean))].sort();
@@ -2416,10 +2417,11 @@ function renderTimelineView() {
                 </button>
                 ${excludeBtn}
                 ${navGpsBtn}
+                ${isAdmin ? `
                 <button type="button" class="loc-nav-btn timeline-open-btn" data-open-card-modal="${esc(loc.id)}">
                   <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
                   <span>Details</span>
-                </button>
+                </button>` : ''}
                 ${safeMapsUrl(loc.google_maps_url) ? `<a href="${safeMapsUrl(loc.google_maps_url)}" target="_blank" rel="noopener noreferrer" class="loc-nav-btn" title="Maps"><svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z"/></svg></a>` : ''}
               </div>
             </div>
@@ -2578,7 +2580,11 @@ ${adminItems}
 
 function renderCardSubcardHTML(loc) {
   if (typeof window !== 'undefined' && window.LocationSubcards) {
-    return window.LocationSubcards.renderHTML(loc);
+    let conflict = null;
+    if (loc && loc.visit_date && loc.visit_time && typeof checkTimeConflict === 'function') {
+      conflict = checkTimeConflict(loc, state.trip?.locations || []);
+    }
+    return window.LocationSubcards.renderHTML(loc, { conflict });
   }
   const notes = (loc.notes || '').trim();
   const notesHtml = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${renderFormattedNotes(notes)}</span></div>` : '';
@@ -7314,11 +7320,14 @@ function handleCardChange(e) {
     }
   }
 
-  // Update card subcard (notes & confirmation/attachments chips, address) live
-  if (field === 'notes' || field === 'confirmation_url' || field === 'confirmation_label' || field === 'address') {
+  // Update card subcard (notes & confirmation/attachments chips, address, schedule conflict) live
+  if (field === 'notes' || field === 'confirmation_url' || field === 'confirmation_label' || field === 'address' || field === 'visit_date' || field === 'visit_time' || field === 'duration_minutes') {
     const loc = getLocation(id);
     if (loc) {
       updateCardSubcard(card, loc);
+      if (loc.visit_date && (state.view === 'day' || state.view === 'timeline')) {
+        renderMain();
+      }
     }
   }
 

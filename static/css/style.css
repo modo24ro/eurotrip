@@ -5268,7 +5268,8 @@ body.single-col-cards .card-notes-row,
 .subcard-slide.subcard-slide-notes,
 .subcard-slide.subcard-slide-flight,
 .subcard-slide.subcard-slide-address,
-.subcard-slide.subcard-slide-media {
+.subcard-slide.subcard-slide-media,
+.subcard-slide.subcard-slide-conflict {
   min-height: 56px !important;
   height: 56px !important;
   max-height: 56px !important;
@@ -5284,6 +5285,59 @@ body.single-col-cards .card-notes-row,
   width: 100%;
   min-width: 0;
   gap: 8px;
+}
+
+/* 0. Schedule Conflict Slide (Priority 0) */
+.subcard-slide.subcard-slide-conflict {
+  background: rgba(245, 158, 11, 0.09) !important;
+  border-left: 3.5px solid #f59e0b !important;
+}
+
+.subcard-conflict-content {
+  cursor: pointer;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  height: 100% !important;
+}
+
+.subcard-conflict-content:hover .subcard-conflict-badge {
+  text-decoration: underline;
+}
+
+.subcard-conflict-icon {
+  font-size: 1.15rem !important;
+  line-height: 1 !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.subcard-conflict-text {
+  font-size: 0.74rem !important;
+  line-height: 1.35 !important;
+  color: #fef3c7 !important;
+  overflow: hidden !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  word-break: break-word !important;
+  max-height: 38px !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.subcard-conflict-badge {
+  font-weight: 750 !important;
+  color: #f59e0b !important;
+  margin-right: 4px !important;
+}
+
+.subcard-conflict-names {
+  color: #fde68a !important;
+  font-weight: 500 !important;
 }
 
 /* 1. Notes Slide */
@@ -11028,6 +11082,16 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   max-width: 100%;
 }
 
+.timeline-card-header .meta-strip-place {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
 .timeline-card-title {
   font-size: 0.96rem;
   font-weight: 750;
@@ -11088,6 +11152,7 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   flex-wrap: wrap;
   align-items: center;
   gap: 5px;
+  flex: 1 1 auto;
   min-width: 0;
   max-width: 100%;
 }
@@ -11100,23 +11165,155 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
 }
 
 .timeline-chips .strip-notes {
-  max-width: 220px;
+  max-width: 280px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .timeline-actions {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  margin-left: auto;
+  align-self: center;
 }
 
-.timeline-open-btn {
-  font-size: 0.78rem;
-  padding: 4px 8px;
-  height: 28px;
+.timeline-actions .card-icon-btn,
+.timeline-actions .loc-nav-btn {
+  height: 28px !important;
+  min-height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  box-sizing: border-box !important;
+  border-radius: var(--radius-sm, 6px) !important;
+  border: 1px solid var(--border) !important;
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 75%, transparent) !important;
+  color: var(--text-muted) !important;
+  font-family: inherit !important;
+  font-size: 0.74rem !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+  flex-shrink: 0 !important;
+}
+
+.timeline-actions .card-icon-btn:hover,
+.timeline-actions .loc-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.09) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-hover) !important;
+}
+
+/* Icon-only buttons */
+.timeline-actions .card-icon-btn,
+.timeline-actions .loc-nav-btn.exclude-route-btn,
+.timeline-actions a.loc-nav-btn {
+  width: 28px !important;
+  min-width: 28px !important;
+  padding: 0 !important;
+}
+
+/* Text buttons */
+.timeline-actions .loc-nav-btn.gps-nav-btn,
+.timeline-actions .timeline-open-btn {
+  padding: 0 9px !important;
+  width: auto !important;
+  min-width: auto !important;
+}
+
+/* SVGs inside timeline actions */
+.timeline-actions .card-icon-btn svg,
+.timeline-actions .loc-nav-btn svg {
+  width: 14px !important;
+  height: 14px !important;
+  max-width: 14px !important;
+  max-height: 14px !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+  vertical-align: middle !important;
+}
+
+.timeline-actions .card-icon-btn svg:not([fill="none"]),
+.timeline-actions .loc-nav-btn svg:not([fill="none"]) {
+  fill: currentColor !important;
+}
+
+.timeline-actions .card-icon-btn svg[fill="none"],
+.timeline-actions .loc-nav-btn svg[fill="none"] {
+  fill: none !important;
+  stroke: currentColor !important;
+}
+
+/* Mark Visited (Done) button */
+.timeline-actions .card-icon-btn.done-active {
+  background: rgba(16, 185, 129, 0.16) !important;
+  color: #34d399 !important;
+  border-color: rgba(16, 185, 129, 0.45) !important;
+}
+
+.timeline-actions .card-icon-btn.done-active:hover {
+  background: rgba(16, 185, 129, 0.28) !important;
+  border-color: rgba(16, 185, 129, 0.65) !important;
+  color: #6ee7b7 !important;
+}
+
+/* Exclude from route button */
+.timeline-actions .loc-nav-btn.exclude-route-btn.is-excluded {
+  background: rgba(239, 68, 68, 0.14) !important;
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+
+.timeline-actions .loc-nav-btn.exclude-route-btn.is-excluded:hover {
+  background: rgba(239, 68, 68, 0.25) !important;
+  color: #fca5a5 !important;
+  border-color: rgba(239, 68, 68, 0.6) !important;
+}
+
+/* GPS Go To button */
+.timeline-actions .loc-nav-btn.gps-nav-btn {
+  background: rgba(99, 102, 241, 0.12) !important;
+  color: #a5b4fc !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
+.timeline-actions .loc-nav-btn.gps-nav-btn:hover {
+  background: rgba(99, 102, 241, 0.24) !important;
+  color: #c7d2fe !important;
+  border-color: rgba(99, 102, 241, 0.6) !important;
+}
+
+/* Details modal button */
+.timeline-actions .timeline-open-btn {
+  background: color-mix(in srgb, var(--bg-surface, #1e2238) 85%, transparent) !important;
+  color: var(--text-secondary) !important;
+  border-color: var(--border) !important;
+}
+
+.timeline-actions .timeline-open-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-hover) !important;
+}
+
+/* Maps button */
+.timeline-actions a.loc-nav-btn {
+  background: rgba(59, 130, 246, 0.1) !important;
+  color: #60a5fa !important;
+  border-color: rgba(59, 130, 246, 0.32) !important;
+}
+
+.timeline-actions a.loc-nav-btn:hover {
+  background: rgba(59, 130, 246, 0.22) !important;
+  color: #93c5fd !important;
+  border-color: rgba(59, 130, 246, 0.6) !important;
 }
 
 /* Transit Gap */
@@ -11457,8 +11654,11 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   }
 
   .timeline-card-header {
-    flex-wrap: wrap;
-    gap: 4px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -11466,7 +11666,7 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   }
 
   .timeline-card-title-wrap {
-    flex: 1 1 100%;
+    flex: 1 1 auto;
     min-width: 0;
     max-width: 100%;
   }
@@ -11480,8 +11680,12 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
 
   .timeline-card-header .meta-strip-place {
     flex: 0 0 auto;
-    margin-left: 0;
-    max-width: 100%;
+    margin-left: auto;
+    align-self: flex-start;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
   }
 
   .timeline-card-footer {
@@ -11529,7 +11733,7 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
     max-width: 100%;
     justify-content: flex-end;
     gap: 4px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     box-sizing: border-box;
   }
 
@@ -11537,27 +11741,20 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
     display: none;
   }
 
-  .timeline-actions .loc-nav-btn.gps-nav-btn {
-    padding: 4px 8px;
-    min-width: 32px;
-    height: 28px;
-  }
-
-  .timeline-actions .loc-nav-btn.exclude-route-btn {
-    padding: 4px 6px;
-    min-width: 28px;
-    height: 28px;
-  }
-
-  .timeline-actions .card-icon-btn {
-    min-width: 28px;
-    height: 28px;
+  .timeline-actions .loc-nav-btn.gps-nav-btn,
+  .timeline-actions .loc-nav-btn.exclude-route-btn,
+  .timeline-actions .card-icon-btn,
+  .timeline-actions a.loc-nav-btn {
+    padding: 0 !important;
+    width: 28px !important;
+    min-width: 28px !important;
+    height: 28px !important;
   }
 
   .timeline-open-btn {
     font-size: 0.72rem;
-    padding: 4px 7px;
-    height: 28px;
+    padding: 0 8px !important;
+    height: 28px !important;
   }
 
   .timeline-open-btn svg {
@@ -11709,14 +11906,15 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
 
   .timeline-actions .loc-nav-btn.gps-nav-btn,
   .timeline-actions .loc-nav-btn.exclude-route-btn,
-  .timeline-actions .card-icon-btn {
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    padding: 0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+  .timeline-actions .card-icon-btn,
+  .timeline-actions a.loc-nav-btn {
+    width: 26px !important;
+    height: 26px !important;
+    min-width: 26px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .timeline-actions .loc-nav-btn:not(.timeline-open-btn) {

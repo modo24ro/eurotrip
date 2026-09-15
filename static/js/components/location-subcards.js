@@ -21,6 +21,44 @@
   const CHEVRON_RIGHT_SVG = `<svg viewBox="0 0 10 24" width="10" height="24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 2l6 10-6 10"/></svg>`;
 
   /**
+   * Helper: Get schedule conflict for location
+   */
+  function getConflict(loc, conflictData) {
+    if (conflictData) return conflictData;
+    if (loc && loc._conflict) return loc._conflict;
+    if (!loc || !loc.visit_date || !loc.visit_time) return null;
+    if (typeof window !== 'undefined' && typeof window.checkTimeConflict === 'function') {
+      const allLocs = (window.state && window.state.trip && window.state.trip.locations) || [];
+      return window.checkTimeConflict(loc, allLocs);
+    }
+    return null;
+  }
+
+  /**
+   * 0. Subcard: Schedule Conflict (Priority 0 - shown first until resolved)
+   */
+  function renderConflictCard(loc, conflictData) {
+    const conflict = getConflict(loc, conflictData);
+    if (!conflict || !conflict.conflictingWith || !conflict.conflictingWith.length) return null;
+
+    const overlapMins = conflict.overlapMinutes || 0;
+    const names = conflict.conflictingWith.map(c => c.name || 'Altă locație').join(', ');
+    const titleText = `Conflict de program: suprapunere de ${overlapMins} min cu ${names} • Apasă pentru a edita programul`;
+
+    return `
+      <div class="subcard-slide subcard-slide-conflict" data-subcard-type="conflict">
+        <div class="subcard-inner subcard-conflict-content" data-action="openLocationModal" data-drawer-tab="schedule" data-loc-id="${esc(loc.id)}" role="button" tabindex="0" title="${esc(titleText)}">
+          <span class="subcard-icon subcard-conflict-icon" aria-hidden="true">⚠️</span>
+          <div class="subcard-conflict-text">
+            <span class="subcard-conflict-badge">Conflict (+${overlapMins} min):</span>
+            <span class="subcard-conflict-names">Suprapunere cu ${esc(names)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  /**
    * 1. Subcard: Notes
    */
   function renderNotesCard(loc) {
@@ -171,15 +209,19 @@
   /**
    * Generates the entire subcards viewport HTML
    */
-  function renderHTML(loc) {
+  function renderHTML(loc, options = {}) {
     if (!loc) return '';
 
+    const conflictSlide = renderConflictCard(loc, options?.conflict);
     const flightSlide = renderFlightCard(loc);
     const notesSlide = renderNotesCard(loc);
     const mediaSlide = renderAttachmentsAndConfCard(loc);
     const addressSlide = renderAddressCard(loc);
 
     const slides = [];
+
+    // 0. Conflict is top priority (0) - appears first until resolved
+    if (conflictSlide) slides.push(conflictSlide);
 
     // 1. Flight is top priority if present
     if (flightSlide) slides.push(flightSlide);
@@ -360,10 +402,10 @@
   /**
    * Update subcard area on a location card DOM node
    */
-  function updateCard(cardEl, loc) {
+  function updateCard(cardEl, loc, options) {
     if (!cardEl || !loc) return;
     const existing = cardEl.querySelector('.subcards-viewport');
-    const newHTML = renderHTML(loc);
+    const newHTML = renderHTML(loc, options);
 
     if (!newHTML) {
       if (existing) existing.remove();

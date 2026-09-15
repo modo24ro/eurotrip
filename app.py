@@ -37,6 +37,7 @@ app.config['MAX_CONTENT_LENGTH'] = 25 * 1024 * 1024
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PLACES_FILE = os.path.join(BASE_DIR, 'places.json')
@@ -3190,6 +3191,6 @@ if __name__ == '__main__':
                 print(f"[SSL] Could not auto-generate certificate: {e}")
         if os.path.isfile(cert_file) and os.path.isfile(key_file):
             ssl_ctx = (cert_file, key_file)
-            print("[SSL] Running with HTTPS (https://0.0.0.0:5001)")
+            print("[SSL] Running with HTTPS (https://0.0.0.0:5000)")
 
-    app.run(debug=True, host='0.0.0.0', port=5001, ssl_context=ssl_ctx)
+    app.run(debug=True, host='0.0.0.0', port=5000, ssl_context=ssl_ctx)

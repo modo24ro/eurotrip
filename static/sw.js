@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurotrip-v46';
+const CACHE_NAME = 'eurotrip-v51';
 const STATIC_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',
@@ -54,6 +54,20 @@ self.addEventListener('fetch', event => {
         }
         return response;
       }).catch(() => caches.match(request).then(cached => cached || new Response('Offline', { status: 503, headers: { 'Content-Type': 'text/plain' } })))
+    );
+    return;
+  }
+
+  // JS and CSS: network-first, fallback to cache if offline
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(request).then(response => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, clone));
+        }
+        return response;
+      }).catch(() => caches.match(request))
     );
     return;
   }
