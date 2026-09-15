@@ -440,8 +440,8 @@ function getFilteredLocations() {
 // ============================================================
 function render() {
   renderStats();
-  renderSummary();
-  renderCountryFilter();
+  renderSummary(state);
+  renderCountryFilter(state);
   renderMain();
 }
 

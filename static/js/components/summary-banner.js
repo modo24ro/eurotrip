@@ -6,7 +6,14 @@
 import { esc, flagHTML, flagText, formatEur } from '../core/utils.js';
 import { fmtDate } from '../core/date-utils.js';
 
-export function renderSummary(state) {
+function resolveState(providedState) {
+  if (providedState && typeof providedState === 'object') return providedState;
+  if (typeof window !== 'undefined' && window.state) return window.state;
+  return {};
+}
+
+export function renderSummary(targetState) {
+  const state = resolveState(targetState);
   const locs = state.trip?.locations ?? [];
   const enabled = locs.filter(l => l.enabled);
   const totalCost = enabled.reduce((s, l) => s + (l.cost || 0), 0);
@@ -71,9 +78,10 @@ export function renderSummary(state) {
   }
 }
 
-export function renderCountryFilter(state) {
+export function renderCountryFilter(targetState) {
+  const state = resolveState(targetState);
   const countries = [...new Set((state.trip?.locations ?? []).map(l => l.country).filter(Boolean))].sort();
-  const cur = state.filter.country;
+  const cur = state.filter?.country || 'all';
   const optionsHtml = `<option value="all">All Countries</option>` +
     countries.map(c => `<option value="${esc(c)}"${c === cur ? ' selected' : ''}>${flagText(c)} ${esc(c)}</option>`).join('');
   const sel = document.getElementById('countryFilter');
@@ -83,6 +91,6 @@ export function renderCountryFilter(state) {
 }
 
 if (typeof window !== 'undefined') {
-  window.renderSummary = () => renderSummary(window.state);
-  window.renderCountryFilter = () => renderCountryFilter(window.state);
+  window.renderSummary = (s) => renderSummary(s || window.state);
+  window.renderCountryFilter = (s) => renderCountryFilter(s || window.state);
 }

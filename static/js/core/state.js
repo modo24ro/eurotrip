@@ -57,7 +57,7 @@ export const state = {
   searchQuery: '',
   hideVisited: prefs.hideVisited || false,
   mapExcluded: new Set(Array.isArray(prefs.mapExcluded) ? prefs.mapExcluded : []),
-  role: document.body.dataset.role || 'viewer',
+  role: (typeof document !== 'undefined' && document.body?.dataset?.role) || 'viewer',
   timelineDay: null,
   routeDay: 'all',
   routeTravelMode: 'driving',
@@ -152,22 +152,32 @@ export function addBlankLocation() {
 }
 
 export function getFilteredLocations() {
-  const locs = state.trip?.locations ?? [];
-  return locs.filter(loc => {
-    if (state.hideVisited && loc.visited) return false;
-    if (state.filterCategory !== 'all' && loc.category !== state.filterCategory) return false;
-    if (state.filterCountry !== 'all' && loc.country !== state.filterCountry) return false;
-    if (state.searchQuery) {
-      const q = state.searchQuery.toLowerCase();
-      const match =
-        (loc.name || '').toLowerCase().includes(q) ||
-        (loc.city || '').toLowerCase().includes(q) ||
-        (loc.country || '').toLowerCase().includes(q) ||
-        (loc.address || '').toLowerCase().includes(q) ||
-        (loc.notes || '').toLowerCase().includes(q) ||
-        (loc.flight_number || '').toLowerCase().includes(q);
-      if (!match) return false;
-    }
-    return true;
-  });
+  const s = getActiveState();
+  let locs = s.trip?.locations ?? [];
+  const filter = s.filter || {};
+  const category = filter.category || s.filterCategory || 'all';
+  const country = filter.country || s.filterCountry || 'all';
+  const search = (filter.search != null ? filter.search : (s.searchQuery || '')).trim();
+  const showDisabled = filter.showDisabled !== undefined ? filter.showDisabled : true;
+
+  if (!showDisabled) locs = locs.filter(l => l.enabled);
+  if (s.hideVisited) locs = locs.filter(l => !l.visited);
+  if (category !== 'all') {
+    locs = locs.filter(l => l.category === category);
+  }
+  if (country !== 'all') {
+    locs = locs.filter(l => l.country === country);
+  }
+  if (search) {
+    const q = search.toLowerCase();
+    locs = locs.filter(l =>
+      (l.name || '').toLowerCase().includes(q) ||
+      (l.city && l.city.toLowerCase().includes(q)) ||
+      (l.country && l.country.toLowerCase().includes(q)) ||
+      (l.address && l.address.toLowerCase().includes(q)) ||
+      (l.notes && l.notes.toLowerCase().includes(q)) ||
+      (l.flight_number && l.flight_number.toLowerCase().includes(q))
+    );
+  }
+  return locs;
 }
