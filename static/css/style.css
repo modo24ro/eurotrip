@@ -4438,23 +4438,25 @@ body.single-col-cards .card-notes-row,
 }
 
 .subcard-slide {
-  flex: 0 0 100%;
-  width: 100%;
-  max-width: 100%;
-  box-sizing: border-box;
+  flex: 0 0 100% !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
   padding: 8px 24px;
-  display: flex;
-  align-items: center;
-  min-height: 56px;
-  height: 56px;
+  display: flex !important;
+  align-items: center !important;
+  min-height: 56px !important;
+  height: 56px !important;
+  max-height: 56px !important;
 }
 
 .subcard-slide.subcard-slide-notes,
 .subcard-slide.subcard-slide-flight,
 .subcard-slide.subcard-slide-address,
 .subcard-slide.subcard-slide-media {
-  min-height: 56px;
-  height: 56px;
+  min-height: 56px !important;
+  height: 56px !important;
+  max-height: 56px !important;
 }
 
 .subcards-viewport.is-single .subcard-slide {
@@ -4472,6 +4474,9 @@ body.single-col-cards .card-notes-row,
 /* 1. Notes Slide */
 .subcard-notes-content {
   cursor: default;
+  display: flex !important;
+  align-items: center !important;
+  height: 100% !important;
 }
 .subcard-notes-text {
   font-size: 0.78rem;
