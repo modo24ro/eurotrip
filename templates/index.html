@@ -44,8 +44,7 @@
           <span class="menu-category-title">Trips</span>
         </div>
         <div class="menu-subgroup">
-          <div class="trip-selector-wrap menu-item-wrap" id="tripSelectorWrap" {% if trip_count is defined and
-            trip_count <=1 %} style="display: none;" {% endif %}>
+          <div class="trip-selector-wrap menu-item-wrap" id="tripSelectorWrap"{% if trip_count is defined and trip_count <= 1 %} style="display: none;"{% endif %}>
             <button id="tripSelector" class="hdr-btn menu-btn trip-selector-btn" type="button" aria-label="Select trip"
               title="Select trip">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -318,7 +317,7 @@
         </button>
       </div>
       <div class="modal-body backup-delete-body">
-        <p>This backup will be permanently deleted:</p>
+        <p id="deleteBackupMessage">This backup will be permanently deleted:</p>
         <strong id="deleteBackupFilename"></strong>
         <div class="backup-delete-actions">
           <button class="btn-secondary" id="cancelDeleteBackup" type="button">Cancel</button>

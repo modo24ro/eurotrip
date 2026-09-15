@@ -739,7 +739,7 @@ def backup_files():
             entry for entry in os.scandir(active_backup_dir())
             if entry.is_file() and entry.name.startswith('trip_data_') and entry.name.endswith('.json')
         ),
-        key=lambda entry: entry.stat().st_mtime,
+        key=lambda entry: (backup_created_at(entry), entry.name),
         reverse=True,
     )
 
@@ -767,7 +767,7 @@ def backup_metadata(entry):
 
 
 def backup_created_at(entry):
-    match = re.match(r'^trip_data_(\d{8})-(\d{6})(\d{6})?\.json$', entry.name)
+    match = re.match(r'^trip_data_(\d{8})-(\d{6})(\d{6})?.*\.json$', entry.name)
     if match:
         try:
             timestamp = match.group(1) + match.group(2) + (match.group(3) or '')
@@ -798,19 +798,28 @@ def create_backup(include_empty=False):
     timestamp = now_dt.strftime('%Y%m%d-%H%M%S')
     backup_path = os.path.join(backup_dir, f'trip_data_{timestamp}.json')
     if os.path.exists(backup_path):
-        timestamp = now_dt.strftime('%Y%m%d-%H%M%S%f')
+        timestamp = get_current_datetime().strftime('%Y%m%d-%H%M%S%f')
         backup_path = os.path.join(backup_dir, f'trip_data_{timestamp}.json')
-    shutil.copy2(trip_data_file, backup_path)
+        if os.path.exists(backup_path):
+            backup_path = os.path.join(backup_dir, f'trip_data_{timestamp}_{uuid.uuid4().hex[:6]}.json')
+    shutil.copyfile(trip_data_file, backup_path)
+    now_ts = time.time()
+    try:
+        os.utime(backup_path, (now_ts, now_ts))
+    except OSError:
+        pass
     return os.path.basename(backup_path)
 
 
 def protected_backup_name():
-    candidates = []
-    for entry in backup_files():
+    files = backup_files()
+    if not files:
+        return None
+    for entry in files:
         metadata = backup_metadata(entry)
         if metadata.get('location_count', 0) > 0:
-            candidates.append((backup_created_at(entry), entry.name))
-    return max(candidates)[1] if candidates else None
+            return entry.name
+    return files[0].name
 
 
 def write_trip_data_atomic(data, trip_id=None):
@@ -2396,6 +2405,8 @@ def admin_backup_delete(filename):
 def admin_backup_bulk_delete():
     payload = request.get_json(silent=True) or {}
     filenames = payload.get('files')
+    if filenames is None:
+        filenames = payload.get('filenames')
     if not isinstance(filenames, list) or not filenames or not all(isinstance(name, str) for name in filenames):
         return jsonify({'error': 'No backups selected'}), 400
 
@@ -2404,15 +2415,21 @@ def admin_backup_bulk_delete():
     if missing:
         return jsonify({'error': f'Backup not found: {missing[0]}'}), 404
     protected_name = protected_backup_name()
-    if protected_name in filenames:
+    delete_targets = [name for name in filenames if name != protected_name]
+    if not delete_targets:
         return jsonify({'error': 'The latest backup containing records is protected'}), 409
 
     try:
-        for name in filenames:
+        for name in delete_targets:
             os.unlink(available[name].path)
     except OSError as e:
         return jsonify({'error': f'Could not delete backup: {e}'}), 500
-    return jsonify({'status': 'ok', 'files': filenames})
+    return jsonify({
+        'status': 'ok',
+        'files': delete_targets,
+        'deleted_count': len(delete_targets),
+        'skipped': [protected_name] if protected_name in filenames else []
+    })
 
 
 @app.route('/api/admin/backups/<path:filename>/restore', methods=['POST'])

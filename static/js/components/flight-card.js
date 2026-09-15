@@ -198,7 +198,7 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
           if (window.LocationSubcards) {
             window.LocationSubcards.updateCard(document.querySelector(`.location-card[data-id="${CSS.escape(loc.id)}"]`), loc);
           }
-          toast('Datele zborului au fost actualizate de la API!', 'success');
+          toast('Datele zborului au fost actualizate!', 'success');
         } else {
           if (noticeEl) {
             noticeEl.style.display = 'block';

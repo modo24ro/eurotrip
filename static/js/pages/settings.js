@@ -221,7 +221,7 @@ const escapeHtml = esc;
     const selectAllBackupsEl = document.getElementById('selectAllBackups');
     const deleteSelectedBtn = document.getElementById('deleteSelectedBackups');
     let currentBackups = [];
-    let pendingDeleteBackup = null;
+    let pendingDeleteBackups = [];
     let pendingRestoreBackup = null;
 
     async function loadBackups() {
@@ -230,6 +230,7 @@ const escapeHtml = esc;
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Failed to load backups');
         currentBackups = data.backups || [];
+        currentBackups.sort((a, b) => new Date(b.created || 0) - new Date(a.created || 0) || String(b.file).localeCompare(String(a.file)));
         renderBackups();
       } catch (err) {
         backupListEl.innerHTML = `<div class="error-msg">Error loading backups: ${escapeHtml(err.message)}</div>`;
@@ -346,26 +347,62 @@ const escapeHtml = esc;
       }
     });
 
-    // Delete Single Backup Modal
+    // Delete Backup Modal (Single or Bulk)
     const deleteBackupModal = document.getElementById('deleteBackupModal');
-    function openDeleteBackupModal(filename) {
-      pendingDeleteBackup = filename;
-      document.getElementById('deleteBackupFilename').textContent = filename;
+    function openDeleteBackupModal(filenames) {
+      pendingDeleteBackups = Array.isArray(filenames) ? filenames : [filenames];
+      if (!pendingDeleteBackups.length) return;
+
+      const titleEl = document.getElementById('deleteBackupModalTitle');
+      const msgEl = document.getElementById('deleteBackupMessage');
+      const filenameEl = document.getElementById('deleteBackupFilename');
+      const confirmBtn = document.getElementById('confirmDeleteBackup');
+
+      if (pendingDeleteBackups.length === 1) {
+        if (titleEl) titleEl.textContent = 'Delete backup';
+        if (msgEl) msgEl.textContent = 'This backup will be permanently deleted:';
+        if (filenameEl) filenameEl.textContent = pendingDeleteBackups[0];
+        if (confirmBtn) confirmBtn.textContent = 'Delete backup';
+      } else {
+        const count = pendingDeleteBackups.length;
+        if (titleEl) titleEl.textContent = `Delete ${count} backups`;
+        if (msgEl) msgEl.textContent = 'These backups will be permanently deleted:';
+        if (filenameEl) filenameEl.textContent = `Delete ${count} selected backup(s)?`;
+        if (confirmBtn) confirmBtn.textContent = `Delete ${count} backups`;
+      }
       deleteBackupModal.classList.add('open');
     }
+
     function closeDeleteBackupModal() {
-      pendingDeleteBackup = null;
+      pendingDeleteBackups = [];
       deleteBackupModal.classList.remove('open');
     }
+
     document.getElementById('closeDeleteBackupModal')?.addEventListener('click', closeDeleteBackupModal);
     document.getElementById('cancelDeleteBackup')?.addEventListener('click', closeDeleteBackupModal);
+    deleteBackupModal?.addEventListener('click', e => {
+      if (e.target === deleteBackupModal) closeDeleteBackupModal();
+    });
+
     document.getElementById('confirmDeleteBackup')?.addEventListener('click', async () => {
-      if (!pendingDeleteBackup) return;
+      if (!pendingDeleteBackups.length) return;
       try {
-        const res = await fetch(`/api/admin/backups/${encodeURIComponent(pendingDeleteBackup)}`, { method: 'DELETE' });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to delete backup');
-        showToast('Backup deleted', 'success');
+        if (pendingDeleteBackups.length === 1) {
+          const filename = pendingDeleteBackups[0];
+          const res = await fetch(`/api/admin/backups/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Failed to delete backup');
+          showToast('Backup deleted', 'success');
+        } else {
+          const res = await fetch('/api/admin/backups/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: pendingDeleteBackups, filenames: pendingDeleteBackups })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
+          showToast(`${data.deleted_count || pendingDeleteBackups.length} backup(s) deleted`, 'success');
+        }
         closeDeleteBackupModal();
         loadBackups();
       } catch (err) {
@@ -401,23 +438,10 @@ const escapeHtml = esc;
     });
 
     // Bulk Delete Backups
-    deleteSelectedBtn?.addEventListener('click', async () => {
+    deleteSelectedBtn?.addEventListener('click', () => {
       const checked = Array.from(backupListEl.querySelectorAll('.backup-row-checkbox:checked')).map(cb => cb.dataset.file);
       if (!checked.length) return;
-      if (!confirm(`Delete ${checked.length} selected backup(s)?`)) return;
-      try {
-        const res = await fetch('/api/admin/backups/bulk-delete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filenames: checked })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Bulk delete failed');
-        showToast(`${data.deleted_count || checked.length} backup(s) deleted`, 'success');
-        loadBackups();
-      } catch (err) {
-        showToast(err.message, 'danger');
-      }
+      openDeleteBackupModal(checked);
     });
 
     // ==========================================

@@ -4293,10 +4293,23 @@ function bindEvents() {
   };
   const openDeleteBackupModal = filenames => {
     pendingDeleteBackups = Array.isArray(filenames) ? filenames : [filenames];
+    if (!pendingDeleteBackups.length) return;
     const filenameEl = document.getElementById('deleteBackupFilename');
-    if (filenameEl) filenameEl.textContent = pendingDeleteBackups.length === 1
-      ? pendingDeleteBackups[0]
-      : `${pendingDeleteBackups.length} backups selected`;
+    const titleEl = document.getElementById('deleteBackupModalTitle');
+    const msgEl = document.getElementById('deleteBackupMessage');
+    const confirmBtn = document.getElementById('confirmDeleteBackup');
+    if (pendingDeleteBackups.length === 1) {
+      if (titleEl) titleEl.textContent = 'Delete backup';
+      if (msgEl) msgEl.textContent = 'This backup will be permanently deleted:';
+      if (filenameEl) filenameEl.textContent = pendingDeleteBackups[0];
+      if (confirmBtn) confirmBtn.textContent = 'Delete backup';
+    } else {
+      const count = pendingDeleteBackups.length;
+      if (titleEl) titleEl.textContent = `Delete ${count} backups`;
+      if (msgEl) msgEl.textContent = 'These backups will be permanently deleted:';
+      if (filenameEl) filenameEl.textContent = `Delete ${count} selected backup(s)?`;
+      if (confirmBtn) confirmBtn.textContent = `Delete ${count} backups`;
+    }
     document.getElementById('deleteBackupModal')?.classList.add('open');
   };
   const closeRestoreBackupModal = () => {
@@ -4351,7 +4364,7 @@ function bindEvents() {
       list.innerHTML = '<div class="backup-empty">No backups available.</div>';
       return;
     }
-    backups.sort((a, b) => new Date(b.created) - new Date(a.created));
+    backups.sort((a, b) => new Date(b.created || 0) - new Date(a.created || 0) || String(b.file).localeCompare(String(a.file)));
     list.innerHTML = backups.map(backup => `
       <div class="backup-row${backup.protected ? ' backup-row-protected' : ''}">
         <input class="backup-select" type="checkbox" data-backup-select="${esc(backup.file)}" aria-label="Select backup ${esc(backup.file)}"${backup.protected ? ' disabled title="Protected latest backup with records"' : ''}>
@@ -4435,12 +4448,12 @@ function bindEvents() {
       const res = await fetch('/api/admin/backups/bulk-delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ files: filenames }),
+        body: JSON.stringify({ files: filenames, filenames }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Delete failed');
       closeDeleteBackupModal();
-      toast(`Deleted ${filenames.length} backup${filenames.length !== 1 ? 's' : ''}.`, 'success');
+      toast(`Deleted ${data.deleted_count || filenames.length} backup${(data.deleted_count || filenames.length) !== 1 ? 's' : ''}.`, 'success');
       await showBackupList();
     } catch (e) {
       toast('Delete failed: ' + e.message, 'error');
