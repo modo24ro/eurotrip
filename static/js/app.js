@@ -3279,7 +3279,8 @@ function updateCardsPerRowOptions() {
 
   selects.forEach(sel => {
     if (!sel) return;
-    const currentVal = parseInt(sel.value || state.cardsPerRow || '3', 10);
+    const targetVal = state.singleCol ? 1 : parseInt(state.cardsPerRow || sel.value || '3', 10);
+    const clamped = Math.min(Math.max(1, targetVal), max);
 
     let html = '';
     for (let i = 1; i <= max; i++) {
@@ -3287,8 +3288,6 @@ function updateCardsPerRowOptions() {
       html += `<option value="${i}">${label}</option>`;
     }
     sel.innerHTML = html;
-
-    const clamped = Math.min(Math.max(1, currentVal), max);
     sel.value = String(clamped);
   });
 }
@@ -4089,6 +4088,8 @@ function bindEvents() {
     state.cardsPerRow = val;
     state.singleCol = (val === 1);
     savePrefs({ cardsPerRow: val, singleCol: state.singleCol });
+    const cpMob = document.getElementById('cardsPerRowSelectMobile');
+    if (cpMob && cpMob.value !== String(val)) cpMob.value = String(val);
     updateFilterActiveDot();
     applyCardsPerRowMode();
     renderMain();
@@ -4098,6 +4099,10 @@ function bindEvents() {
     state.cardsPerRow = val;
     state.singleCol = (val === 1);
     savePrefs({ cardsPerRow: val, singleCol: state.singleCol });
+    const dCp = document.getElementById('cardsPerRowSelect');
+    if (dCp && dCp.value !== String(val)) dCp.value = String(val);
+    const dSc = document.getElementById('singleColToggle');
+    if (dSc) dSc.checked = (val === 1);
     updateFilterActiveDot();
     applyCardsPerRowMode();
     renderMain();
@@ -4106,6 +4111,10 @@ function bindEvents() {
     state.singleCol = e.target.checked;
     state.cardsPerRow = e.target.checked ? 1 : 3;
     savePrefs({ singleCol: e.target.checked, cardsPerRow: state.cardsPerRow });
+    const dCp = document.getElementById('cardsPerRowSelect');
+    if (dCp) dCp.value = String(state.cardsPerRow);
+    const cpMob = document.getElementById('cardsPerRowSelectMobile');
+    if (cpMob) cpMob.value = String(state.cardsPerRow);
     updateFilterActiveDot();
     applyCardsPerRowMode();
     renderMain();
@@ -4130,8 +4139,10 @@ function bindEvents() {
     const cpMob = document.getElementById('cardsPerRowSelectMobile');
     if (cpMob) {
       updateCardsPerRowOptions();
-      const defCards = isNarrowViewport() ? Math.min(2, getMaxCardsPerRow()) : Math.min(3, getMaxCardsPerRow());
-      cpMob.value = String(state.cardsPerRow || (state.singleCol ? 1 : defCards));
+      const maxAllowed = getMaxCardsPerRow();
+      const activeCards = state.singleCol ? 1 : parseInt(state.cardsPerRow || (isNarrowViewport() ? '1' : '3'), 10);
+      const clamped = Math.min(Math.max(1, activeCards), maxAllowed);
+      cpMob.value = String(clamped);
     }
     const cpGroup = document.getElementById('cardsPerRowModalGroup');
     if (cpGroup) cpGroup.style.display = '';
@@ -4200,9 +4211,10 @@ function bindEvents() {
     state.filter.country = 'all';
     state.sortBy = 'added';
     state.hideVisited = false;
-    state.cardsPerRow = Math.min(3, getMaxCardsPerRow());
-    state.singleCol = false;
-    savePrefs({ sortBy: 'added', hideVisited: false, cardsPerRow: state.cardsPerRow, singleCol: false });
+    const defCards = isNarrowViewport() ? 1 : Math.min(3, getMaxCardsPerRow());
+    state.cardsPerRow = defCards;
+    state.singleCol = (defCards === 1);
+    savePrefs({ sortBy: 'added', hideVisited: false, cardsPerRow: state.cardsPerRow, singleCol: state.singleCol });
 
     const catMob = document.getElementById('categoryFilterMobile');
     if (catMob) catMob.value = 'all';
@@ -4212,6 +4224,8 @@ function bindEvents() {
     if (sortMob) sortMob.value = 'added';
     const hvMob = document.getElementById('hideVisitedMobile');
     if (hvMob) hvMob.checked = false;
+    const cpMob = document.getElementById('cardsPerRowSelectMobile');
+    if (cpMob) cpMob.value = String(defCards);
 
     const dCat = document.getElementById('categoryFilter');
     if (dCat) dCat.value = 'all';
@@ -4221,6 +4235,10 @@ function bindEvents() {
     if (dSort) dSort.value = 'added';
     const dHv = document.getElementById('hideVisited');
     if (dHv) dHv.checked = false;
+    const dCp = document.getElementById('cardsPerRowSelect');
+    if (dCp) dCp.value = String(defCards);
+    const dSc = document.getElementById('singleColToggle');
+    if (dSc) dSc.checked = (defCards === 1);
 
     applyCardsPerRowMode();
     updateFilterActiveDot();

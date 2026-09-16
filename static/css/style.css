@@ -3803,29 +3803,52 @@ body:has(.modal-overlay.open) .leaflet-control-container {
 }
 
 .filter-select {
-  padding: 6px 26px 6px 9px;
-  background: rgba(255, 255, 255, 0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 3px center / 17px;
+  height: 32px;
+  padding: 0 28px 0 11px;
+  background-color: rgba(22, 32, 54, 0.72);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 15px 15px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   cursor: pointer;
   outline: none;
   appearance: none;
-  transition: all 0.18s;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
 }
 
-.filter-select:focus,
 .filter-select:hover {
   border-color: var(--border-hover);
+  background-color: rgba(22, 32, 54, 0.9);
   color: var(--text-primary);
 }
 
+.filter-select:focus {
+  border-color: var(--accent);
+  background-color: rgba(22, 32, 54, 0.98);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  box-shadow: 0 0 0 3px var(--accent-glow);
+  color: #fff;
+}
+
+.cards-per-row-select {
+  font-weight: 500;
+  min-width: 125px;
+}
+
 select option,
-.filter-select option {
-  background: var(--bg-elevated, #162036);
-  color: var(--text-primary, #e2e8f0);
+.filter-select option,
+.filter-modal-select option {
+  background: var(--bg-elevated, #162036) !important;
+  background-color: var(--bg-elevated, #162036) !important;
+  color: var(--text-primary, #e2e8f0) !important;
+  padding: 10px 14px;
 }
 
 .toggle-pill {
@@ -8091,31 +8114,35 @@ input[type="time"].field-input {
 
 .field-select {
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   cursor: pointer;
-  padding-right: 26px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+  padding-right: 32px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 4px center;
-  background-size: 15px;
+  background-position: right 10px center;
+  background-size: 15px 15px;
   background-color: rgba(255, 255, 255, 0.04);
 }
 
 .field-select option,
 select option,
 .filter-select option,
+.filter-modal-select option,
 .tbl-select option,
 #syncIntervalSelect option {
   background-image: none !important;
   background: var(--bg-elevated, #162036) !important;
   background-color: var(--bg-elevated, #162036) !important;
   color: var(--text-primary, #e2e8f0) !important;
+  padding: 10px 14px;
 }
 
 .sync-interval-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  background: var(--bg-elevated, #162036) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 8px center / 16px !important;
+  background: var(--bg-elevated, #162036) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 10px center / 16px 16px !important;
   border: 1px solid var(--border) !important;
   border-radius: var(--radius-sm) !important;
   color: var(--text-primary) !important;
@@ -9357,8 +9384,8 @@ select option,
 
 .tbl-select {
   width: 100%;
-  padding: 4px 22px 4px 6px;
-  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 2px center / 16px;
+  padding: 4px 24px 4px 6px;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 4px center / 14px 14px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -9366,6 +9393,8 @@ select option,
   font-size: 0.81rem;
   outline: none;
   appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -9378,11 +9407,14 @@ select option,
 .tbl-select:focus {
   border-color: var(--accent);
   background-color: rgba(92, 115, 242, 0.08);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .tbl-select option {
-  background: var(--bg-elevated, #162036);
-  color: var(--text-primary, #e2e8f0);
+  background: var(--bg-elevated, #162036) !important;
+  background-color: var(--bg-elevated, #162036) !important;
+  color: var(--text-primary, #e2e8f0) !important;
 }
 
 .cost-cell {
