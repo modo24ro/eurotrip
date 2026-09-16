@@ -128,7 +128,7 @@ const TAB_CATEGORIES = {
   danger: 'system'
 };
 
-function updateMobileCategory(targetTab) {
+function updateCategoryNav(targetTab) {
   const cat = TAB_CATEGORIES[targetTab] || 'data';
   categoryButtons.forEach(btn => {
     const isCat = btn.dataset.category === cat;
@@ -140,6 +140,7 @@ function updateMobileCategory(targetTab) {
     bar.style.display = isCat ? 'flex' : 'none';
   });
 }
+const updateMobileCategory = updateCategoryNav;
 
 const tabPanes = {
   connection: document.getElementById('paneConnection'),
@@ -163,8 +164,8 @@ function switchTab(targetTab, options = {}) {
     btn.setAttribute('aria-selected', isMatch ? 'true' : 'false');
   });
 
-  // Synchronize mobile category & subnav bar
-  updateMobileCategory(targetTab);
+  // Synchronize category & subnav bar
+  updateCategoryNav(targetTab);
 
   Object.entries(tabPanes).forEach(([name, pane]) => {
     if (!pane) return;
@@ -208,13 +209,13 @@ tabButtons.forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-// Mobile category buttons: click to switch category and activate first tab in that category
+// Category buttons: click to switch category and activate first tab in that category
 categoryButtons.forEach(catBtn => {
   catBtn.addEventListener('click', () => {
     const cat = catBtn.dataset.category;
     const currentActiveTab = new URL(window.location.href).searchParams.get('tab') || 'backup';
     if (TAB_CATEGORIES[currentActiveTab] === cat) {
-      updateMobileCategory(currentActiveTab);
+      updateCategoryNav(currentActiveTab);
       return;
     }
     // Switch to the first tab of this category

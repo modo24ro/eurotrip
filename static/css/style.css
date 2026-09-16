@@ -13234,22 +13234,30 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   border-color: rgba(239, 68, 68, 0.35);
 }
 
-/* Responsive Desktop vs Mobile settings navigation */
+/* Settings navigation enhancements across viewports */
 @media (min-width: 769px) {
-  .settings-nav-desktop {
-    display: flex !important;
+  .settings-nav-container {
+    margin-bottom: 24px;
+    gap: 10px;
   }
-  .settings-nav-mobile {
-    display: none !important;
+  .settings-category-bar {
+    padding: 6px;
+    gap: 8px;
+    border-radius: var(--radius);
   }
-}
-
-@media (max-width: 768px) {
-  .settings-nav-desktop {
-    display: none !important;
+  .settings-cat-btn {
+    padding: 12px 16px;
+    font-size: 0.94rem;
+    gap: 8px;
   }
-  .settings-nav-mobile {
-    display: flex !important;
+  .settings-subnav-bar {
+    padding: 6px;
+    gap: 8px;
+  }
+  .settings-subnav-bar .settings-tab-btn {
+    padding: 10px 16px;
+    font-size: 0.88rem;
+    gap: 8px;
   }
 }
 
