@@ -129,7 +129,7 @@
     }
 
     const depTerminal = dep.terminal ? String(dep.terminal) : (loc?.flight_terminal ? String(loc.flight_terminal) : '');
-    const terminalBadge = depTerminal ? `<span class="subcard-flight-terminal subcard-wide-info" title="Terminal plecare">T${esc(depTerminal)}</span>` : '';
+    const terminalBadge = depTerminal ? `<span class="subcard-flight-terminal" title="Terminal plecare">T${esc(depTerminal)}</span>` : '';
 
     const aircraft = (flight?.aircraft || '').trim();
     const aircraftBadge = aircraft ? `<span class="subcard-flight-aircraft subcard-wide-info" title="Aeronava"><span class="aircraft-icon" aria-hidden="true">✈</span><span>${esc(aircraft)}</span></span>` : '';
@@ -158,14 +158,14 @@
             <div class="subcard-flight-main">
               <span class="subcard-flight-code">${esc(flightCode)}</span>
               <span class="subcard-flight-route">${esc(depIata)} → ${esc(arrIata)}</span>
+              ${terminalBadge}
               ${timesStr ? `<span class="subcard-flight-times subcard-times-wide subcard-wide-info">${timesStr}</span>` : ''}
             </div>
             <div class="subcard-flight-meta">
               ${timesStr ? `<span class="subcard-flight-times subcard-times-narrow subcard-narrow-only">${timesStr}</span>` : ''}
-              ${durationStr ? `<span class="subcard-flight-dur">${durationStr}</span>` : ''}
+              ${durationStr}
               ${gateBadge}
               ${beltBadge}
-              ${terminalBadge}
             </div>
           </div>
           ${rightColHTML}
