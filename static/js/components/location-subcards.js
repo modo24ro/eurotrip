@@ -116,12 +116,27 @@
     }
 
     const durationStr = flight?.duration ? `<span class="subcard-flight-dur">⏱️ ${esc(flight.duration)}</span>` : '';
-    let gateOrBeltInfo = '';
-    if (dep.gate) {
-      gateOrBeltInfo = `<span class="subcard-flight-gate">Gate ${esc(dep.gate)}</span>`;
-    } else if (arr.belt || arr.baggage || loc?.flight_belt || loc?.baggage_belt) {
-      gateOrBeltInfo = `<span class="subcard-flight-gate subcard-flight-belt">Belt ${esc(arr.belt || arr.baggage || loc?.flight_belt || loc?.baggage_belt)}</span>`;
+
+    // Gate & Belt logistics
+    const gateVal = dep.gate || loc?.flight_gate || '';
+    const beltVal = arr.belt || arr.baggage || flight?.belt || flight?.baggage || loc?.flight_belt || loc?.baggage_belt || '';
+    const gateBadge = gateVal ? `<span class="subcard-flight-gate">Gate ${esc(gateVal)}</span>` : '';
+    let beltBadge = beltVal ? `<span class="subcard-flight-gate subcard-flight-belt">Belt ${esc(beltVal)}</span>` : '';
+
+    // If both exist, on narrow screens hide belt so it doesn't wrap, on wide screens show both
+    if (gateVal && beltVal) {
+      beltBadge = `<span class="subcard-flight-gate subcard-flight-belt subcard-wide-info">Belt ${esc(beltVal)}</span>`;
     }
+
+    // Additional info for wide screens (Z Fold 6 unfolded, single-col-cards)
+    const airlineName = (flight?.airline || loc?.airline || '').trim();
+    const airlineBadge = airlineName ? `<span class="subcard-flight-airline subcard-wide-info" title="${esc(airlineName)}">${esc(airlineName)}</span>` : '';
+
+    const depTerminal = dep.terminal ? String(dep.terminal) : (loc?.flight_terminal ? String(loc.flight_terminal) : '');
+    const terminalBadge = depTerminal ? `<span class="subcard-flight-terminal subcard-wide-info" title="Terminal plecare">T${esc(depTerminal)}</span>` : '';
+
+    const aircraft = (flight?.aircraft || '').trim();
+    const aircraftBadge = aircraft ? `<span class="subcard-flight-aircraft subcard-wide-info" title="Aeronava"><span class="aircraft-icon" aria-hidden="true">✈</span><span>${esc(aircraft)}</span></span>` : '';
 
     return `
       <div class="subcard-slide subcard-slide-flight" data-subcard-type="flight">
@@ -134,13 +149,18 @@
           <div class="subcard-flight-body">
             <div class="subcard-flight-main">
               <span class="subcard-flight-code">${esc(flightCode)}</span>
+              ${airlineBadge}
               <span class="subcard-flight-route">${esc(depIata)} → ${esc(arrIata)}</span>
               ${(depTime || arrTime) ? `<span class="subcard-flight-times">${esc(depTime)}${arrTime ? ` - ${esc(arrTime)}` : ''}</span>` : ''}
+              ${durationStr ? `<span class="subcard-flight-dur-wide subcard-wide-info">${durationStr}</span>` : ''}
             </div>
             <div class="subcard-flight-meta">
               ${statusBadge}
-              ${durationStr}
-              ${gateOrBeltInfo}
+              ${durationStr ? `<span class="subcard-flight-dur-narrow subcard-narrow-dur">${durationStr}</span>` : ''}
+              ${gateBadge}
+              ${beltBadge}
+              ${terminalBadge}
+              ${aircraftBadge}
             </div>
           </div>
         </div>
