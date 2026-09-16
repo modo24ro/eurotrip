@@ -30,6 +30,81 @@ if (mobileMenuBtn && appHeader) {
     if (!appHeader.classList.contains('mobile-menu-open') || e.target.closest('.app-header')) return;
     closeMenu();
   });
+  document.querySelectorAll('.settings-desktop-menu .header-actions .menu-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      closeMenu();
+    });
+  });
+}
+
+// Fullscreen Toggle in Menu
+const appFullscreenBtn = document.getElementById('appFullscreenBtn');
+if (appFullscreenBtn) {
+  const iconEnter = appFullscreenBtn.querySelector('.fullscreen-icon-enter');
+  const iconExit = appFullscreenBtn.querySelector('.fullscreen-icon-exit');
+  const textEl = document.getElementById('appFullscreenBtnText') || appFullscreenBtn.querySelector('.menu-btn-text');
+
+  const updateAppFullscreenUI = () => {
+    const isFullscreen = Boolean(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+    if (iconEnter) iconEnter.style.display = isFullscreen ? 'none' : 'inline-block';
+    if (iconExit) iconExit.style.display = isFullscreen ? 'inline-block' : 'none';
+    if (textEl) textEl.textContent = isFullscreen ? 'Ieși Fullscreen' : 'Fullscreen';
+    appFullscreenBtn.setAttribute('title', isFullscreen ? 'Ieși din ecran complet' : 'Comută Ecran Complet (Fullscreen)');
+    appFullscreenBtn.classList.toggle('is-active', isFullscreen);
+  };
+
+  appFullscreenBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const isFullscreen = Boolean(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+
+    try {
+      if (!isFullscreen) {
+        const el = document.documentElement;
+        if (el.requestFullscreen) {
+          await el.requestFullscreen();
+        } else if (el.webkitRequestFullscreen) {
+          await el.webkitRequestFullscreen();
+        } else if (el.mozRequestFullScreen) {
+          await el.mozRequestFullScreen();
+        } else if (el.msRequestFullscreen) {
+          await el.msRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+          await document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+          await document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+          await document.msExitFullscreen();
+        }
+      }
+    } catch (err) {
+      console.warn('Fullscreen toggle failed:', err);
+      if (typeof showToast === 'function') {
+        showToast('Browserul nu permite comutarea automată a ecranului complet.', 'warning');
+      }
+    } finally {
+      updateAppFullscreenUI();
+    }
+  });
+
+  ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
+    document.addEventListener(evt, updateAppFullscreenUI);
+  });
+
+  updateAppFullscreenUI();
 }
 
 // ==========================================

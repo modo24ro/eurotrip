@@ -596,6 +596,30 @@ body::before {
   border-color: rgba(16, 185, 129, 0.4);
 }
 
+.header-actions .fullscreen-btn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-primary);
+}
+
+.header-actions .fullscreen-btn:hover {
+  background: rgba(92, 115, 242, 0.12);
+  border-color: rgba(92, 115, 242, 0.25);
+  color: #fff;
+}
+
+.header-actions .fullscreen-btn.is-active,
+.header-actions .fullscreen-btn.active {
+  background: rgba(92, 115, 242, 0.16);
+  border-color: rgba(92, 115, 242, 0.35);
+  color: #a5b4fc;
+}
+
+.header-actions .fullscreen-btn.is-active svg,
+.header-actions .fullscreen-btn.active svg {
+  fill: #a5b4fc;
+}
+
 /* ==================== ADMIN PASSWORD MODAL REDESIGN ==================== */
 .admin-password-modal-box {
   max-width: 430px !important;
