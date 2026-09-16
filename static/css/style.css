@@ -5251,6 +5251,7 @@ body.single-col-cards .card-notes-row,
   display: flex;
   flex-direction: row;
   width: 100%;
+  min-height: 62px;
   transition: transform 0.28s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: transform;
 }
@@ -5260,12 +5261,12 @@ body.single-col-cards .card-notes-row,
   width: 100% !important;
   max-width: 100% !important;
   box-sizing: border-box !important;
-  padding: 8px 24px;
+  padding: 9px 24px;
   display: flex !important;
   align-items: center !important;
-  min-height: 56px !important;
-  height: 56px !important;
-  max-height: 56px !important;
+  min-height: 62px !important;
+  height: 62px !important;
+  max-height: 62px !important;
 }
 
 .subcard-slide.subcard-slide-notes,
@@ -5273,13 +5274,13 @@ body.single-col-cards .card-notes-row,
 .subcard-slide.subcard-slide-address,
 .subcard-slide.subcard-slide-media,
 .subcard-slide.subcard-slide-conflict {
-  min-height: 56px !important;
-  height: 56px !important;
-  max-height: 56px !important;
+  min-height: 62px !important;
+  height: 62px !important;
+  max-height: 62px !important;
 }
 
 .subcards-viewport.is-single .subcard-slide {
-  padding: 8px 12px;
+  padding: 9px 12px;
 }
 
 .subcard-inner {
@@ -5398,16 +5399,16 @@ body.single-col-cards .card-notes-row,
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
   width: 100%;
   min-width: 0;
 }
 
 .subcard-flight-badge {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.28);
   color: #60a5fa;
@@ -5435,7 +5436,7 @@ body.single-col-cards .card-notes-row,
   justify-content: center;
   min-width: 0;
   flex: 1 1 auto;
-  gap: 1.5px;
+  gap: 3.5px;
 }
 
 .subcard-flight-content:hover .subcard-flight-code {
@@ -5445,10 +5446,10 @@ body.single-col-cards .card-notes-row,
 .subcard-flight-main {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   flex-wrap: nowrap;
-  font-size: 0.76rem;
-  line-height: 1.15;
+  font-size: 0.78rem;
+  line-height: 1.2;
   min-width: 0;
   overflow: hidden;
 }
@@ -5456,47 +5457,32 @@ body.single-col-cards .card-notes-row,
 .subcard-flight-code {
   font-family: monospace;
   font-weight: 750;
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   letter-spacing: 0.02em;
   color: #93c5fd;
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.25);
-  padding: 0 4px;
+  padding: 1px 5px;
   border-radius: 4px;
   flex-shrink: 0;
   line-height: 1.25;
   transition: color 0.18s ease;
 }
 
-.subcard-flight-airline {
-  font-size: 0.68rem;
-  font-weight: 600;
-  color: #94a3b8;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  padding: 0 5px;
-  border-radius: 4px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  line-height: 1.25;
-  max-width: 110px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .subcard-flight-route {
   font-weight: 700;
+  font-size: 0.79rem;
   color: var(--text-primary);
   flex-shrink: 0;
-  line-height: 1.15;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
 .subcard-flight-times {
   color: var(--text-muted);
-  font-size: 0.71rem;
+  font-size: 0.73rem;
   flex-shrink: 0;
-  line-height: 1.15;
+  line-height: 1.2;
   white-space: nowrap;
 }
 
@@ -5504,56 +5490,38 @@ body.single-col-cards .card-notes-row,
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.69rem;
-  line-height: 1;
+  font-size: 0.71rem;
+  line-height: 1.2;
   color: var(--text-muted);
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.subcard-flight-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-weight: 600;
-  flex-shrink: 0;
-  line-height: 1;
-}
-
-.subcard-flight-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background-color: var(--dot-color, #10b981);
-  flex-shrink: 0;
-}
-
 .subcard-flight-dur {
   display: inline-flex;
   align-items: center;
   color: var(--text-muted);
-  font-size: 0.68rem;
+  font-size: 0.7rem;
   white-space: nowrap;
   flex-shrink: 0;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .subcard-flight-gate {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 0.67rem;
+  font-size: 0.69rem;
   font-weight: 600;
   color: #cbd5e1;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .subcard-flight-gate.subcard-flight-belt {
@@ -5565,56 +5533,102 @@ body.single-col-cards .card-notes-row,
 .subcard-flight-terminal {
   display: inline-flex;
   align-items: center;
-  font-size: 0.67rem;
+  font-size: 0.69rem;
   font-weight: 600;
   color: #facc15;
   background: rgba(234, 179, 8, 0.1);
   border: 1px solid rgba(234, 179, 8, 0.25);
-  padding: 1px 4px;
+  padding: 1px 5px;
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
-  line-height: 1.1;
+  line-height: 1.2;
+}
+
+/* Dedicated Right Column for Status (top) & Aircraft (bottom) */
+.subcard-flight-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3.5px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.subcard-flight-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4.5px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: #cbd5e1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 1.5px 7px;
+  border-radius: 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.subcard-flight-dot {
+  display: inline-block;
+  width: 6.5px;
+  height: 6.5px;
+  border-radius: 50%;
+  background-color: var(--dot-color, #10b981);
+  box-shadow: 0 0 6px var(--dot-color, #10b981);
+  flex-shrink: 0;
 }
 
 .subcard-flight-aircraft {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 3.5px;
   font-size: 0.68rem;
-  font-weight: 500;
+  font-weight: 550;
   color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 1px 6px;
+  border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
-  line-height: 1;
+  line-height: 1.2;
 }
 
 .subcard-flight-aircraft .aircraft-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   line-height: 1;
+  color: #60a5fa;
   transform: translateY(-0.5px);
 }
 
-/* Default / Narrow state (hidden wide chips and airline tag, duration in meta line) */
-.subcard-flight-airline,
+/* Default / Narrow state (hidden wide chips, show narrow-only elements) */
 .subcard-wide-info {
   display: none !important;
 }
 
-.subcard-narrow-dur {
+.subcard-narrow-only {
   display: inline-flex !important;
+}
+
+.subcard-flight-times.subcard-times-narrow {
+  color: #cbd5e1;
+  font-weight: 550;
+  font-size: 0.72rem;
 }
 
 /* Wide state (Container >= 580px, e.g. Z Fold 6 unfolded, tablet, desktop) */
 @container (min-width: 580px) {
-  .subcard-wide-info,
-  .subcard-flight-airline {
+  .subcard-wide-info {
     display: inline-flex !important;
   }
-  .subcard-narrow-dur {
+  .subcard-narrow-only {
     display: none !important;
   }
 }
@@ -5622,15 +5636,12 @@ body.single-col-cards .card-notes-row,
 @media (min-width: 680px) {
   body.single-col-cards .subcard-wide-info,
   body[data-cards-per-row="1"] .subcard-wide-info,
-  .single-col-cards .subcard-wide-info,
-  body.single-col-cards .subcard-flight-airline,
-  body[data-cards-per-row="1"] .subcard-flight-airline,
-  .single-col-cards .subcard-flight-airline {
+  .single-col-cards .subcard-wide-info {
     display: inline-flex !important;
   }
-  body.single-col-cards .subcard-narrow-dur,
-  body[data-cards-per-row="1"] .subcard-narrow-dur,
-  .single-col-cards .subcard-narrow-dur {
+  body.single-col-cards .subcard-narrow-only,
+  body[data-cards-per-row="1"] .subcard-narrow-only,
+  .single-col-cards .subcard-narrow-only {
     display: none !important;
   }
 }
@@ -13310,8 +13321,12 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
 
 .filter-modal-select {
   width: 100%;
-  padding: 10px 32px 10px 12px;
-  background: rgba(255, 255, 255, 0.05) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2394a3b8'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 10px center / 18px;
+  padding: 10px 38px 10px 14px;
+  background-color: rgba(22, 32, 54, 0.72);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
@@ -13319,12 +13334,31 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   font-size: 0.9rem;
   outline: none;
   appearance: none;
-  transition: border-color 0.2s;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.filter-modal-select:hover {
+  border-color: var(--border-hover);
+  background-color: rgba(22, 32, 54, 0.88);
+  color: #fff;
+}
+
+.filter-modal-select:focus {
+  border-color: var(--accent);
+  background-color: rgba(22, 32, 54, 0.96);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .filter-modal-select option {
-  background: var(--bg-elevated, #162036);
-  color: var(--text-primary, #e2e8f0);
+  background: var(--bg-elevated, #162036) !important;
+  background-color: var(--bg-elevated, #162036) !important;
+  color: var(--text-primary, #e2e8f0) !important;
+  padding: 11px 14px;
+  font-size: 0.9rem;
 }
 
 .filter-modal-select-row {
@@ -13333,10 +13367,83 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   gap: 6px;
 }
 
-.filter-modal-select:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-glow);
+/* ============================================================
+   CARDS PER ROW MOBILE DROPDOWN & GROUP
+   ============================================================ */
+#cardsPerRowModalGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
+
+#cardsPerRowModalGroup .filter-modal-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+#cardsPerRowSelectMobile {
+  width: 100%;
+  height: 42px;
+  padding: 0 40px 0 14px;
+  background-color: rgba(22, 32, 54, 0.82);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
+}
+
+#cardsPerRowSelectMobile:hover {
+  border-color: rgba(92, 115, 242, 0.5);
+  background-color: rgba(22, 32, 54, 0.95);
+  color: #fff;
+}
+
+#cardsPerRowSelectMobile:focus {
+  border-color: var(--accent);
+  background-color: #162036;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a5b4fc' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  box-shadow: 0 0 0 3px var(--accent-glow), 0 2px 8px rgba(0, 0, 0, 0.25);
+  color: #fff;
+}
+
+#cardsPerRowSelectMobile option {
+  background: #162036 !important;
+  background-color: #162036 !important;
+  color: #f1f5f9 !important;
+  font-size: 0.9rem !important;
+  font-weight: 500 !important;
+  padding: 12px 14px !important;
+}
+
+#cardsPerRowSelectMobile option:checked {
+  background: linear-gradient(0deg, rgba(92, 115, 242, 0.35), rgba(92, 115, 242, 0.35)), #162036 !important;
+  background-color: #1e2945 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+}
+
 
 .filter-modal-toggles {
   display: flex;

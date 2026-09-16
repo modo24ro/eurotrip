@@ -340,7 +340,7 @@ export function openFlightModal(locId) {
 
   const flightCode = (loc.flight_number || loc.flight_data?.flight_number || loc.flight_data?.flight_iata || 'Zbor').toUpperCase();
   if (titleEl) {
-    titleEl.innerHTML = `Detalii Zbor · <span class="modal-title-flight-code drawer-flight-code">${esc(flightCode)}</span>`;
+    titleEl.innerHTML = `Detalii Zbor <span class="modal-title-flight-code drawer-flight-code">${esc(flightCode)}</span>`;
   }
 
   const f = loc.flight_data || null;

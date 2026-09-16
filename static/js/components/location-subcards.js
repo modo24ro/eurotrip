@@ -128,41 +128,47 @@
       beltBadge = `<span class="subcard-flight-gate subcard-flight-belt subcard-wide-info">Belt ${esc(beltVal)}</span>`;
     }
 
-    // Additional info for wide screens (Z Fold 6 unfolded, single-col-cards)
-    const airlineName = (flight?.airline || loc?.airline || '').trim();
-    const airlineBadge = airlineName ? `<span class="subcard-flight-airline subcard-wide-info" title="${esc(airlineName)}">${esc(airlineName)}</span>` : '';
-
     const depTerminal = dep.terminal ? String(dep.terminal) : (loc?.flight_terminal ? String(loc.flight_terminal) : '');
     const terminalBadge = depTerminal ? `<span class="subcard-flight-terminal subcard-wide-info" title="Terminal plecare">T${esc(depTerminal)}</span>` : '';
 
     const aircraft = (flight?.aircraft || '').trim();
     const aircraftBadge = aircraft ? `<span class="subcard-flight-aircraft subcard-wide-info" title="Aeronava"><span class="aircraft-icon" aria-hidden="true">✈</span><span>${esc(aircraft)}</span></span>` : '';
 
+    let rightColHTML = '';
+    if (statusBadge || aircraftBadge) {
+      rightColHTML = `
+        <div class="subcard-flight-right">
+          ${statusBadge}
+          ${aircraftBadge}
+        </div>
+      `;
+    }
+
+    const timesStr = (depTime || arrTime) ? `${esc(depTime)}${arrTime ? ` - ${esc(arrTime)}` : ''}` : '';
+
     return `
       <div class="subcard-slide subcard-slide-flight" data-subcard-type="flight">
         <div class="subcard-inner subcard-flight-content flight-status-card-wrap" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" role="button" tabindex="0" title="Vezi detaliile complete pentru zborul ${esc(flightCode)}">
           <div class="subcard-flight-badge" aria-hidden="true">
-            <svg class="subcard-flight-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <svg class="subcard-flight-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.2-2 .7L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
             </svg>
           </div>
           <div class="subcard-flight-body">
             <div class="subcard-flight-main">
               <span class="subcard-flight-code">${esc(flightCode)}</span>
-              ${airlineBadge}
               <span class="subcard-flight-route">${esc(depIata)} → ${esc(arrIata)}</span>
-              ${(depTime || arrTime) ? `<span class="subcard-flight-times">${esc(depTime)}${arrTime ? ` - ${esc(arrTime)}` : ''}</span>` : ''}
-              ${durationStr ? `<span class="subcard-flight-dur-wide subcard-wide-info">${durationStr}</span>` : ''}
+              ${timesStr ? `<span class="subcard-flight-times subcard-times-wide subcard-wide-info">${timesStr}</span>` : ''}
             </div>
             <div class="subcard-flight-meta">
-              ${statusBadge}
-              ${durationStr ? `<span class="subcard-flight-dur-narrow subcard-narrow-dur">${durationStr}</span>` : ''}
+              ${timesStr ? `<span class="subcard-flight-times subcard-times-narrow subcard-narrow-only">${timesStr}</span>` : ''}
+              ${durationStr ? `<span class="subcard-flight-dur">${durationStr}</span>` : ''}
               ${gateBadge}
               ${beltBadge}
               ${terminalBadge}
-              ${aircraftBadge}
             </div>
           </div>
+          ${rightColHTML}
         </div>
       </div>
     `;
