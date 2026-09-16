@@ -13234,6 +13234,24 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   border-color: rgba(239, 68, 68, 0.35);
 }
 
+/* Conexiune category is strictly for the Android mobile application */
+#catConnection,
+.settings-subnav-bar[data-category="connection"] {
+  display: none !important;
+}
+
+html.is-android-app #catConnection,
+body.is-android-app #catConnection,
+.is-android-app #catConnection {
+  display: inline-flex !important;
+}
+
+html.is-android-app .settings-subnav-bar[data-category="connection"].active,
+body.is-android-app .settings-subnav-bar[data-category="connection"].active,
+.is-android-app .settings-subnav-bar[data-category="connection"].active {
+  display: flex !important;
+}
+
 /* Settings navigation enhancements across viewports */
 @media (min-width: 769px) {
   .settings-nav-container {

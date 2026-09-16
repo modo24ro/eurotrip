@@ -128,14 +128,77 @@ const TAB_CATEGORIES = {
   danger: 'system'
 };
 
+// Detect if running inside the Android application
+function isAndroidApp() {
+  if (typeof window === 'undefined') return false;
+  if (window.isAndroidApp === true) return true;
+  if (document.documentElement.classList.contains('is-android-app') || document.body.classList.contains('is-android-app')) return true;
+  try {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('app') === 'android' || p.get('platform') === 'android') return true;
+    if (localStorage.getItem('isAndroidApp') === 'true' || localStorage.getItem('eurotrip_is_android_app') === 'true') return true;
+  } catch (_) { }
+
+  // 1. Native Capacitor platform (Android)
+  if (window.Capacitor) {
+    if (typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) return true;
+    if (typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() === 'android') return true;
+    if (window.Capacitor.Plugins) return true;
+  }
+
+  // 2. Capacitor protocol or localhost origin in mobile wrapper
+  if (window.location.protocol === 'capacitor:') return true;
+  if ((window.location.origin === 'https://localhost' || window.location.origin === 'http://localhost') && /android/i.test(navigator.userAgent)) return true;
+
+  // 3. Android app user-agent (EuroTrip or WebView)
+  const ua = navigator.userAgent || '';
+  if (/EuroTrip/i.test(ua) && /android/i.test(ua)) return true;
+  if (/android/i.test(ua) && (/wv|Android.*Version\/[0-9.]+/i.test(ua) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches))) return true;
+
+  return false;
+}
+
 function updateCategoryNav(targetTab) {
-  const cat = TAB_CATEGORIES[targetTab] || 'data';
+  const isAndroid = isAndroidApp();
+  if (isAndroid) {
+    document.documentElement.classList.add('is-android-app');
+    document.body.classList.add('is-android-app');
+  } else {
+    document.documentElement.classList.remove('is-android-app');
+    document.body.classList.remove('is-android-app');
+  }
+
+  const catConnection = document.getElementById('catConnection');
+  if (catConnection) {
+    catConnection.style.display = isAndroid ? 'inline-flex' : 'none';
+  }
+
+  let cat = TAB_CATEGORIES[targetTab] || 'data';
+  if (cat === 'connection' && !isAndroid) {
+    cat = 'data';
+    targetTab = 'backup';
+  }
+
   categoryButtons.forEach(btn => {
+    if (btn.dataset.category === 'connection') {
+      btn.style.display = isAndroid ? 'inline-flex' : 'none';
+      if (!isAndroid) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-selected', 'false');
+        return;
+      }
+    }
     const isCat = btn.dataset.category === cat;
     btn.classList.toggle('active', isCat);
     btn.setAttribute('aria-selected', isCat ? 'true' : 'false');
   });
+
   subnavBars.forEach(bar => {
+    if (bar.dataset.category === 'connection' && !isAndroid) {
+      bar.style.display = 'none';
+      bar.classList.remove('active');
+      return;
+    }
     const isCat = bar.dataset.category === cat;
     bar.style.display = isCat ? 'flex' : 'none';
   });
@@ -156,6 +219,9 @@ const tabPanes = {
 };
 
 function switchTab(targetTab, options = {}) {
+  if (!isAndroidApp() && (targetTab === 'connection' || targetTab === 'sync')) {
+    targetTab = 'backup';
+  }
   if (!tabPanes[targetTab]) targetTab = 'backup';
 
   tabButtons.forEach(btn => {
@@ -213,6 +279,7 @@ tabButtons.forEach(btn => {
 categoryButtons.forEach(catBtn => {
   catBtn.addEventListener('click', () => {
     const cat = catBtn.dataset.category;
+    if (cat === 'connection' && !isAndroidApp()) return;
     const currentActiveTab = new URL(window.location.href).searchParams.get('tab') || 'backup';
     if (TAB_CATEGORIES[currentActiveTab] === cat) {
       updateCategoryNav(currentActiveTab);
