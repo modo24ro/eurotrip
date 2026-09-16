@@ -2985,13 +2985,7 @@ function locationFormHTML(loc) {
               </div>
             </div>
             ${loc.flight_number ? `
-              <div class="field-group" style="margin-top:12px; margin-bottom: 4px;">
-                <label class="field-label" for="loc_${safeId}_flight_belt">🧳 Bandă Bagaje (Belt la sosire)</label>
-                <input type="text" id="loc_${safeId}_flight_belt" class="field-input" data-field="flight_belt"
-                  value="${esc(loc.flight_belt || loc.flight_data?.arrival?.belt || loc.flight_data?.arrival?.baggage || '')}" placeholder="ex: 4, B2, 7...">
-                <span class="field-hint">Banda de bagaje (Belt) la aeroportul de sosire.</span>
-              </div>
-              <div class="flight-status-card-wrap" style="margin-top:10px;"></div>
+              <div class="flight-status-card-wrap" style="margin-top:12px;"></div>
             ` : `
               <p class="flight-tab-empty-hint">Introdu un număr de zbor în tab-ul <strong>General</strong> pentru a vedea statusul live.</p>
             `}
