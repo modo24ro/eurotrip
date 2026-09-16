@@ -173,6 +173,7 @@ const state = {
   map: null,
   mapRouteLayers: [],
   isMapFullscreen: getInitialView() === 'map' && getInitialMapFullscreen(),
+  isAppFullscreen: false,
   mapDay: getInitialMapDay(),
   routeDay: null,
   timelineDay: _prefs.timelineDay || 'all',
@@ -508,7 +509,7 @@ function renderMain() {
     document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
     document.querySelectorAll('.mnav-btn[data-view]').forEach(t => t.classList.toggle('active', t.dataset.view === 'day'));
   }
-  if (state.view !== 'map') {
+  if (state.view !== 'map' && state.isMapFullscreen) {
     exitMapFullscreen();
   }
   switch (state.view) {
@@ -548,7 +549,7 @@ function switchView(v, updateUrl = true, pushHistory = true) {
   if ((v === 'list' || v === 'table') && isMobile) {
     v = 'day';
   }
-  if (v !== 'map') {
+  if (v !== 'map' && state.isMapFullscreen) {
     exitMapFullscreen();
   }
   state.view = v;
@@ -1081,6 +1082,7 @@ async function toggleMapFullscreen() {
 }
 
 async function exitMapFullscreen() {
+  if (!state.isMapFullscreen && !document.body.classList.contains('map-is-fullscreen')) return;
   state.isMapFullscreen = false;
   savePrefs({ isMapFullscreen: false });
   updateMapFullscreenUrl(false);
@@ -1090,7 +1092,8 @@ async function exitMapFullscreen() {
   document.documentElement.classList.remove('map-is-fullscreen');
   updateMapFullscreenButtons(false);
 
-  if (document.fullscreenElement || document.webkitFullscreenElement) {
+  // Only exit native browser fullscreen if the user did NOT activate App Fullscreen
+  if (!state.isAppFullscreen && (document.fullscreenElement || document.webkitFullscreenElement)) {
     try {
       if (document.exitFullscreen) {
         await document.exitFullscreen();
@@ -3640,6 +3643,7 @@ function bindEvents() {
         document.mozFullScreenElement ||
         document.msFullscreenElement
       );
+      state.isAppFullscreen = isFullscreen && !state.isMapFullscreen;
       if (iconEnter) iconEnter.style.display = isFullscreen ? 'none' : 'inline-block';
       if (iconExit) iconExit.style.display = isFullscreen ? 'inline-block' : 'none';
       if (textEl) textEl.textContent = isFullscreen ? 'Ieși Fullscreen' : 'Fullscreen';
@@ -3659,6 +3663,7 @@ function bindEvents() {
 
       try {
         if (!isFullscreen) {
+          state.isAppFullscreen = true;
           const el = document.documentElement;
           if (el.requestFullscreen) {
             await el.requestFullscreen();
