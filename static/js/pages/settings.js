@@ -128,9 +128,10 @@ const TAB_CATEGORIES = {
   danger: 'system'
 };
 
-// Detect if running inside the Android application
-function isAndroidApp() {
+// Detect if running on mobile device, mobile viewport or Android application
+function isMobileOrAndroid() {
   if (typeof window === 'undefined') return false;
+  if (window.innerWidth <= 768) return true;
   if (window.isAndroidApp === true) return true;
   if (document.documentElement.classList.contains('is-android-app') || document.body.classList.contains('is-android-app')) return true;
   try {
@@ -139,28 +140,20 @@ function isAndroidApp() {
     if (localStorage.getItem('isAndroidApp') === 'true' || localStorage.getItem('eurotrip_is_android_app') === 'true') return true;
   } catch (_) { }
 
-  // 1. Native Capacitor platform (Android)
-  if (window.Capacitor) {
-    if (typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform()) return true;
-    if (typeof window.Capacitor.getPlatform === 'function' && window.Capacitor.getPlatform() === 'android') return true;
-    if (window.Capacitor.Plugins) return true;
-  }
-
-  // 2. Capacitor protocol or localhost origin in mobile wrapper
+  if (window.Capacitor) return true;
   if (window.location.protocol === 'capacitor:') return true;
   if ((window.location.origin === 'https://localhost' || window.location.origin === 'http://localhost') && /android/i.test(navigator.userAgent)) return true;
 
-  // 3. Android app user-agent (EuroTrip or WebView)
   const ua = navigator.userAgent || '';
-  if (/EuroTrip/i.test(ua) && /android/i.test(ua)) return true;
-  if (/android/i.test(ua) && (/wv|Android.*Version\/[0-9.]+/i.test(ua) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches))) return true;
+  if (/EuroTrip/i.test(ua) || /android/i.test(ua) || /mobile|iphone|ipad|ipod/i.test(ua)) return true;
 
   return false;
 }
+const isAndroidApp = isMobileOrAndroid;
 
 function updateCategoryNav(targetTab) {
-  const isAndroid = isAndroidApp();
-  if (isAndroid) {
+  const allowConnection = isMobileOrAndroid();
+  if (allowConnection) {
     document.documentElement.classList.add('is-android-app');
     document.body.classList.add('is-android-app');
   } else {
@@ -170,19 +163,19 @@ function updateCategoryNav(targetTab) {
 
   const catConnection = document.getElementById('catConnection');
   if (catConnection) {
-    catConnection.style.display = isAndroid ? 'inline-flex' : 'none';
+    catConnection.style.display = allowConnection ? 'inline-flex' : 'none';
   }
 
   let cat = TAB_CATEGORIES[targetTab] || 'data';
-  if (cat === 'connection' && !isAndroid) {
+  if (cat === 'connection' && !allowConnection) {
     cat = 'data';
     targetTab = 'backup';
   }
 
   categoryButtons.forEach(btn => {
     if (btn.dataset.category === 'connection') {
-      btn.style.display = isAndroid ? 'inline-flex' : 'none';
-      if (!isAndroid) {
+      btn.style.display = allowConnection ? 'inline-flex' : 'none';
+      if (!allowConnection) {
         btn.classList.remove('active');
         btn.setAttribute('aria-selected', 'false');
         return;
@@ -194,16 +187,22 @@ function updateCategoryNav(targetTab) {
   });
 
   subnavBars.forEach(bar => {
-    if (bar.dataset.category === 'connection' && !isAndroid) {
+    if (bar.dataset.category === 'connection' && !allowConnection) {
       bar.style.display = 'none';
       bar.classList.remove('active');
       return;
     }
     const isCat = bar.dataset.category === cat;
     bar.style.display = isCat ? 'flex' : 'none';
+    bar.classList.toggle('active', isCat);
   });
 }
 const updateMobileCategory = updateCategoryNav;
+
+window.addEventListener('resize', () => {
+  const currentTab = new URL(window.location.href).searchParams.get('tab') || 'backup';
+  updateCategoryNav(currentTab);
+});
 
 const tabPanes = {
   connection: document.getElementById('paneConnection'),
@@ -219,7 +218,7 @@ const tabPanes = {
 };
 
 function switchTab(targetTab, options = {}) {
-  if (!isAndroidApp() && (targetTab === 'connection' || targetTab === 'sync')) {
+  if (!isMobileOrAndroid() && (targetTab === 'connection' || targetTab === 'sync')) {
     targetTab = 'backup';
   }
   if (!tabPanes[targetTab]) targetTab = 'backup';
@@ -279,7 +278,7 @@ tabButtons.forEach(btn => {
 categoryButtons.forEach(catBtn => {
   catBtn.addEventListener('click', () => {
     const cat = catBtn.dataset.category;
-    if (cat === 'connection' && !isAndroidApp()) return;
+    if (cat === 'connection' && !isMobileOrAndroid()) return;
     const currentActiveTab = new URL(window.location.href).searchParams.get('tab') || 'backup';
     if (TAB_CATEGORIES[currentActiveTab] === cat) {
       updateCategoryNav(currentActiveTab);
