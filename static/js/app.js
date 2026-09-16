@@ -3500,10 +3500,21 @@ function bindEvents() {
   const adminPasswordModal = document.getElementById('adminPasswordModal');
   const adminPasswordInput = document.getElementById('adminPasswordInput');
   const adminPasswordError = document.getElementById('adminPasswordError');
+  const toggleAdminPasswordBtn = document.getElementById('toggleAdminPasswordBtn');
+  const adminEyeIcon = toggleAdminPasswordBtn?.querySelector('.admin-eye-icon');
+  const adminEyeOffIcon = toggleAdminPasswordBtn?.querySelector('.admin-eye-off-icon');
+
+  const resetAdminPasswordVisibility = () => {
+    if (adminPasswordInput) adminPasswordInput.type = 'password';
+    if (adminEyeIcon) adminEyeIcon.style.display = 'block';
+    if (adminEyeOffIcon) adminEyeOffIcon.style.display = 'none';
+    toggleAdminPasswordBtn?.setAttribute('aria-label', 'Afișează parola');
+  };
 
   const openAdminPasswordModal = () => {
     if (!adminPasswordModal) return;
     if (adminPasswordInput) adminPasswordInput.value = '';
+    resetAdminPasswordVisibility();
     if (adminPasswordError) {
       adminPasswordError.style.display = 'none';
       adminPasswordError.textContent = '';
@@ -3515,11 +3526,23 @@ function bindEvents() {
   const closeAdminPasswordModal = () => {
     adminPasswordModal?.classList.remove('open');
     if (adminPasswordInput) adminPasswordInput.value = '';
+    resetAdminPasswordVisibility();
     if (adminPasswordError) {
       adminPasswordError.style.display = 'none';
       adminPasswordError.textContent = '';
     }
   };
+
+  toggleAdminPasswordBtn?.addEventListener('click', e => {
+    e.preventDefault();
+    if (!adminPasswordInput) return;
+    const isPassword = adminPasswordInput.type === 'password';
+    adminPasswordInput.type = isPassword ? 'text' : 'password';
+    if (adminEyeIcon) adminEyeIcon.style.display = isPassword ? 'none' : 'block';
+    if (adminEyeOffIcon) adminEyeOffIcon.style.display = isPassword ? 'block' : 'none';
+    toggleAdminPasswordBtn.setAttribute('aria-label', isPassword ? 'Ascunde parola' : 'Afișează parola');
+    adminPasswordInput.focus();
+  });
 
   document.getElementById('adminLoginBtn')?.addEventListener('click', () => {
     closeHamburgerMenu();
