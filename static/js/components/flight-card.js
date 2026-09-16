@@ -52,8 +52,8 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
   const depTerminal = dep.terminal ? String(dep.terminal) : '-';
   const depGate = dep.gate ? String(dep.gate) : '-';
   const arrTerminal = arr.terminal ? String(arr.terminal) : '-';
-  const arrBelt = (arr.belt || arr.baggage || flight.belt || flight.baggage || loc?.flight_belt || loc?.baggage_belt)
-    ? String(arr.belt || arr.baggage || flight.belt || flight.baggage || loc?.flight_belt || loc?.baggage_belt)
+  const arrBelt = (arr.belt || arr.baggage || flight.belt || flight.baggage)
+    ? String(arr.belt || arr.baggage || flight.belt || flight.baggage)
     : '-';
 
   const lastUpdatedStr = flight.last_updated ? formatFlightDateTime(flight.last_updated) : 'Recent';

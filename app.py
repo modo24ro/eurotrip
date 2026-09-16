@@ -1921,6 +1921,8 @@ def save_trip():
     existing_map = {l.get('id'): l for l in existing_trip.get('locations', [])}
 
     for loc in data.get('locations', []):
+        loc.pop('flight_belt', None)
+        loc.pop('baggage_belt', None)
         if loc.get('category') not in ALLOWED_CATEGORIES:
             loc['category'] = 'other'
         if isinstance(loc.get('attachments'), list):

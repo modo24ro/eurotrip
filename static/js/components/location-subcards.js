@@ -119,7 +119,7 @@
 
     // Gate & Belt logistics
     const gateVal = dep.gate || loc?.flight_gate || '';
-    const beltVal = arr.belt || arr.baggage || flight?.belt || flight?.baggage || loc?.flight_belt || loc?.baggage_belt || '';
+    const beltVal = arr.belt || arr.baggage || flight?.belt || flight?.baggage || '';
     const gateBadge = gateVal ? `<span class="subcard-flight-gate">Gate ${esc(gateVal)}</span>` : '';
     let beltBadge = beltVal ? `<span class="subcard-flight-gate subcard-flight-belt">Belt ${esc(beltVal)}</span>` : '';
 
