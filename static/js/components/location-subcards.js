@@ -67,7 +67,15 @@
     return `
       <div class="subcard-slide subcard-slide-notes" data-subcard-type="notes">
         <div class="subcard-inner subcard-notes-content" title="${esc(notes)}">
-          <span class="subcard-icon">📝</span>
+          <div class="subcard-notes-badge" aria-hidden="true">
+            <svg class="subcard-notes-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+              <line x1="16" y1="13" x2="8" y2="13"/>
+              <line x1="16" y1="17" x2="8" y2="17"/>
+              <polyline points="10 9 9 9 8 9"/>
+            </svg>
+          </div>
           <span class="subcard-text subcard-notes-text">${(typeof window !== 'undefined' && window.renderFormattedNotes) ? window.renderFormattedNotes(notes) : esc(notes)}</span>
         </div>
       </div>
@@ -108,21 +116,32 @@
     }
 
     const durationStr = flight?.duration ? `<span class="subcard-flight-dur">⏱️ ${esc(flight.duration)}</span>` : '';
-    const gateInfo = (dep.gate || arr.gate) ? `<span class="subcard-flight-gate">Gate ${esc(dep.gate || arr.gate)}</span>` : '';
+    let gateOrBeltInfo = '';
+    if (dep.gate) {
+      gateOrBeltInfo = `<span class="subcard-flight-gate">Gate ${esc(dep.gate)}</span>`;
+    } else if (arr.belt || arr.baggage || loc?.flight_belt || loc?.baggage_belt) {
+      gateOrBeltInfo = `<span class="subcard-flight-gate subcard-flight-belt">Belt ${esc(arr.belt || arr.baggage || loc?.flight_belt || loc?.baggage_belt)}</span>`;
+    }
 
     return `
       <div class="subcard-slide subcard-slide-flight" data-subcard-type="flight">
         <div class="subcard-inner subcard-flight-content flight-status-card-wrap" data-action="openFlightModal" data-loc-id="${esc(loc.id)}" role="button" tabindex="0" title="Vezi detaliile complete pentru zborul ${esc(flightCode)}">
-          <div class="subcard-flight-main">
-            <span class="subcard-icon">✈️</span>
-            <span class="subcard-flight-code">${esc(flightCode)}</span>
-            <span class="subcard-flight-route">${esc(depIata)} → ${esc(arrIata)}</span>
-            ${(depTime || arrTime) ? `<span class="subcard-flight-times">${esc(depTime)}${arrTime ? ` - ${esc(arrTime)}` : ''}</span>` : ''}
+          <div class="subcard-flight-badge" aria-hidden="true">
+            <svg class="subcard-flight-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17.8 19.2 16 11l3.5-3.5C21 6 21 4 19 4c-.7 0-1.5.2-2 .7L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>
+            </svg>
           </div>
-          <div class="subcard-flight-meta">
-            ${statusBadge}
-            ${durationStr}
-            ${gateInfo}
+          <div class="subcard-flight-body">
+            <div class="subcard-flight-main">
+              <span class="subcard-flight-code">${esc(flightCode)}</span>
+              <span class="subcard-flight-route">${esc(depIata)} → ${esc(arrIata)}</span>
+              ${(depTime || arrTime) ? `<span class="subcard-flight-times">${esc(depTime)}${arrTime ? ` - ${esc(arrTime)}` : ''}</span>` : ''}
+            </div>
+            <div class="subcard-flight-meta">
+              ${statusBadge}
+              ${durationStr}
+              ${gateOrBeltInfo}
+            </div>
           </div>
         </div>
       </div>
@@ -183,24 +202,47 @@
     return `
       <div class="subcard-slide subcard-slide-media" data-subcard-type="media">
         <div class="subcard-inner subcard-media-content">
-          ${linksMarkup}
-          ${attMarkup}
+          <div class="subcard-media-badge" aria-hidden="true">
+            <svg class="subcard-media-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+          </div>
+          <div class="subcard-media-chips">
+            ${linksMarkup}
+            ${attMarkup}
+          </div>
         </div>
       </div>
     `;
   }
 
   /**
-   * 4. Subcard: Address
+   * 4. Subcard: Address (Modern structured design with vector icon badge)
    */
   function renderAddressCard(loc) {
     const address = (loc.address || '').trim();
     if (!address) return null;
+
     return `
       <div class="subcard-slide subcard-slide-address" data-subcard-type="address">
-        <div class="subcard-inner subcard-address-content card-address-row is-open" title="${esc(address)}">
-          <span class="address-row-icon subcard-icon">📍</span>
-          <span class="card-address subcard-text subcard-address-text">${esc(address)}</span>
+        <div class="subcard-inner subcard-address-content" data-action="copyAddress" data-address="${esc(address)}" role="button" tabindex="0" title="${esc(address)} • Apasă pentru a copia adresa">
+          <div class="subcard-address-badge" aria-hidden="true">
+            <svg class="subcard-address-svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+              <line x1="8" y1="2" x2="8" y2="18"/>
+              <line x1="16" y1="6" x2="16" y2="22"/>
+            </svg>
+          </div>
+          <div class="subcard-address-body">
+            <div class="subcard-address-text card-address" title="${esc(address)}">${esc(address)}</div>
+          </div>
+          <button type="button" class="subcard-address-copy-btn" data-action="copyAddress" data-address="${esc(address)}" title="Copiază adresa" aria-label="Copiază adresa" tabindex="-1">
+            <svg class="copy-svg" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="13" height="13" x="9" y="9" rx="2" ry="2"/>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+            </svg>
+          </button>
         </div>
       </div>
     `;

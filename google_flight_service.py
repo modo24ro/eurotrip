@@ -213,6 +213,11 @@ def parse_google_flight_data(html_or_text):
     if m_arr_gate:
         data['arrival_gate'] = m_arr_gate.group(1)
 
+    # Baggage Belt / Claim
+    m_belt = re.search(r'(?:band[aă]\s*(?:de\s*)?bagaje|baggage\s*claim|baggage\s*belt|carusel|belt)[^\w]{0,10}([0-9A-Za-z]+)', text, re.IGNORECASE)
+    if m_belt and m_belt.group(1).upper() not in ('NA', 'NONE', 'NULL', 'CLAIM', 'STATUS'):
+        data['arrival_belt'] = m_belt.group(1)
+
     # 7. Extract Flight Date
     m_date = re.search(r'(\d{1,2}\s+[a-zA-ZăîâșțĂÎÂȘȚ]+\s+\d{4})', text)
     if m_date:
@@ -301,6 +306,9 @@ def enrich_flight_data_with_google(api_flight, google_flight, loc=None):
         dep['gate'] = google_flight['departure_gate']
     if google_flight.get('arrival_gate') and not arr.get('gate'):
         arr['gate'] = google_flight['arrival_gate']
+    if google_flight.get('arrival_belt'):
+        arr['belt'] = google_flight['arrival_belt']
+        arr['baggage'] = google_flight['arrival_belt']
 
     # Actual Times
     # Construct full ISO timestamp if time matches HH:MM

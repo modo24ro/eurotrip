@@ -85,6 +85,15 @@ def parse_flightinformation_html(html, flight_num, loc=None):
     if el_arr_gate and el_arr_gate.text.strip() and el_arr_gate.text.strip() != '--':
         arr_gate = el_arr_gate.text.strip()
 
+    arr_belt = None
+    el_arr_belt = soup.find(id=re.compile(r'(?:baggage|belt)', re.I))
+    if el_arr_belt and el_arr_belt.text.strip() and el_arr_belt.text.strip() != '--':
+        arr_belt = el_arr_belt.text.strip()
+    else:
+        m_belt = re.search(r'(?:baggage\s*claim|baggage\s*belt|band[aă]\s*bagaje|belt\s*no|carousel)\s*[:#-]?\s*([0-9A-Za-z]+)', html, re.I)
+        if m_belt and m_belt.group(1).upper() not in ('NA', 'NONE', 'NULL', 'CLAIM', 'BELT', 'STATUS'):
+            arr_belt = m_belt.group(1)
+
     # Delay & Status from board card
     dep_delay = 0
     arr_delay = 0
@@ -220,6 +229,8 @@ def parse_flightinformation_html(html, flight_num, loc=None):
             'iata': arr_iata or '',
             'terminal': arr_terminal,
             'gate': arr_gate,
+            'belt': arr_belt,
+            'baggage': arr_belt,
             'scheduled': arr_iso,
             'estimated': arr_iso,
             'actual': None,

@@ -1,7 +1,9 @@
-const CACHE_NAME = 'eurotrip-v55';
+const CACHE_NAME = 'eurotrip-v62';
 const STATIC_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',
+  '/static/js/components/location-subcards.js',
+  '/static/js/components/flight-card.js',
   '/static/icons/icon-192.svg',
   '/static/icons/icon-512.svg',
   '/manifest.json',

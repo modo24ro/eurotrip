@@ -52,17 +52,44 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
   const depTerminal = dep.terminal ? String(dep.terminal) : '-';
   const depGate = dep.gate ? String(dep.gate) : '-';
   const arrTerminal = arr.terminal ? String(arr.terminal) : '-';
-  const arrGate = arr.gate ? String(arr.gate) : '-';
+  const arrBelt = (arr.belt || arr.baggage || flight.belt || flight.baggage || loc?.flight_belt || loc?.baggage_belt)
+    ? String(arr.belt || arr.baggage || flight.belt || flight.baggage || loc?.flight_belt || loc?.baggage_belt)
+    : '-';
 
   const lastUpdatedStr = flight.last_updated ? formatFlightDateTime(flight.last_updated) : 'Recent';
   const durationStr = flight.duration ? `<span class="flight-route-duration" title="Durată estimată">⏱️ ${esc(flight.duration)}</span>` : '';
+
+  // Airline SVG logo resolution
+  let airlineCode = (flight.airline_iata || '').trim().toUpperCase();
+  if (!airlineCode) {
+    const fStr = (flight.flight_iata || flight.flight_number || loc?.flight_number || '').trim();
+    const match = fStr.match(/^([A-Z0-9]{2})\b/i) || fStr.match(/^([A-Z0-9]{2})\s*\d+/i);
+    if (match) airlineCode = match[1].toUpperCase();
+  }
+  const canonicalCode = airlineCode === 'W4' ? 'W6' : airlineCode;
+  let airlineLogoHTML = '';
+  if (airlineCode) {
+    const isFileProto = (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:');
+    const localSvgPath = isFileProto ? `icons/airlines/${canonicalCode}.svg` : `/static/icons/airlines/${canonicalCode}.svg`;
+    const remoteSvgUrl = `https://assets.duffel.com/img/airlines/for-light-background/full-color-logo/${canonicalCode}.svg`;
+    const airlineName = flight.airline || loc?.airline || airlineCode;
+
+    airlineLogoHTML = `
+      <div class="flight-route-airline-wrap" title="${esc(airlineName)}">
+        <img src="${localSvgPath}"
+             alt="${esc(airlineName)}"
+             class="flight-route-airline-logo"
+             loading="lazy"
+             onerror="if(!this.dataset.step){this.dataset.step='1';this.src='${remoteSvgUrl}';}else if(this.dataset.step==='1'){this.dataset.step='2';this.src='https://images.kiwi.com/airlines/64x64/${airlineCode}.png';}else{this.parentElement.style.display='none';}">
+      </div>
+    `;
+  }
 
   const detailsItems = [
     { label: 'Companie', val: flight.airline || '-' },
     { label: 'Status Întârziere', val: delayDisplay, isDelay: true, hasDelay: hasDelay },
   ];
   if (flight.aircraft) detailsItems.push({ label: 'Aeronava', val: flight.aircraft });
-  if (arr.baggage) detailsItems.push({ label: 'Bandă Bagaje', val: arr.baggage });
 
   const detailsGridHTML = `
     <div class="flight-details-grid">
@@ -129,6 +156,7 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
             <span class="vector-line"></span>
             <span class="vector-plane">✈</span>
           </div>
+          ${airlineLogoHTML}
           ${hasDelay ? `
             <div class="flight-vector-delay-tag is-delayed">
               +${delayVal}m Delay
@@ -146,9 +174,9 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
               <span class="flight-detail-label">Terminal</span>
               <span class="flight-detail-value">${esc(arrTerminal)}</span>
             </div>
-            <div class="flight-detail-item${arrGate !== '-' ? ' is-highlighted' : ''}">
-              <span class="flight-detail-label">Gate</span>
-              <span class="flight-detail-value">${esc(arrGate)}</span>
+            <div class="flight-detail-item${arrBelt !== '-' ? ' is-highlighted' : ''}">
+              <span class="flight-detail-label">Belt</span>
+              <span class="flight-detail-value">${esc(arrBelt)}</span>
             </div>
           </div>
         </div>

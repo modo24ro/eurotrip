@@ -2588,7 +2588,7 @@ function renderCardSubcardHTML(loc) {
   }
   const notes = (loc.notes || '').trim();
   const notesHtml = notes ? `<div class="card-notes-row" title="${esc(notes)}"><span class="notes-row-icon">📝</span><span class="notes-row-text">${renderFormattedNotes(notes)}</span></div>` : '';
-  const addrHtml = loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '';
+  const addrHtml = loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span><span class="card-address">${esc(loc.address)}</span></div>` : '';
   const linksHtml = renderMultiLinksHTML(loc);
   return `${notesHtml}${addrHtml}${linksHtml ? `<div class="card-links-row">${linksHtml}</div>` : ''}`;
 }
@@ -2985,7 +2985,12 @@ function locationFormHTML(loc) {
               </div>
             </div>
             ${loc.flight_number ? `
-  
+              <div class="field-group" style="margin-top:12px; margin-bottom: 4px;">
+                <label class="field-label" for="loc_${safeId}_flight_belt">🧳 Bandă Bagaje (Belt la sosire)</label>
+                <input type="text" id="loc_${safeId}_flight_belt" class="field-input" data-field="flight_belt"
+                  value="${esc(loc.flight_belt || loc.flight_data?.arrival?.belt || loc.flight_data?.arrival?.baggage || '')}" placeholder="ex: 4, B2, 7...">
+                <span class="field-hint">Banda de bagaje (Belt) la aeroportul de sosire.</span>
+              </div>
               <div class="flight-status-card-wrap" style="margin-top:10px;"></div>
             ` : `
               <p class="flight-tab-empty-hint">Introdu un număr de zbor în tab-ul <strong>General</strong> pentru a vedea statusul live.</p>
@@ -3083,7 +3088,7 @@ function cardHTML(loc) {
 
   const sym = getCurrencySymbol(state.trip?.currency);
 
-  const addressLine = (typeof window !== 'undefined' && window.LocationSubcards) ? '' : (loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon">📍</span><span class="card-address">${esc(loc.address)}</span></div>` : '');
+  const addressLine = (typeof window !== 'undefined' && window.LocationSubcards) ? '' : (loc.address ? `<div class="card-address-row is-open" title="${esc(loc.address)}"><span class="address-row-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span><span class="card-address">${esc(loc.address)}</span></div>` : '');
 
   // Nav buttons in card-actions (equal dimensions with static SVG assets)
   const MAPS_ICON_URL = (window.location.protocol === 'file:') ? 'icons/maps-icon.svg' : '/static/icons/maps-icon.svg';
@@ -4538,7 +4543,12 @@ function bindEvents() {
     const pdfEl = document.getElementById('pdfViewerElement');
     if (pdfEl) {
       pdfEl.style.display = 'none';
-      pdfEl.removeAttribute('src');
+      try {
+        const viewerApp = pdfEl.shadowRoot?.querySelector('iframe')?.contentWindow?.PDFViewerApplication;
+        if (viewerApp && typeof viewerApp.close === 'function') {
+          viewerApp.close();
+        }
+      } catch (_) {}
     }
     const frame = document.getElementById('pdfViewerFrame');
     if (frame) frame.src = 'about:blank';
@@ -5820,6 +5830,61 @@ async function handleCardClick(e) {
     }
     return;
   }
+  if (actionEl.dataset.action === 'copyAddress') {
+    e.preventDefault();
+    e.stopPropagation();
+    const address = actionEl.dataset.address || '';
+    if (address) {
+      const doSuccess = () => {
+        toast('Adresă copiată în clipboard!', 'success');
+        const copyBtn = actionEl.classList.contains('subcard-address-copy-btn') ? actionEl : actionEl.querySelector('.subcard-address-copy-btn');
+        if (copyBtn) {
+          copyBtn.classList.add('is-copied');
+          const copySvg = copyBtn.querySelector('.copy-svg');
+          if (copySvg) {
+            copySvg.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+            setTimeout(() => {
+              copySvg.innerHTML = '<rect width="13" height="13" x="9" y="9" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
+              copyBtn.classList.remove('is-copied');
+            }, 1800);
+          }
+        }
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(address).then(doSuccess).catch(() => {
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = address;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            doSuccess();
+          } catch (_) {
+            window.prompt('Copiază adresa:', address);
+          }
+        });
+      } else {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = address;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          document.body.removeChild(ta);
+          doSuccess();
+        } catch (_) {
+          window.prompt('Copiază adresa:', address);
+        }
+      }
+    }
+    return;
+  }
   if (actionEl.dataset.action === 'deleteAttachmentModalItem') {
     e.preventDefault();
     e.stopPropagation();
@@ -6612,7 +6677,7 @@ async function loadViewerAttachment(index) {
   const fallbackFrame = document.getElementById('pdfViewerFrame');
   const loadingEl = document.getElementById('docViewerLoading');
 
-  if (pdfEl) { pdfEl.style.display = 'none'; pdfEl.removeAttribute('src'); }
+  if (pdfEl) pdfEl.style.display = 'none';
   if (pdfContainer) { pdfContainer.style.display = 'none'; pdfContainer.innerHTML = ''; }
   if (imgContainer) imgContainer.style.display = 'none';
   if (genericContainer) genericContainer.style.display = 'none';
@@ -6683,15 +6748,85 @@ async function loadViewerAttachment(index) {
       }
     }
   } else if (meta.isPdf) {
-    if (loadingEl) loadingEl.style.display = 'none';
-    if (docTools) docTools.style.display = 'none';
-    if (pdfEl) {
-      pdfEl.style.display = 'block';
-      pdfEl.setAttribute('src', fileUrl);
-    } else if (fallbackFrame) {
-      fallbackFrame.style.display = 'block';
-      fallbackFrame.src = fileUrl;
+    if (loadingEl) loadingEl.style.display = 'flex';
+
+    let pdfArrayBuffer = null;
+    try {
+      const fileRes = await fetch(fileUrl, { credentials: 'same-origin' });
+      if (fileRes.ok) {
+        pdfArrayBuffer = await fileRes.arrayBuffer();
+      }
+    } catch (err) {
+      console.warn('PDF fetch error:', err);
     }
+
+    let openedInWebComponent = false;
+
+    // 1. Try modern Mozilla PDF.js web component via direct ArrayBuffer in memory
+    if (pdfEl && window.customElements && window.customElements.get('pdfjs-viewer-element') && pdfArrayBuffer) {
+      try {
+        const initResult = await Promise.race([
+          pdfEl.initPromise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('pdfjs-viewer-element timeout')), 2500))
+        ]);
+
+        const viewerApp = initResult?.viewerApp || pdfEl.shadowRoot?.querySelector('iframe')?.contentWindow?.PDFViewerApplication;
+        if (viewerApp) {
+          if (docTools) docTools.style.display = 'none';
+          pdfEl.style.display = 'block';
+          await viewerApp.open({ data: new Uint8Array(pdfArrayBuffer) });
+          openedInWebComponent = true;
+        }
+      } catch (wcErr) {
+        console.warn('pdfjs-viewer-element unavailable or timed out, falling back to local canvas renderer:', wcErr);
+        if (pdfEl) pdfEl.style.display = 'none';
+      }
+    }
+
+    // 2. Offline-First & Android Native Fallback: Local Canvas PDF.js Renderer
+    if (!openedInWebComponent) {
+      if (pdfEl) pdfEl.style.display = 'none';
+      if (docTools) docTools.style.display = 'flex';
+      if (pdfControls) pdfControls.style.display = 'inline-flex';
+      if (zoomControls) zoomControls.style.display = 'inline-flex';
+      if (pdfContainer) pdfContainer.style.display = 'flex';
+
+      if (window.pdfjsLib && pdfArrayBuffer) {
+        try {
+          const workerPath = (window.Capacitor || (window.location.protocol === 'https:' && window.location.hostname === 'localhost'))
+            ? 'js/vendor/pdf.worker.min.js'
+            : 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
+
+          const loadingTask = window.pdfjsLib.getDocument({
+            data: pdfArrayBuffer,
+            cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+            cMapPacked: true,
+            isEvalSupported: false,
+          });
+          const pdfDoc = await loadingTask.promise;
+          docViewer.pdfDoc = pdfDoc;
+          docViewer.pdfTotalPages = pdfDoc.numPages;
+          docViewer.pdfPageNum = 1;
+          updatePdfPageIndicator();
+          await renderPdfDocPages(pdfDoc, pdfContainer);
+        } catch (pdfErr) {
+          console.warn('Local canvas PDF render failed, falling back to iframe:', pdfErr);
+          if (pdfContainer) pdfContainer.style.display = 'none';
+          if (pdfControls) pdfControls.style.display = 'none';
+          if (zoomControls) zoomControls.style.display = 'none';
+          if (fallbackFrame) {
+            fallbackFrame.style.display = 'block';
+            fallbackFrame.src = fileUrl;
+          }
+        }
+      } else if (fallbackFrame) {
+        fallbackFrame.style.display = 'block';
+        fallbackFrame.src = fileUrl;
+      }
+    }
+
+    if (loadingEl) loadingEl.style.display = 'none';
   } else {
     // Generic file type
     if (docTools) docTools.style.display = 'none';
@@ -7202,7 +7337,7 @@ function handleCardChange(e) {
         row.className = 'card-address-row is-open';
         row.style.display = 'flex';
         row.title = value;
-        row.innerHTML = `<span class="address-row-icon">📍</span><span class="card-address" title="${esc(value)}">${esc(value)}</span>`;
+        row.innerHTML = `<span class="address-row-icon"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></span><span class="card-address" title="${esc(value)}">${esc(value)}</span>`;
 
         metaStrip.insertAdjacentElement('afterend', row);
 
