@@ -39,8 +39,10 @@ const escapeHtml = esc;
     const categoryButtons = document.querySelectorAll('.settings-cat-btn');
     const subnavBars = document.querySelectorAll('.settings-subnav-bar');
 
-    // Mobile categorization mapping: 3 main categories
+    // Mobile categorization mapping: 4 main categories
     const TAB_CATEGORIES = {
+      connection: 'connection',
+      sync: 'connection',
       backup: 'data',
       upload: 'data',
       history: 'data',
@@ -65,6 +67,8 @@ const escapeHtml = esc;
     }
 
     const tabPanes = {
+      connection: document.getElementById('paneConnection'),
+      sync: document.getElementById('paneSync'),
       backup: document.getElementById('paneBackup'),
       security: document.getElementById('paneSecurity'),
       history: document.getElementById('paneHistory'),
@@ -116,6 +120,7 @@ const escapeHtml = esc;
       if (targetTab === 'history') loadVersions();
       if (targetTab === 'timezone') loadTimezoneSettings();
       if (targetTab === 'cards') loadFlightsSummary();
+      if (targetTab === 'connection' || targetTab === 'sync') initConnectionSettings();
       if (targetTab === 'apilogs') {
         loadApiLogs();
         if (apiLivePollingActive) startApiLivePolling();
@@ -144,6 +149,228 @@ const escapeHtml = esc;
         }
       });
     });
+
+    // ==========================================
+    // EUROTRIP CONNECTION & SMART SYNC (Settings handler)
+    // ==========================================
+    const MOBILE_CONFIG_KEY = 'eurotrip_mobile_config';
+    const DEFAULT_API_URL = 'https://trip.modo24.ro';
+
+    function initConnectionSettings() {
+      const urlInput = document.getElementById('serverUrlInput');
+      const passwordInput = document.getElementById('serverPasswordInput');
+      const testBtn = document.getElementById('testServerBtn');
+      const saveBtn = document.getElementById('saveServerSettingsBtn');
+      const statusBadge = document.getElementById('connectionStatusBadge');
+      const statusDetail = document.getElementById('connectionStatusDetail');
+      const dot = document.getElementById('serverStatusDot');
+      const txt = document.getElementById('serverStatusText');
+
+      if (!urlInput) return;
+
+      let cfg = { mode: 'server', serverUrl: DEFAULT_API_URL };
+      try {
+        const saved = localStorage.getItem(MOBILE_CONFIG_KEY);
+        if (saved) cfg = JSON.parse(saved);
+      } catch (e) {}
+
+      if (urlInput && !urlInput.value) {
+        urlInput.value = cfg.serverUrl || DEFAULT_API_URL;
+      }
+      if (passwordInput && !passwordInput.value) {
+        passwordInput.value = cfg.serverPassword || '';
+      }
+
+      function updateStatus(status, detail = '') {
+        if (!statusBadge) return;
+        if (status === 'active' || status === 'connected') {
+          if (dot) dot.style.background = '#10b981';
+          if (txt) { txt.textContent = 'Active'; txt.style.color = '#10b981'; }
+        } else if (status === 'failed') {
+          if (dot) dot.style.background = '#ef4444';
+          if (txt) { txt.textContent = 'Failed'; txt.style.color = '#ef4444'; }
+        } else {
+          if (dot) dot.style.background = '#f59e0b';
+          if (txt) { txt.textContent = 'Untested'; txt.style.color = '#f59e0b'; }
+        }
+        if (statusDetail) {
+          if (detail) {
+            statusDetail.style.display = 'block';
+            statusDetail.textContent = detail;
+          } else {
+            statusDetail.style.display = 'none';
+          }
+        }
+      }
+
+      if (cfg.status) {
+        updateStatus(cfg.status, cfg.statusDetail || '');
+      }
+
+      // Initialize Smart Sync diagnostics values
+      try {
+        const syncState = JSON.parse(localStorage.getItem('eurotrip_smart_sync_state') || '{}');
+        const syncBadge = document.getElementById('syncStateBadge');
+        const syncLastCheck = document.getElementById('syncLastCheckText');
+        const syncLastSync = document.getElementById('syncLastSyncText');
+        const syncRevision = document.getElementById('syncRevisionText');
+        const syncCount = document.getElementById('syncLocationsCountText');
+        const syncAuto = document.getElementById('syncAutoToggle');
+        const syncInterval = document.getElementById('syncIntervalSelect');
+        const syncWifi = document.getElementById('syncWifiOnlyToggle');
+
+        if (syncBadge && syncState.status) {
+          syncBadge.textContent = syncState.status === 'UPDATING' ? 'UPDATING...' : (syncState.status === 'FAILED' ? 'FAILED' : 'IDLE');
+        }
+        if (syncLastCheck && syncState.lastCheckTime) {
+          const d = new Date(syncState.lastCheckTime);
+          syncLastCheck.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        if (syncLastSync && syncState.lastSyncTime) {
+          const d = new Date(syncState.lastSyncTime);
+          syncLastSync.textContent = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+        if (syncRevision && (syncState.lastRevision || syncState.lastEtag)) {
+          syncRevision.textContent = syncState.lastRevision || syncState.lastEtag.replace(/"/g, '');
+        }
+        if (syncCount) {
+          try {
+            const trip = JSON.parse(localStorage.getItem('eurotrip_current_trip') || '{}');
+            const num = Array.isArray(trip.locations) ? trip.locations.length : (syncState.locationsCount || 0);
+            syncCount.textContent = `${num} locații`;
+          } catch (_) {
+            if (syncState.locationsCount !== undefined) syncCount.textContent = `${syncState.locationsCount} locații`;
+          }
+        }
+        if (syncAuto && typeof syncState.autoSync !== 'undefined') syncAuto.checked = !!syncState.autoSync;
+        if (syncInterval && syncState.minCheckInterval) syncInterval.value = String(syncState.minCheckInterval);
+        if (syncWifi && typeof syncState.wifiOnly !== 'undefined') syncWifi.checked = !!syncState.wifiOnly;
+      } catch (_) {}
+
+      // If mobile.js is present and has already bound native listeners, let mobile.js handle native test/sync/save
+      if (typeof window.getMobileConfig === 'function') {
+        return;
+      }
+
+      if (window.__eurotrip_conn_bound) return;
+      window.__eurotrip_conn_bound = true;
+
+      urlInput.addEventListener('input', () => {
+        updateStatus('untested', 'URL modificat. Te rugăm să testezi conexiunea înainte de salvare.');
+      });
+      passwordInput.addEventListener('input', () => {
+        updateStatus('untested', 'Parolă modificată. Te rugăm să testezi conexiunea.');
+      });
+
+      saveBtn?.addEventListener('click', () => {
+        const inputUrl = (urlInput.value || '').trim() || DEFAULT_API_URL;
+        const inputPassword = (passwordInput?.value || '').trim();
+        try {
+          const cur = JSON.parse(localStorage.getItem(MOBILE_CONFIG_KEY) || '{}');
+          cur.serverUrl = inputUrl;
+          cur.serverPassword = inputPassword;
+          localStorage.setItem(MOBILE_CONFIG_KEY, JSON.stringify(cur));
+          updateStatus('active', '✓ Configurație salvată');
+          showToast('Configurația EuroTrip Connection a fost salvată.', 'success');
+        } catch (e) {
+          showToast('Eroare la salvare: ' + e.message, 'danger');
+        }
+      });
+
+      testBtn?.addEventListener('click', async () => {
+        const inputUrl = (urlInput.value || '').trim() || DEFAULT_API_URL;
+        const inputPassword = (passwordInput?.value || '').trim();
+        if (!inputPassword) {
+          updateStatus('failed', '✕ Parolă necesară pentru test.');
+          showToast('Te rugăm să introduci parola API.', 'warning');
+          passwordInput?.focus();
+          return;
+        }
+        testBtn.disabled = true;
+        testBtn.textContent = 'Testing...';
+        updateStatus('untested', 'Se testează conexiunea cu ' + inputUrl + '...');
+
+        try {
+          let loginSuccess = false;
+          let role = 'user';
+          try {
+            const resAdmin = await fetch(inputUrl.replace(/\/+$/, '') + '/api/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ password: inputPassword })
+            });
+            if (resAdmin.ok) {
+              const d = await resAdmin.json();
+              loginSuccess = true;
+              role = d.role || 'admin';
+            }
+          } catch (_) {}
+
+          if (!loginSuccess) {
+            try {
+              const resUser = await fetch(inputUrl.replace(/\/+$/, '') + '/api/user-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: inputPassword })
+              });
+              if (resUser.ok) {
+                const d = await resUser.json();
+                loginSuccess = true;
+                role = d.role || 'user';
+              }
+            } catch (_) {}
+          }
+
+          if (loginSuccess) {
+            const detail = `✓ Conectat și autentificat ca ${role.toUpperCase()} pe ${inputUrl}`;
+            updateStatus('active', detail);
+            showToast(detail, 'success');
+            try {
+              const cur = JSON.parse(localStorage.getItem(MOBILE_CONFIG_KEY) || '{}');
+              cur.serverUrl = inputUrl;
+              cur.serverPassword = inputPassword;
+              cur.role = role;
+              cur.status = 'active';
+              cur.statusDetail = detail;
+              localStorage.setItem(MOBILE_CONFIG_KEY, JSON.stringify(cur));
+            } catch (_) {}
+          } else {
+            const err = '✕ HTTP 401: Parolă incorectă sau server inaccesibil.';
+            updateStatus('failed', err);
+            showToast(err, 'danger');
+          }
+        } catch (err) {
+          const errDetail = '✕ Eroare rețea: ' + err.message;
+          updateStatus('failed', errDetail);
+          showToast(errDetail, 'danger');
+        } finally {
+          testBtn.disabled = false;
+          testBtn.textContent = 'Test & Login';
+        }
+      });
+
+      const SMART_SYNC_STATE_KEY = 'eurotrip_smart_sync_state';
+      function saveWebSyncState(patch) {
+        try {
+          const cur = JSON.parse(localStorage.getItem(SMART_SYNC_STATE_KEY) || '{}');
+          Object.assign(cur, patch);
+          localStorage.setItem(SMART_SYNC_STATE_KEY, JSON.stringify(cur));
+        } catch (_) {}
+      }
+
+      document.getElementById('syncAutoToggle')?.addEventListener('change', (e) => {
+        saveWebSyncState({ autoSync: e.target.checked });
+      });
+      document.getElementById('syncIntervalSelect')?.addEventListener('change', (e) => {
+        saveWebSyncState({ minCheckInterval: parseInt(e.target.value, 10) || 300000 });
+      });
+      document.getElementById('syncWifiOnlyToggle')?.addEventListener('change', (e) => {
+        saveWebSyncState({ wifiOnly: e.target.checked });
+      });
+      document.getElementById('checkUpdatesNowBtn')?.addEventListener('click', () => {
+        showToast('Verificarea activă de sincronizare inteligentă este disponibilă în aplicația mobilă.', 'info');
+      });
+    }
 
     // ==========================================
     // TIMEZONE HELPER

@@ -4535,6 +4535,11 @@ function bindEvents() {
   const closePdfViewer = () => {
     cancelPdfRenderTasks();
     clearTimeout(docViewer.renderDebounceTimer);
+    const pdfEl = document.getElementById('pdfViewerElement');
+    if (pdfEl) {
+      pdfEl.style.display = 'none';
+      pdfEl.removeAttribute('src');
+    }
     const frame = document.getElementById('pdfViewerFrame');
     if (frame) frame.src = 'about:blank';
     const img = document.getElementById('imageViewerImg');
@@ -4636,16 +4641,13 @@ function bindEvents() {
     }
   }, { passive: false });
 
-  // Mobile 2-Finger Pinch to Zoom (Focal-point centered on fingers)
+  // Mobile 2-Finger Pinch to Zoom for Images (Focal-point centered on fingers)
   let pinchStartDist = 0;
   let pinchStartZoom = 1.0;
   let pinchStartMidX = 0;
   let pinchStartMidY = 0;
   let pinchStartPanX = 0;
   let pinchStartPanY = 0;
-  let pinchStartContentX = 0;
-  let pinchStartContentY = 0;
-  let ignoreSingleTouchUntil = 0;
 
   const getTouchMetrics = (touches) => {
     const t0 = touches[0];
@@ -4658,6 +4660,9 @@ function bindEvents() {
   };
 
   const initPinch = (touches) => {
+    const meta = docViewer.files[docViewer.currentIndex] ? getFileMeta(docViewer.files[docViewer.currentIndex].name) : null;
+    if (!meta?.isImage) return;
+
     docViewer.isPinchZooming = true;
     cancelPdfRenderTasks();
     clearTimeout(docViewer.renderDebounceTimer);
@@ -4666,21 +4671,8 @@ function bindEvents() {
     pinchStartZoom = docViewer.zoom || 1.0;
     pinchStartMidX = m.midX;
     pinchStartMidY = m.midY;
-
-    const meta = docViewer.files[docViewer.currentIndex] ? getFileMeta(docViewer.files[docViewer.currentIndex].name) : null;
-    if (meta?.isPdf) {
-      const pdfContainer = document.getElementById('pdfViewerCanvasContainer');
-      if (pdfContainer) {
-        const rect = pdfContainer.getBoundingClientRect();
-        const pointerX = pinchStartMidX - rect.left;
-        const pointerY = pinchStartMidY - rect.top;
-        pinchStartContentX = pdfContainer.scrollLeft + pointerX;
-        pinchStartContentY = pdfContainer.scrollTop + pointerY;
-      }
-    } else if (meta?.isImage) {
-      pinchStartPanX = docViewer.imgPanX || 0;
-      pinchStartPanY = docViewer.imgPanY || 0;
-    }
+    pinchStartPanX = docViewer.imgPanX || 0;
+    pinchStartPanY = docViewer.imgPanY || 0;
 
     // Cancel single-finger pan immediately
     if (isImgPanning) {
@@ -4699,15 +4691,9 @@ function bindEvents() {
   }, { passive: false });
 
   docStage?.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 2) {
+    if (e.touches.length === 2 && docViewer.isPinchZooming && pinchStartDist > 5) {
       if (e.cancelable) e.preventDefault();
       const m = getTouchMetrics(e.touches);
-
-      if (!docViewer.isPinchZooming || pinchStartDist <= 5) {
-        initPinch(e.touches);
-        return;
-      }
-
       const factor = m.dist / pinchStartDist;
       const targetZoom = Math.min(Math.max(Number((pinchStartZoom * factor).toFixed(3)), 0.25), 5.0);
       docViewer.zoom = targetZoom;
@@ -4715,64 +4701,35 @@ function bindEvents() {
       const zoomLevel = document.getElementById('docZoomLevel');
       if (zoomLevel) zoomLevel.textContent = `${Math.round(targetZoom * 100)}%`;
 
-      const meta = docViewer.files[docViewer.currentIndex] ? getFileMeta(docViewer.files[docViewer.currentIndex].name) : null;
-      if (meta?.isPdf) {
-        const pdfContainer = document.getElementById('pdfViewerCanvasContainer');
-        if (pdfContainer && pdfContainer.style.display !== 'none') {
-          applyCanvasVisualZoom(targetZoom);
-          const rect = pdfContainer.getBoundingClientRect();
-          const newPointerX = m.midX - rect.left;
-          const newPointerY = m.midY - rect.top;
-          const zoomFactor = targetZoom / pinchStartZoom;
-          pdfContainer.scrollLeft = pinchStartContentX * zoomFactor - newPointerX;
-          pdfContainer.scrollTop = pinchStartContentY * zoomFactor - newPointerY;
-        }
-      } else if (meta?.isImage) {
-        const imgContainer = document.getElementById('imageViewerContainer');
-        if (imgContainer && imgContainer.style.display !== 'none') {
-          const rect = imgContainer.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          const centerY = rect.top + rect.height / 2;
-          const f0x = pinchStartMidX - centerX;
-          const f0y = pinchStartMidY - centerY;
-          const f1x = m.midX - centerX;
-          const f1y = m.midY - centerY;
-          const zoomRatio = targetZoom / pinchStartZoom;
-          docViewer.imgPanX = f1x - (f0x - pinchStartPanX) * zoomRatio;
-          docViewer.imgPanY = f1y - (f0y - pinchStartPanY) * zoomRatio;
+      const imgContainer = document.getElementById('imageViewerContainer');
+      if (imgContainer && imgContainer.style.display !== 'none') {
+        const rect = imgContainer.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const f0x = pinchStartMidX - centerX;
+        const f0y = pinchStartMidY - centerY;
+        const f1x = m.midX - centerX;
+        const f1y = m.midY - centerY;
+        const zoomRatio = targetZoom / pinchStartZoom;
+        docViewer.imgPanX = f1x - (f0x - pinchStartPanX) * zoomRatio;
+        docViewer.imgPanY = f1y - (f0y - pinchStartPanY) * zoomRatio;
 
-          const img = document.getElementById('imageViewerImg');
-          if (img) {
-            img.style.transition = 'none';
-            img.style.transform = `translate(${docViewer.imgPanX}px, ${docViewer.imgPanY}px) scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
-          }
+        const img = document.getElementById('imageViewerImg');
+        if (img) {
+          img.style.transition = 'none';
+          img.style.transform = `translate(${docViewer.imgPanX}px, ${docViewer.imgPanY}px) scale(${docViewer.zoom}) rotate(${docViewer.rotation}deg)`;
         }
       }
-    } else if (docViewer.isPinchZooming || (e.touches.length === 1 && Date.now() < ignoreSingleTouchUntil)) {
-      if (e.cancelable) e.preventDefault();
     }
   }, { passive: false });
 
   const endPinch = (e) => {
     if (!e.touches || e.touches.length < 2) {
-      if (docViewer.isPinchZooming) {
-        docViewer.isPinchZooming = false;
-        pinchStartDist = 0;
-        ignoreSingleTouchUntil = Date.now() + 350;
-        if (docViewer.pdfDoc) {
-          const container = document.getElementById('pdfViewerCanvasContainer');
-          if (container && container.style.display !== 'none') {
-            clearTimeout(docViewer.renderDebounceTimer);
-            docViewer.renderDebounceTimer = setTimeout(() => {
-              if (!docViewer.isPinchZooming && docViewer.pdfDoc) {
-                renderPdfDocPages(docViewer.pdfDoc, container);
-              }
-            }, 500);
-          }
-        }
-      }
+      docViewer.isPinchZooming = false;
+      pinchStartDist = 0;
     }
   };
+
   docStage?.addEventListener('touchend', endPinch, { passive: false });
   docStage?.addEventListener('touchcancel', endPinch, { passive: false });
 
@@ -6645,21 +6602,25 @@ async function loadViewerAttachment(index) {
   const rotateBtn = document.getElementById('docRotateBtn');
   const zoomControls = document.getElementById('docZoomControls');
   const zoomLevel = document.getElementById('docZoomLevel');
+  const docTools = document.getElementById('docViewerTools');
 
   // Containers
+  const pdfEl = document.getElementById('pdfViewerElement');
   const pdfContainer = document.getElementById('pdfViewerCanvasContainer');
   const imgContainer = document.getElementById('imageViewerContainer');
   const genericContainer = document.getElementById('genericDocContainer');
   const fallbackFrame = document.getElementById('pdfViewerFrame');
   const loadingEl = document.getElementById('docViewerLoading');
 
+  if (pdfEl) { pdfEl.style.display = 'none'; pdfEl.removeAttribute('src'); }
   if (pdfContainer) { pdfContainer.style.display = 'none'; pdfContainer.innerHTML = ''; }
   if (imgContainer) imgContainer.style.display = 'none';
   if (genericContainer) genericContainer.style.display = 'none';
   if (fallbackFrame) { fallbackFrame.style.display = 'none'; fallbackFrame.src = 'about:blank'; }
   if (pdfControls) pdfControls.style.display = 'none';
   if (rotateBtn) rotateBtn.style.display = 'none';
-  if (zoomControls) zoomControls.style.display = 'inline-flex';
+  if (zoomControls) zoomControls.style.display = 'none';
+  if (docTools) docTools.style.display = 'none';
   if (zoomLevel) zoomLevel.textContent = '100%';
 
   // Cancel any ongoing PDF rendering or debounce
@@ -6695,7 +6656,9 @@ async function loadViewerAttachment(index) {
   })();
 
   if (meta.isImage) {
+    if (docTools) docTools.style.display = 'flex';
     if (rotateBtn) rotateBtn.style.display = 'inline-flex';
+    if (zoomControls) zoomControls.style.display = 'inline-flex';
     if (imgContainer) {
       imgContainer.style.display = 'flex';
       const img = document.getElementById('imageViewerImg');
@@ -6720,74 +6683,18 @@ async function loadViewerAttachment(index) {
       }
     }
   } else if (meta.isPdf) {
-    if (loadingEl) loadingEl.style.display = 'flex';
-    if (pdfControls) pdfControls.style.display = 'inline-flex';
-    if (pdfContainer) pdfContainer.style.display = 'flex';
-
-    if (window.pdfjsLib) {
-      try {
-        const fileRes = await fetch(fileUrl, { credentials: 'same-origin' });
-        if (!fileRes.ok) throw new Error(`HTTP error ${fileRes.status}`);
-        const pdfArrayBuffer = await fileRes.arrayBuffer();
-
-        const workerPath = (window.Capacitor || (window.location.protocol === 'https:' && window.location.hostname === 'localhost')) ? 'js/vendor/pdf.worker.min.js' : 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = workerPath;
-
-        const loadingTask = window.pdfjsLib.getDocument({
-          data: pdfArrayBuffer,
-          cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-          cMapPacked: true,
-          isEvalSupported: false,
-        });
-        const pdfDoc = await loadingTask.promise;
-        docViewer.pdfDoc = pdfDoc;
-        docViewer.pdfTotalPages = pdfDoc.numPages;
-        docViewer.pdfPageNum = 1;
-        updatePdfPageIndicator();
-        await renderPdfDocPages(pdfDoc, pdfContainer);
-      } catch (pdfErr) {
-        console.warn('PDF.js failed, falling back to iframe/direct:', pdfErr);
-        if (pdfContainer) pdfContainer.style.display = 'none';
-        if (pdfControls) pdfControls.style.display = 'none';
-        if (zoomControls) zoomControls.style.display = 'none';
-        if (fallbackFrame) {
-          fallbackFrame.style.display = 'block';
-          try {
-            const fallbackRes = await fetch(fileUrl);
-            if (fallbackRes.ok) {
-              const fallbackBlob = await fallbackRes.blob();
-              fallbackFrame.src = URL.createObjectURL(fallbackBlob);
-            } else {
-              fallbackFrame.src = fileUrl;
-            }
-          } catch (e) {
-            fallbackFrame.src = fileUrl;
-          }
-        }
-      } finally {
-        if (loadingEl) loadingEl.style.display = 'none';
-      }
-    } else {
-      if (loadingEl) loadingEl.style.display = 'none';
-      if (pdfControls) pdfControls.style.display = 'none';
-      if (zoomControls) zoomControls.style.display = 'none';
-      if (fallbackFrame) {
-        fallbackFrame.style.display = 'block';
-        try {
-          const fallbackRes = await fetch(fileUrl);
-          if (fallbackRes.ok) {
-            const fallbackBlob = await fallbackRes.blob();
-            fallbackFrame.src = URL.createObjectURL(fallbackBlob);
-          } else {
-            fallbackFrame.src = fileUrl;
-          }
-        } catch (e) {
-          fallbackFrame.src = fileUrl;
-        }
-      }
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (docTools) docTools.style.display = 'none';
+    if (pdfEl) {
+      pdfEl.style.display = 'block';
+      pdfEl.setAttribute('src', fileUrl);
+    } else if (fallbackFrame) {
+      fallbackFrame.style.display = 'block';
+      fallbackFrame.src = fileUrl;
     }
   } else {
     // Generic file type
+    if (docTools) docTools.style.display = 'none';
     if (zoomControls) zoomControls.style.display = 'none';
     if (genericContainer) {
       genericContainer.style.display = 'flex';
@@ -7789,6 +7696,8 @@ async function init() {
     window.updateNotifications = updateNotifications;
     window.updateDocumentTitle = updateDocumentTitle;
     window.toast = toast;
+    window.openDocumentViewer = openDocumentViewer;
+    window.closePdfViewer = closePdfViewer;
     const serverExcluded = (trip.locations || []).filter(l => l.excluded).map(l => l.id);
     const localExcluded = _prefs.mapExcluded || [];
     state.mapExcluded = new Set([...serverExcluded, ...localExcluded]);

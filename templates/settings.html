@@ -122,6 +122,20 @@
       </svg>
       <span>Cards &amp; Flights</span>
     </button>
+    <button class="settings-tab-btn" data-tab="connection" role="tab" aria-selected="false" aria-controls="paneConnection"
+      id="tabConnection">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+      </svg>
+      <span>EuroTrip Connection</span>
+    </button>
+    <button class="settings-tab-btn" data-tab="sync" role="tab" aria-selected="false" aria-controls="paneSync"
+      id="tabSync">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+      </svg>
+      <span>Smart Sync</span>
+    </button>
     <button class="settings-tab-btn settings-tab-danger" data-tab="danger" role="tab" aria-selected="false"
       aria-controls="paneDanger" id="tabDanger">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -133,7 +147,7 @@
 
   <!-- Mobile Categorized Navigation (Sub-categorii pe mobile) -->
   <nav class="settings-nav-container settings-nav-mobile" aria-label="Settings categories">
-    <!-- Category Bar (Date, Config, Sistem) -->
+    <!-- Category Bar (Date, Config, Sistem, Conexiune) -->
     <div class="settings-category-bar" role="tablist" aria-label="Categorii setări">
       <button type="button" class="settings-cat-btn active" data-category="data" role="tab" aria-selected="true">
         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
@@ -152,6 +166,12 @@
           <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z" />
         </svg>
         <span>Sistem</span>
+      </button>
+      <button type="button" class="settings-cat-btn" data-category="connection" role="tab" aria-selected="false" id="catConnection">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+        <span>Conexiune</span>
       </button>
     </div>
 
@@ -214,6 +234,22 @@
             <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z" />
           </svg>
           <span>Danger Zone</span>
+        </button>
+      </div>
+
+      <!-- 4. Subnav Conexiune: EuroTrip Connection, Smart Sync -->
+      <div class="settings-subnav-bar" data-category="connection" role="tablist" style="display: none;">
+        <button type="button" class="settings-tab-btn" data-tab="connection" role="tab" aria-selected="false" aria-controls="paneConnection">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>Conexiune API</span>
+        </button>
+        <button type="button" class="settings-tab-btn" data-tab="sync" role="tab" aria-selected="false" aria-controls="paneSync">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor">
+            <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z" />
+          </svg>
+          <span>Smart Sync</span>
         </button>
       </div>
     </div>
@@ -854,6 +890,131 @@
             </svg>
             Clear All Locations
           </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB: EUROTRIP CONNECTION ==================== -->
+  <section class="settings-tab-pane" id="paneConnection" role="tabpanel" aria-labelledby="tabConnection"
+    style="display:none;">
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div>
+          <h2 class="settings-card-title">🔌 EuroTrip Remote Connection</h2>
+          <p class="settings-card-desc">Configurează conexiunea cu serverul REST API (ex: https://trip.modo24.ro sau serverul local de dezvoltare) pentru descărcarea și sincronizarea călătoriilor.</p>
+        </div>
+      </div>
+
+      <div class="settings-card-body">
+        <div class="field-group" style="margin-bottom: 16px;">
+          <label class="field-label" for="serverUrlInput" style="font-weight: 600;">API Server URL</label>
+          <input type="url" id="serverUrlInput" class="field-input" placeholder="https://trip.modo24.ro"
+            value="https://trip.modo24.ro" autocomplete="off">
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Adresa serverului backend EuroTrip (ex: https://trip.modo24.ro sau http://192.168.1.X:5000)</p>
+        </div>
+
+        <div class="field-group" style="margin-bottom: 16px;">
+          <label class="field-label" for="serverPasswordInput" style="font-weight: 600;">API Password / Parolă</label>
+          <input type="password" id="serverPasswordInput" class="field-input"
+            placeholder="Introdu parola (ex: spain sau admin_dev_password)" value="" autocomplete="current-password">
+          <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Parola configurată pe server pentru rolul de User sau Admin.</p>
+        </div>
+
+        <div style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <button class="btn-secondary" id="testServerBtn" type="button" style="padding: 9px 18px; display: inline-flex; align-items: center; gap: 6px;">
+            <span>🔍</span> <span>Test &amp; Login</span>
+          </button>
+          <div id="connectionStatusBadge" style="font-weight: 600; font-size: 0.9rem; color: var(--text-muted); display: flex; align-items: center; gap: 6px;">
+            <span id="serverStatusDot" style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; display: inline-block;"></span>
+            <span id="serverStatusText">Untested</span>
+          </div>
+        </div>
+
+        <div id="connectionStatusDetail"
+          style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px; display: none; background: rgba(0,0,0,0.15); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color);">
+        </div>
+
+        <div style="display: flex; gap: 12px; justify-content: space-between; align-items: center; margin-top: 24px; border-top: 1px solid var(--border-color); padding-top: 18px; flex-wrap: wrap;">
+          <button class="btn-secondary exit-app-btn" id="exitAppBtn" type="button"
+            style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3);">
+            Exit App
+          </button>
+          <div style="display: flex; gap: 10px;">
+            <button class="btn-secondary" id="syncApiBtn" type="button" style="font-weight: 600;">Synchronize</button>
+            <button class="btn-primary" id="saveServerSettingsBtn" type="button"
+              style="background: #10b981; font-weight: 600;">Save Configuration</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== TAB: SMART API SYNC ==================== -->
+  <section class="settings-tab-pane" id="paneSync" role="tabpanel" aria-labelledby="tabSync" style="display:none;">
+    <div class="settings-card">
+      <div class="settings-card-header">
+        <div>
+          <h2 class="settings-card-title">⚡ Smart API Synchronization</h2>
+          <p class="settings-card-desc">Verificare inteligentă a modificărilor de date pe server. Previne interogările agresive și economisește bateria și traficul de date.</p>
+        </div>
+      </div>
+
+      <div class="settings-card-body">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 600;">Sincronizare Automată</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Verifică revizia API când aplicația revine din fundal și datele sunt învechite</div>
+            </div>
+            <input type="checkbox" id="syncAutoToggle"
+              style="width: 20px; height: 20px; accent-color: var(--primary-color, #4361ee); cursor: pointer;" checked>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
+            <div>
+              <div style="font-weight: 600;">Interval minim de verificare</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Timpul minim dintre două verificări de revizie pe server</div>
+            </div>
+            <select id="syncIntervalSelect" class="sync-interval-select" autocomplete="off"
+              style="width: auto; min-width: 170px;">
+              <option value="120000">2 minute</option>
+              <option value="300000" selected>5 minute (Recomandat)</option>
+              <option value="900000">15 minute</option>
+              <option value="1800000">30 minute</option>
+              <option value="3600000">1 oră</option>
+            </select>
+          </div>
+
+          <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 12px;">
+            <div>
+              <div style="font-weight: 600;">Doar pe Wi-Fi</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Nu efectua verificări automate pe date mobile celulare</div>
+            </div>
+            <input type="checkbox" id="syncWifiOnlyToggle"
+              style="width: 20px; height: 20px; accent-color: var(--primary-color, #4361ee); cursor: pointer;">
+          </div>
+        </div>
+
+        <!-- Live Diagnostics -->
+        <div style="margin-top: 18px; background: rgba(0,0,0,0.18); border-radius: 8px; padding: 14px; border: 1px solid var(--border-color);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted);">Diagnoză Sincronizare</span>
+            <span id="syncStateBadge"
+              style="font-size: 0.8rem; font-weight: 600; padding: 3px 10px; border-radius: 12px; background: rgba(16,185,129,0.15); color: #10b981;">IDLE</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.82rem;">
+            <div><span style="color:var(--text-muted);">Ultima verificare:</span> <br><strong id="syncLastCheckText">Niciodată</strong></div>
+            <div><span style="color:var(--text-muted);">Ultima sincronizare:</span> <br><strong id="syncLastSyncText">Niciodată</strong></div>
+            <div><span style="color:var(--text-muted);">Revizie server:</span> <br><code id="syncRevisionText" style="font-size:0.75rem; word-break: break-all;">-</code></div>
+            <div><span style="color:var(--text-muted);">Locații în cache:</span> <br><strong id="syncLocationsCountText">-</strong></div>
+          </div>
+          <div style="margin-top: 14px; display: flex; justify-content: flex-end;">
+            <button class="btn-secondary" id="checkUpdatesNowBtn" type="button"
+              style="padding: 8px 16px; font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">
+              <span>🔄</span> <span>Verifică actualizări acum</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -722,7 +722,9 @@
             <div class="doc-spinner"></div>
             <span>Loading document…</span>
           </div>
-          <!-- PDF Canvas container -->
+          <!-- Off-the-shelf Mozilla PDF.js Viewer Web Component -->
+          <pdfjs-viewer-element id="pdfViewerElement" viewer-css-theme="DARK" style="width: 100%; height: 100%; border: none; display: none;"></pdfjs-viewer-element>
+          <!-- Fallback PDF Canvas container -->
           <div id="pdfViewerCanvasContainer" class="pdf-canvas-container" style="display:none;"></div>
           <!-- Image preview container -->
           <div id="imageViewerContainer" class="image-viewer-container" style="display:none;">
