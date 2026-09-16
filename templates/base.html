@@ -55,6 +55,27 @@
         document.title = 'EuroTrip';
       }
     });
+
+    // Early synchronous detection for Android application (Zero FOUC)
+    (function () {
+      try {
+        var p = new URLSearchParams(window.location.search);
+        var isAndroid = !!(
+          window.isAndroidApp === true ||
+          p.get('app') === 'android' ||
+          p.get('platform') === 'android' ||
+          localStorage.getItem('isAndroidApp') === 'true' ||
+          localStorage.getItem('eurotrip_is_android_app') === 'true' ||
+          window.Capacitor ||
+          window.location.protocol === 'capacitor:' ||
+          ((window.location.origin === 'https://localhost' || window.location.origin === 'http://localhost') && /android/i.test(navigator.userAgent)) ||
+          /EuroTrip/i.test(navigator.userAgent)
+        );
+        if (isAndroid) {
+          document.documentElement.classList.add('is-android-app');
+        }
+      } catch (e) { }
+    })();
   </script>
   {% block head %}{% endblock %}
 </head>

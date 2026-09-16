@@ -128,10 +128,9 @@ const TAB_CATEGORIES = {
   danger: 'system'
 };
 
-// Detect if running on mobile device, mobile viewport or Android application
-function isMobileOrAndroid() {
+// Detect if running inside the Android application (Capacitor / native wrapper / EuroTrip app)
+function isAndroidApp() {
   if (typeof window === 'undefined') return false;
-  if (window.innerWidth <= 768) return true;
   if (window.isAndroidApp === true) return true;
   if (document.documentElement.classList.contains('is-android-app') || document.body.classList.contains('is-android-app')) return true;
   try {
@@ -145,14 +144,14 @@ function isMobileOrAndroid() {
   if ((window.location.origin === 'https://localhost' || window.location.origin === 'http://localhost') && /android/i.test(navigator.userAgent)) return true;
 
   const ua = navigator.userAgent || '';
-  if (/EuroTrip/i.test(ua) || /android/i.test(ua) || /mobile|iphone|ipad|ipod/i.test(ua)) return true;
+  if (/EuroTrip/i.test(ua)) return true;
 
   return false;
 }
-const isAndroidApp = isMobileOrAndroid;
+const isMobileOrAndroid = isAndroidApp;
 
 function updateCategoryNav(targetTab) {
-  const allowConnection = isMobileOrAndroid();
+  const allowConnection = isAndroidApp();
   if (allowConnection) {
     document.documentElement.classList.add('is-android-app');
     document.body.classList.add('is-android-app');
@@ -189,12 +188,19 @@ function updateCategoryNav(targetTab) {
   subnavBars.forEach(bar => {
     if (bar.dataset.category === 'connection' && !allowConnection) {
       bar.style.display = 'none';
-      bar.classList.remove('active');
+      bar.classList.remove('active', 'is-active');
+      bar.removeAttribute('data-active');
       return;
     }
     const isCat = bar.dataset.category === cat;
     bar.style.display = isCat ? 'flex' : 'none';
     bar.classList.toggle('active', isCat);
+    bar.classList.toggle('is-active', isCat);
+    if (isCat) {
+      bar.setAttribute('data-active', 'true');
+    } else {
+      bar.removeAttribute('data-active');
+    }
   });
 }
 const updateMobileCategory = updateCategoryNav;

@@ -77,28 +77,6 @@
     </div>
   </header>
 
-  <script>
-    (function () {
-      try {
-        var p = new URLSearchParams(window.location.search);
-        var isAndroid = !!(
-          window.isAndroidApp === true ||
-          p.get('app') === 'android' ||
-          p.get('platform') === 'android' ||
-          localStorage.getItem('isAndroidApp') === 'true' ||
-          localStorage.getItem('eurotrip_is_android_app') === 'true' ||
-          window.Capacitor ||
-          window.location.protocol === 'capacitor:' ||
-          ((window.location.origin === 'https://localhost' || window.location.origin === 'http://localhost') && /android/i.test(navigator.userAgent)) ||
-          /EuroTrip/i.test(navigator.userAgent) ||
-          (/android/i.test(navigator.userAgent) && (/wv|Android.*Version\/[0-9.]+/i.test(navigator.userAgent) || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)))
-        );
-        if (isAndroid) {
-          document.documentElement.classList.add('is-android-app');
-        }
-      } catch (e) { }
-    })();
-  </script>
 
   <!-- Tabs & Categorized Navigation (Desktop & Mobile) -->
   <nav class="settings-nav-container" aria-label="Settings categories">

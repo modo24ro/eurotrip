@@ -13234,17 +13234,25 @@ body.is-zfold-inner .header-nav-group .add-btn svg,
   border-color: rgba(239, 68, 68, 0.35);
 }
 
-/* Conexiune category is hidden on desktop web (screens >= 769px), shown on mobile / android app */
-@media (min-width: 769px) {
-  html:not(.is-android-app) #catConnection,
-  body:not(.is-android-app) #catConnection,
-  html:not(.is-android-app) .settings-subnav-bar[data-category="connection"],
-  body:not(.is-android-app) .settings-subnav-bar[data-category="connection"] {
-    display: none !important;
-  }
+/* Conexiune category is strictly for the Android application - hidden on all Web (desktop & mobile mode) */
+#catConnection,
+.settings-subnav-bar[data-category="connection"] {
+  display: none !important;
 }
 
-/* Ensure mobile subnav buttons for Conexiune and Smart Sync fit comfortably */
+/* Displayed ONLY when running inside the Android application */
+html.is-android-app #catConnection,
+body.is-android-app #catConnection {
+  display: inline-flex !important;
+}
+
+html.is-android-app .settings-subnav-bar[data-category="connection"].active,
+html.is-android-app .settings-subnav-bar[data-category="connection"].is-active,
+html.is-android-app .settings-subnav-bar[data-category="connection"][data-active="true"] {
+  display: flex !important;
+}
+
+/* Ensure subnav buttons for Conexiune and Smart Sync fit comfortably on Android */
 .settings-subnav-bar[data-category="connection"] .settings-tab-btn {
   flex: 1 1 0;
   min-width: 0;
