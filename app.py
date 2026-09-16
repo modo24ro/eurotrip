@@ -2949,7 +2949,6 @@ def get_location_flight_data(loc_id):
 
 @app.route('/api/locations/<loc_id>/flight-refresh', methods=['POST'])
 @require_auth
-@require_role('admin')
 def refresh_location_flight(loc_id):
     trip_id = active_trip_id()
     trip = load_trip_data(trip_id)
@@ -2988,7 +2987,6 @@ def refresh_location_flight(loc_id):
 
 @app.route('/api/locations/<loc_id>/flight-google-enrich', methods=['POST'])
 @require_auth
-@require_role('admin')
 def enrich_location_flight_from_google(loc_id):
     trip_id = active_trip_id()
     trip = load_trip_data(trip_id)
