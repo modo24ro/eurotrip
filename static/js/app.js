@@ -1018,7 +1018,7 @@ function closeRouteOptionsModal() {
 
 function isMapFullscreenActive() {
   const wrap = document.querySelector('.map-view-wrap');
-  return !!(state.isMapFullscreen || document.fullscreenElement || document.webkitFullscreenElement || wrap?.classList.contains('is-fullscreen') || document.body.classList.contains('map-is-fullscreen'));
+  return Boolean(state.isMapFullscreen || wrap?.classList.contains('is-fullscreen') || document.body.classList.contains('map-is-fullscreen'));
 }
 
 function updateMapFullscreenButtons(isFullscreen) {
@@ -5394,23 +5394,24 @@ function bindEvents() {
     const wrap = document.querySelector('.map-view-wrap');
     const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
     if (!isFs) {
-      if (state.view === 'map' && state.isMapFullscreen) {
+      if (state.isMapFullscreen) {
         state.isMapFullscreen = false;
         savePrefs({ isMapFullscreen: false });
         updateMapFullscreenUrl(false);
         if (wrap) wrap.classList.remove('is-fullscreen');
         document.body.classList.remove('map-is-fullscreen');
+        document.documentElement.classList.remove('map-is-fullscreen');
         updateMapFullscreenButtons(false);
         if (state.map) setTimeout(() => state.map?.invalidateSize({ pan: false }), 100);
       }
     } else {
-      state.isMapFullscreen = true;
-      savePrefs({ isMapFullscreen: true });
-      updateMapFullscreenUrl(true);
-      if (wrap) wrap.classList.add('is-fullscreen');
-      document.body.classList.add('map-is-fullscreen');
-      updateMapFullscreenButtons(true);
-      if (state.map) setTimeout(() => state.map?.invalidateSize({ pan: false }), 100);
+      if (state.view === 'map' && state.isMapFullscreen) {
+        if (wrap) wrap.classList.add('is-fullscreen');
+        document.body.classList.add('map-is-fullscreen');
+        document.documentElement.classList.add('map-is-fullscreen');
+        updateMapFullscreenButtons(true);
+        if (state.map) setTimeout(() => state.map?.invalidateSize({ pan: false }), 100);
+      }
     }
   };
   document.addEventListener('fullscreenchange', onFullscreenChange);
