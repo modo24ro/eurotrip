@@ -117,7 +117,6 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
       <div class="drawer-flight-header">
         <div class="drawer-flight-meta">
           <span class="drawer-flight-airline">${esc(flight.airline || 'Zbor')}</span>
-          <span class="drawer-flight-code">${esc((flight.flight_number || flight.flight_iata || loc.flight_number || '').toUpperCase())}</span>
         </div>
         <div class="drawer-flight-header-right">
           ${hasDelay ? `
@@ -194,7 +193,7 @@ export function renderFlightCardHTML(container, loc, flight, fromCache = true) {
           </div>
         </div>
         <button type="button" class="btn-secondary btn-sm drawer-flight-refresh-btn" data-loc-id="${esc(loc.id)}" title="Actualizează datele de zbor">
-          <span class="btn-refresh-icon">🔄</span>
+          <span class="btn-refresh-icon" aria-hidden="true"><svg class="refresh-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/></svg></span>
           <span class="btn-refresh-text">Actualizează Zbor</span>
         </button>
       </div>
@@ -341,7 +340,7 @@ export function openFlightModal(locId) {
 
   const flightCode = (loc.flight_number || loc.flight_data?.flight_number || loc.flight_data?.flight_iata || 'Zbor').toUpperCase();
   if (titleEl) {
-    titleEl.textContent = `Detalii Zbor · ${flightCode}`;
+    titleEl.innerHTML = `Detalii Zbor · <span class="modal-title-flight-code drawer-flight-code">${esc(flightCode)}</span>`;
   }
 
   const f = loc.flight_data || null;

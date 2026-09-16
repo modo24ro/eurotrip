@@ -4548,7 +4548,7 @@ function bindEvents() {
         if (viewerApp && typeof viewerApp.close === 'function') {
           viewerApp.close();
         }
-      } catch (_) {}
+      } catch (_) { }
     }
     const frame = document.getElementById('pdfViewerFrame');
     if (frame) frame.src = 'about:blank';
@@ -5566,7 +5566,7 @@ async function handleCardClick(e) {
     const btn = actionEl;
     const originalHTML = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="btn-spin">⟳</span> Se verifică…';
+    btn.innerHTML = '<span class="btn-spin">🔄</span> Se verifică…';
     const locId = actionEl.dataset.locId || id;
     try {
       const res = await fetch(`/api/locations/${encodeURIComponent(locId)}/flight-refresh`, { method: 'POST' });
@@ -7726,7 +7726,7 @@ function switchModalTab(cardOrContainer, targetTabName) {
     if (isActive) {
       try {
         btn.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
-      } catch (e) {}
+      } catch (e) { }
     }
   });
 

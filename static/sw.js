@@ -1,4 +1,4 @@
-const CACHE_NAME = 'eurotrip-v62';
+const CACHE_NAME = 'eurotrip-v74';
 const STATIC_ASSETS = [
   '/static/css/style.css',
   '/static/js/app.js',
