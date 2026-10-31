@@ -1,6 +1,8 @@
 import io
 import unittest
 import json
+from tests import setup_test_fixtures
+setup_test_fixtures()
 from app import app, load_trip_data
 
 

@@ -3,6 +3,8 @@ import sys
 import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from tests import setup_test_fixtures
+setup_test_fixtures()
 from app import app, generate_attachment_token
 
 
