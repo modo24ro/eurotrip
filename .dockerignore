@@ -24,14 +24,17 @@ ENV/
 .coverage
 htmlcov/
 
-# Local data & temporary backups
+# Local data, secrets & runtime files
+.env
+.env.*
+config.json
+api_requests_log.json
 .save/
 scratch/
 cert.pem
 key.pem
-
-# Markdown documentation files not required in container
-API_ROUTES.md
-GHID_REZOLVARE_AUTHENTICATION_REQUIRED_ANDROID.md
-PROMPT_*.md
-EuroTripApiClient.kt
+*.bak
+*.backup*
+trips/*/backup/
+trips/*/versions/
+trips/*/flight_cache/

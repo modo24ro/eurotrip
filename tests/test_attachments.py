@@ -236,9 +236,11 @@ class TestMobileIntegration(unittest.TestCase):
 
     def test_form_login_and_header_session(self):
         # 1. Mobile form-urlencoded login returns JSON and session_token
+        from app import load_config
+        user_pwd = load_config().get('user_password', 'user123')
         res_login = self.client.post(
             '/login',
-            data={'password': 'spain', 'remember': '1'},
+            data={'password': user_pwd, 'remember': '1'},
             headers={'Origin': 'http://localhost', 'Accept': '*/*'}
         )
         self.assertEqual(res_login.status_code, 200)

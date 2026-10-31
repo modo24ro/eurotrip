@@ -114,7 +114,7 @@ def build_fallback_flight_data(flight_iata, airline_iata=None, flight_num=None, 
     }
 
 def get_aviation_key():
-    return os.environ.get('AVIATION_KEY', 'your_aviation_api_key_here')
+    return os.environ.get('AVIATION_KEY', '')
 
 def get_flight_cache_dir(trips_dir, trip_id):
     cache_dir = os.path.join(trips_dir, trip_id, 'flight_cache')

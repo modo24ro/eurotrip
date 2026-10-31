@@ -394,22 +394,22 @@ def parse_places(data):
 
 def load_config():
     default = {
-        'admin_password': 'admin123',
-        'user_password': 'user123',
+        'admin_password': os.environ.get('ADMIN_PASSWORD', 'admin123'),
+        'user_password': os.environ.get('USER_PASSWORD', 'user123'),
         'timezone_mode': 'romania',
         'timezone': 'Europe/Bucharest'
     }
     if not os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-            json.dump(default, f, ensure_ascii=False, indent=2)
         return default
     try:
         with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
         if not isinstance(data, dict):
             return default
-        data.setdefault('admin_password', 'admin123')
-        data.setdefault('user_password', 'user123')
+        env_admin = os.environ.get('ADMIN_PASSWORD')
+        env_user = os.environ.get('USER_PASSWORD')
+        data['admin_password'] = env_admin if env_admin else data.get('admin_password', 'admin123')
+        data['user_password'] = env_user if env_user else data.get('user_password', 'user123')
         data.setdefault('timezone_mode', 'romania')
         data.setdefault('timezone', 'Europe/Bucharest')
         return data
@@ -418,8 +418,11 @@ def load_config():
 
 
 def save_config(cfg):
+    to_save = dict(cfg)
+    to_save.pop('admin_password', None)
+    to_save.pop('user_password', None)
     with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
-        json.dump(cfg, f, ensure_ascii=False, indent=2)
+        json.dump(to_save, f, ensure_ascii=False, indent=2)
 
 
 def get_server_timezone_info():

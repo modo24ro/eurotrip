@@ -1,9 +1,17 @@
+import os
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 FLIGHT_IATA = 'W43686'  # Wizz Air W4 3685
 
+api_key = os.environ.get('AVIATION_KEY', '')
+if not api_key:
+    print('AVIATION_KEY is not set in environment or .env')
+
 params = {
-    'access_key': 'your_aviation_api_key_here',
+    'access_key': api_key,
     'airline_iata': 'W4',     # filtreaza dupa companie (suportat pe planul free)
     'limit': 100
 }
