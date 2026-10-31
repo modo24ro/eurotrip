@@ -2771,7 +2771,7 @@ body.map-is-fullscreen .toast-container {
   z-index: 100001 !important;
 }
 
-/* Hide top header and bottom navigation when any modal or document viewer is open */
+/* Freeze background scrolling when any modal or document viewer is open */
 html.doc-viewer-open,
 body.doc-viewer-open,
 html.modal-open,
@@ -2782,16 +2782,18 @@ body:has(.modal-overlay.open) {
   overscroll-behavior: none !important;
 }
 
+/* Completely freeze background elements from mouse interactions, dragging, selection, and scrolling when any modal or document viewer is open */
 body.doc-viewer-open .app-header,
 body.doc-viewer-open .mobile-nav,
+body.doc-viewer-open #mainContent,
+body.doc-viewer-open .main-content,
+body.doc-viewer-open .controls-bar,
+body.doc-viewer-open .sub-bar,
+body.doc-viewer-open #tripMap,
 body.modal-open .app-header,
 body.modal-open .mobile-nav,
 body:has(.modal-overlay.open) .app-header,
-body:has(.modal-overlay.open) .mobile-nav {
-  display: none !important;
-}
-
-/* Completely freeze background elements from mouse interactions, dragging, selection, and scrolling when any modal is open */
+body:has(.modal-overlay.open) .mobile-nav,
 body.modal-open #mainContent,
 body.modal-open .main-content,
 body.modal-open .controls-bar,
@@ -9344,6 +9346,16 @@ select option,
   max-width: 300px;
   animation: toastIn 0.25s ease both;
   cursor: pointer;
+}
+
+.toast strong {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.toast em {
+  font-style: italic;
+  color: var(--text-secondary);
 }
 
 @keyframes toastIn {
