@@ -72,10 +72,7 @@ backup/
 *.backup*
 
 # --- Local User Data & Sensitive Attachments ---
-trips/*/backup/
-trips/*/versions/
-trips/*/flight_cache/
-trips/test/versions/
+trips/
 
 # --- Local Scratch & Automation Artifacts ---
 scratch/
