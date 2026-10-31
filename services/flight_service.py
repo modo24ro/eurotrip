@@ -251,7 +251,7 @@ def query_aviationstack_api(flight_iata, loc=None):
     if use_aviationstack in ('0', 'false', 'no', 'off') or google_flights_only in ('1', 'true', 'yes', 'on'):
         logger.info("AviationStack API este dezactivat temporar prin .env (se folosește exclusiv Web Flight Service - flightinformation.com / flight.info).")
         try:
-            import web_flight_service
+            from . import web_flight_service
             w_data, w_err = web_flight_service.fetch_web_flight_data(clean_iata, loc)
             if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
                 return w_data, None
@@ -317,7 +317,7 @@ def query_aviationstack_api(flight_iata, loc=None):
     if match:
         normalized = normalize_flight_data(match, clean_iata)
         try:
-            import web_flight_service
+            from . import web_flight_service
             w_data, _ = web_flight_service.fetch_web_flight_data(clean_iata, loc)
             if w_data:
                 if not normalized.get('duration') and w_data.get('duration'):
@@ -331,7 +331,7 @@ def query_aviationstack_api(flight_iata, loc=None):
     # If the flight is not active today on radar (e.g. future date or operates on other days),
     # query web_flight_service (flightinformation.com / flight.info) for scheduled flight route & times!
     try:
-        import web_flight_service
+        from . import web_flight_service
         w_data, w_err = web_flight_service.fetch_web_flight_data(clean_iata, loc)
         if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
             return w_data, None

@@ -24,8 +24,7 @@ from werkzeug.http import parse_etags, parse_date
 from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from dotenv import load_dotenv
 load_dotenv()
-import flight_service
-import google_flight_service
+from services import flight_service, google_flight_service, web_flight_service
 
 
 app = Flask(__name__)
@@ -2927,7 +2926,7 @@ def get_location_flight_data(loc_id):
 
     # Supplementary check via Web Flight Service (flightinformation.com / flight.info)
     try:
-        import web_flight_service
+        from services import web_flight_service
         w_data, _ = web_flight_service.fetch_web_flight_data(flight_num, loc)
         if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
             if normalized.get('is_fallback') or not normalized.get('departure', {}).get('iata') or not normalized.get('arrival', {}).get('iata'):
@@ -2969,7 +2968,7 @@ def refresh_location_flight(loc_id):
 
     if err or not normalized or normalized.get('is_fallback'):
         try:
-            import web_flight_service
+            from services import web_flight_service
             w_data, _ = web_flight_service.fetch_web_flight_data(flight_num, loc)
             if w_data and (w_data['departure'].get('iata') or w_data['departure'].get('scheduled')):
                 normalized = w_data
